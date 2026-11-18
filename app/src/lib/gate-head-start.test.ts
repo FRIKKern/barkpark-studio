@@ -1,39 +1,45 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {readMeWithHeadStart} from './gate-head-start.ts'
+import {handOff, headStartAllowed, letsIn, readMeWithHeadStart} from './gate-head-start.ts'
+import type {TokenSelf} from './token-self.ts'
 
-// A fake Barkpark: each read answers after `ms`.
-const after = <T,>(ms: number, v: T) => new Promise<T>((r) => setTimeout(r, ms, v))
-type Me = {email: string | null; noSeat?: boolean}
-const letsIn = (me: Me) => !!me.email && !me.noSeat
+/** A read whose answer the test gives when it chooses. */
+const deferred = <T,>() => {
+  let answer!: (v: T) => void
+  const promise = new Promise<T>((r) => (answer = r))
+  return {promise, answer}
+}
+const tick = () => new Promise((r) => setImmediate(r))
+type Me = {signIn: string; email: string | null; noSeat?: boolean}
 
-test('the chain reads start beside me: the wait is the longest read, not the sum', async () => {
-  const t0 = Date.now()
-  let started = 0
-  const {me, ahead} = await readMeWithHeadStart({
+test('the chain reads start beside me: before me answers, not after it', async () => {
+  const log: string[] = []
+  const me = deferred<Me>()
+  const chain = deferred<string>()
+  const done = readMeWithHeadStart({
     cookieLetsIn: async () => true,
-    readMe: () => after(120, {email: 'ada@example.com'}),
-    start: () => ((started = Date.now() - t0), after(120, {desk: null, schemas: ['post']})),
+    readMe: () => (log.push('me asked'), me.promise),
+    start: () => (log.push('chain started'), chain.promise),
     letsIn,
   })
-  assert.equal(me.email, 'ada@example.com')
-  assert.ok(started < 30, `the desk and schema reads started before me answered (at ${started} ms)`)
-  assert.deepEqual(await ahead, {desk: null, schemas: ['post']})
-  const took = Date.now() - t0
-  assert.ok(took < 200, `me and the chain's first round trip took ${took} ms, not 240`)
+  await tick()
+  assert.deepEqual(log, ['chain started', 'me asked'], 'both are on their way while neither has answered')
+  chain.answer('desk + schemas')
+  me.answer({signIn: 'account', email: 'ada@example.com'})
+  const {ahead} = await done
+  assert.equal(await ahead, 'desk + schemas')
 })
 
-test('me refuses (signed out, no seat): the head start is dropped, its reads never reach the page', async () => {
-  for (const refused of [{email: null}, {email: 'ada@example.com', noSeat: true}]) {
+test('me refuses (signed out, no seat, studio token refused): the head start is dropped, its reads never reach the page', async () => {
+  for (const refused of [{signIn: 'account', email: null}, {signIn: 'account', email: 'ada@example.com', noSeat: true}, {signIn: 'shared', email: null, studioTokenRefused: true}]) {
     const page = new Map<string, unknown>() // what the request's client would hold
     let ran = false
     const {me, ahead} = await readMeWithHeadStart({
       cookieLetsIn: async () => true, // the cookie said yes; Barkpark then says no
-      readMe: () => after(40, refused),
-      start: () => ((ran = true), after(5, {desk: null, schemas: ['post'], list: ['post-01']})),
+      readMe: async () => (await tick(), refused),
+      start: () => ((ran = true), Promise.resolve({desk: null, schemas: ['post'], list: ['post-01']})),
       letsIn,
     })
-    await after(20, null) // the head start has answered by now
     if (ahead) page.set('chain', await ahead)
     assert.equal(ran, true)
     assert.equal(ahead, undefined, `nothing handed on for ${JSON.stringify(refused)}`)
@@ -44,7 +50,77 @@ test('me refuses (signed out, no seat): the head start is dropped, its reads nev
 
 test('a cookie that would not get in starts nothing: a signed-out request reads only me', async () => {
   let ran = false
-  const {ahead} = await readMeWithHeadStart({cookieLetsIn: async () => false, readMe: () => after(5, {email: null}), start: () => ((ran = true), after(5, {})), letsIn})
+  const {ahead} = await readMeWithHeadStart({cookieLetsIn: async () => false, readMe: async () => ({signIn: 'account', email: null}), start: () => ((ran = true), 1), letsIn})
   assert.equal(ran, false)
   assert.equal(ahead, undefined)
+})
+
+test('the head start waits for me when Barkpark already refused the token or found no seat (from memory)', async () => {
+  const ok: TokenSelf = {permissions: ['read', 'write'], boundDataset: null}
+  const refused: TokenSelf = {permissions: [], boundDataset: null, refused: true}
+  const seatless: TokenSelf = {permissions: [], boundDataset: null}
+  const knows = (self?: TokenSelf) => () => (self ? Promise.resolve(self) : undefined)
+  const ada = {token: 'ada-token'}
+  assert.equal(await headStartAllowed('account', undefined, 'studio', knows()), false, 'signed out')
+  assert.equal(await headStartAllowed('account', ada, 'studio', knows()), true, 'signed in, not asked lately')
+  assert.equal(await headStartAllowed('account', ada, 'studio', knows(ok)), true)
+  assert.equal(await headStartAllowed('account', ada, 'studio', knows(refused)), false, 'a refused token')
+  assert.equal(await headStartAllowed('sso', ada, 'studio', knows(seatless)), false, 'no seat here')
+  assert.equal(await headStartAllowed('shared', undefined, 'studio', knows()), true)
+  assert.equal(await headStartAllowed('shared', undefined, 'studio', knows(refused)), false, "the studio's token refused")
+})
+
+test('letsIn: in when signed in or shared, with a seat and a live studio token', () => {
+  assert.equal(letsIn({signIn: 'shared', email: null}), true)
+  assert.equal(letsIn({signIn: 'account', email: 'ada@example.com'}), true)
+  assert.equal(letsIn({signIn: 'account', email: null}), false)
+  assert.equal(letsIn({signIn: 'account', email: 'ada@example.com', noSeat: true}), false)
+  assert.equal(letsIn({signIn: 'shared', email: null, studioTokenRefused: true}), false)
+})
+
+test('the hand-off to the loader is per request and taken once', () => {
+  const held = handOff<object, string>()
+  const a = {}
+  const b = {}
+  held.put(a, 'a chain')
+  assert.equal(held.take(b), undefined, "another request's loader finds none")
+  assert.equal(held.take(a), 'a chain')
+  assert.equal(held.take(a), undefined, 'taken once')
+})
+
+test('a dead token, loaded twice: the first load costs main\'s calls plus the two content-model reads, a replay what main costs; one logout per load', async () => {
+  // A fake Barkpark that refuses the token, and the studio's minute-long memory of what it said.
+  const calls: string[] = []
+  const said = new Map<string, Promise<TokenSelf>>()
+  const describe = (token: string) => {
+    if (!said.has(token)) said.set(token, (calls.push('GET /v1/auth/token'), Promise.resolve({permissions: [], boundDataset: null, refused: true})))
+    return said.get(token)!
+  }
+  let named = false
+  const load = async () => {
+    const before = calls.length
+    let logouts = 0
+    const signedOut = new Set<string>() // this request's (server/auth.ts signOut)
+    const signOut = () => signedOut.has('done') || (signedOut.add('done'), logouts++, calls.push('DELETE /v1/auth/logout'))
+    const read = (path: string) => async () => (calls.push(`GET ${path}`), signOut()) // 401: signs out
+    const editor = {token: 'dead'}
+    await readMeWithHeadStart({
+      cookieLetsIn: () => headStartAllowed('account', editor, 'studio', (t) => said.get(t)),
+      readMe: async () => {
+        if (!named) (named = true), calls.push('GET /v1/auth/me') // displayName, kept a minute
+        const self = await describe(editor.token)
+        if (self.refused) signOut()
+        return {signIn: 'account', email: null}
+      },
+      start: () => Promise.all([read('/v1/schemas')(), read('/v1/data/doc/…/deskStructure')()]),
+      letsIn,
+    })
+    await tick()
+    return {made: calls.slice(before), logouts}
+  }
+  const first = await load()
+  assert.deepEqual(first.made.sort(), ['DELETE /v1/auth/logout', 'GET /v1/auth/me', 'GET /v1/auth/token', 'GET /v1/data/doc/…/deskStructure', 'GET /v1/schemas'])
+  assert.equal(first.logouts, 1)
+  const replay = await load()
+  assert.deepEqual(replay.made, ['DELETE /v1/auth/logout'], "a replay of the cookie: main's one call")
 })
