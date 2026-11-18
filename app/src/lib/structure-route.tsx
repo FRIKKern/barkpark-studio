@@ -2,14 +2,15 @@ import {QueryClient, useQuery} from '@tanstack/react-query'
 import {setPresenceSelf, usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
-import {anyDocQuery, cachedDoc, deskQuery, docQuery, ensureAnyDocs, ensureDocs, refId, fetchResumeMark, fetchViewportHint, listQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
-import {deskIndex, deskSort, listFilter, parseDeskPanes, rootDesk, unsupportedOps} from './desk'
+import {anyDocQuery, cachedDoc, deskQuery, docQuery, ensureAnyDocs, ensureDocs, refId, fetchModelScope, fetchResumeMark, fetchViewportHint, listQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
+import {deskIndex, deskSort, listFilter, parseDeskPanes, rootDesk, unsupportedOps, type DeskNode} from './desk'
 import {parseSingletonPanes, type Pane} from './panes'
 import {startsAtStudioItem, studioDesk} from './structure-config'
 import {loadRefs, mediaRefs, previewRefs, textRefs} from './preview'
 import {chainMayStart, meQuery, provisionalMe} from './session'
 import {withinBudget} from './ssr-budget'
 import {handOff, letsIn, readMeWithHeadStart} from './gate-head-start'
+import {adopt, modelMemory, modelWithReadsAhead, type Ahead} from './early-reads'
 import {DEFAULT_SORT, fetchListPrefs, ListPrefsContext, readListPrefsCookie, writeListPrefs, type ListPrefs} from './list-prefs'
 import {useEffect, useState} from 'react'
 import {useLivePausedToast, useReconnectingToast} from './connection'
@@ -70,8 +71,10 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   // On a scratch client, so a chain past the budget never holds the page: the request's
   // client streams every query it holds, and the page waited for each to land. The one
   // requireEditor began beside `me`, when it let this person in.
-  const scratch = headStarts.take(queryClient) ?? new QueryClient({defaultOptions: {queries: {retry: false}}})
-  const chain = loadPaneChain(scratch, splat, published)
+  const ahead = headStarts.take(queryClient)
+  const scratch = ahead ?? new QueryClient({defaultOptions: {queries: {retry: false}}})
+  // Let in by the head start: the URL's reads may also begin on the model last read (lib/early-reads.ts).
+  const chain = loadPaneChain(scratch, splat, published, !!ahead)
   const inTime = await Promise.race([chain, new Promise<null>((r) => setTimeout(r, SSR_BUDGET_MS, null))])
   if (!inTime) {
     chain.catch(() => {})
@@ -82,7 +85,10 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   return inTime
 }
 
-async function loadPaneChain(queryClient: QueryClient, splat: string | undefined, published = false): Promise<PanesData> {
+/** The content model a server render last read, per workspace, project and dataset. */
+const models = modelMemory<[DeskNode | null, Schema[]]>()
+
+async function loadPaneChain(queryClient: QueryClient, splat: string | undefined, published = false, readAhead = false): Promise<PanesData> {
   const onServer = typeof window === 'undefined'
   // The desk and the schemas are settled reads, kept across the resume mark (server/barkpark.ts
   // forgetReads): they start with it rather than after it.
@@ -98,20 +104,58 @@ async function loadPaneChain(queryClient: QueryClient, splat: string | undefined
   ])
   // B12: a declared desk decides what the URL's segments name.
   // B13: without a desk, a singleton type's segment is its one doc, so schemas come first too.
-  const [desk, schemas] = await model
+  // On the server, let in by the head start: the reads below begin on the model last read here,
+  // used only if the fresh model is that one (lib/early-reads.ts).
+  const {model: [desk, schemas], ahead} = readAhead && onServer
+    ? await modelWithReadsAhead({key: await fetchModelScope(), memory: models, model, begin: (known) => readsAhead(splat, published, known, hints)})
+    : {model: await model, ahead: undefined}
+  const {panes: parsed, nodes} = panesOf(splat, desk, schemas)
+  const panes = await Promise.all(parsed.map((p) => (p.kind === 'doc' && p.untyped ? typeOf(queryClient, p) : p)))
+  const [widthHint, listPrefs] = await hints
+  await adopt(ahead, (key) => queryClient.getQueryData(key) !== undefined, (key, data) => queryClient.setQueryData(key, data))
+  const data = paneReads(queryClient, panes, nodes, schemas, listPrefs, published)
+  if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, 0, false))]))) {
+    void data.then(([listed, open]) => followRefs(queryClient, schemas, listed, open))
+    return {panes, widthHint, listPrefs, resume}
+  }
+  const [listed, open] = await data
+  const refs = followRefs(queryClient, schemas, listed, open)
+  if (onServer) await refs
+  return {panes, widthHint, listPrefs, resume}
+}
+
+/** What the URL's segments name under this desk and these schemas, and the desk's nodes. */
+function panesOf(splat: string | undefined, desk: DeskNode | null, schemas: Schema[]) {
   // J18: without one, the studio's own structure items still name their segments.
   const own = desk ? null : studioDesk()
-  const parsed = desk ? parseDeskPanes(splat, desk) : own && startsAtStudioItem(splat) ? parseDeskPanes(splat, own) : parseSingletonPanes(splat, new Set(schemas.filter((s) => s.singleton).map((s) => s.name)))
-  const panes = await Promise.all(parsed.map((p) => (p.kind === 'doc' && p.untyped ? typeOf(queryClient, p) : p)))
+  const panes = desk ? parseDeskPanes(splat, desk) : own && startsAtStudioItem(splat) ? parseDeskPanes(splat, own) : parseSingletonPanes(splat, new Set(schemas.filter((s) => s.singleton).map((s) => s.name)))
   const root = rootDesk(desk, own)
-  const nodes = root ? deskIndex(root) : undefined
-  const [widthHint, listPrefs] = await hints
+  return {panes, nodes: root ? deskIndex(root) : undefined}
+}
+
+/**
+ * The chain's list and doc reads on the remembered model, on a client of their own: nothing of
+ * them reaches the page unless adopt() takes it. A doc segment of unknown type is left to the chain.
+ */
+function readsAhead(splat: string | undefined, published: boolean, [desk, schemas]: [DeskNode | null, Schema[]], hints: Promise<[number, ListPrefs]>): Ahead<readonly unknown[]> {
+  const own = new QueryClient({defaultOptions: {queries: {retry: false}}})
+  const {panes, nodes} = panesOf(splat, desk, schemas)
+  const typed = panes.filter((p) => !(p.kind === 'doc' && p.untyped))
+  return {
+    // The docs now; the lists once the list prefs say their sort (signed in, a read of its own).
+    done: Promise.all([paneReads(own, typed.filter((p) => p.kind !== 'list'), nodes, schemas, {}, published), hints.then(([, listPrefs]) => paneReads(own, typed.filter((p) => p.kind === 'list'), nodes, schemas, listPrefs, published))]).catch(() => {}),
+    read: () => own.getQueryCache().getAll().flatMap((q) => (q.state.status === 'success' ? [[q.queryKey, q.state.data] as [readonly unknown[], unknown]] : [])),
+  }
+}
+
+/** The panes' own reads: the lists and the open docs (with their published versions on the Published perspective). */
+function paneReads(queryClient: QueryClient, panes: Pane[], nodes: ReturnType<typeof deskIndex> | undefined, schemas: Schema[], listPrefs: ListPrefs, published: boolean) {
   // The list and the open docs don't depend on each other: one round trip, not two.
   // J50: a read that fails is that pane's to show (error card, Retry), not the route's.
   // J51: in the browser a click never waits on the network: what is cached paints at
   // once, anything else paints its pane now and fills in (like Sanity's panes).
   const settle = <T,>(p: Promise<T>) => p.catch(() => undefined)
-  const data = Promise.all([
+  return Promise.all([
     Promise.all(
       panes.flatMap((p) => {
         if (p.kind !== 'list' || !schemaOf(schemas, p.type)) return []
@@ -128,14 +172,6 @@ async function loadPaneChain(queryClient: QueryClient, splat: string | undefined
     // (a hydration mismatch: a singleton under ?perspective=published, B13).
     Promise.all(published ? panes.flatMap((p) => (p.kind === 'doc' && schemaOf(schemas, p.type) ? [settle(queryClient.ensureQueryData(publishedQuery(p.type, p.id)))] : [])) : []),
   ])
-  if (!onServer && !(await Promise.race([data.then(() => true), new Promise<false>((r) => setTimeout(r, 0, false))]))) {
-    void data.then(([listed, open]) => followRefs(queryClient, schemas, listed, open))
-    return {panes, widthHint, listPrefs, resume}
-  }
-  const [listed, open] = await data
-  const refs = followRefs(queryClient, schemas, listed, open)
-  if (onServer) await refs
-  return {panes, widthHint, listPrefs, resume}
 }
 
 /**
@@ -203,7 +239,7 @@ async function ensureRefs(qc: QueryClient, schemas: Schema[], docs: (readonly [D
     }
     if (allRefs)
       for (const f of schema.fields) {
-        if (f.type === 'reference') want(f, doc[f.name])
+        if (f.type === 'reference') want(f, refId(doc[f.name]))
         if (f.type === 'arrayOf' && f.of?.type === 'reference') for (const item of (doc[f.name] as unknown[]) ?? []) want(f.of, refId(item))
       }
   }

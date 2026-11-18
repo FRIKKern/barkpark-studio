@@ -1,5 +1,5 @@
 import {randomBytes} from 'node:crypto'
-import {expect, test} from '../rig/test'
+import {expect, test, type Page} from '../rig/test'
 import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // A cancelled upload leaves no asset on Barkpark. The browser hands the studio server the
@@ -9,6 +9,12 @@ import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
 // (server/client-gone.ts), while the dev server passed.
 const base = () => `${process.env.BARKPARK_URL}/w/${process.env.BARKPARK_WORKSPACE}/p/${process.env.BARKPARK_PROJECT || 'default'}`
 const auth = () => ({authorization: `Bearer ${process.env.BARKPARK_TOKEN}`})
+// The studio server's uploads, handled now and finished (GET /api/e2e-listen, STUDIO_E2E_HOOKS=1;
+// app/src/server/upload-relays.ts); undefined with the hooks off.
+const relays = async (page: Page) => {
+  const r = await page.request.get('/api/e2e-listen')
+  return r.ok() ? ((await r.json()) as {uploads?: {relaying: number; ended: number; sending: number}}).uploads : undefined
+}
 const named = async (name: string) =>
   ((await (await fetch(`${base()}/v1/media/${process.env.BARKPARK_DATASET}?limit=50`, {headers: auth()})).json()) as {result: {assets: {id: string; originalName?: string}[]}}).result.assets.filter((a) => a.originalName === name)
 
@@ -25,6 +31,7 @@ test('J54: a cancelled upload leaves no asset on Barkpark', async ({page}, info)
   await t.settle(page)
   await page.getByRole('tab', {name: 'Meta'}).click()
   const field = page.locator('.field').filter({has: page.locator('.file-input')}).last()
+  const before = await relays(page)
   // 12 MB: some seconds from the studio server to Barkpark.
   await field.locator('input[type="file"]').setInputFiles({name, mimeType: 'application/pdf', buffer: Buffer.concat([Buffer.from('%PDF-1.4\n'), randomBytes(12 * 1024 * 1024), Buffer.from('\n%%EOF\n')])})
   const card = field.getByRole('status', {name: `Uploading ${name}`})
@@ -32,8 +39,18 @@ test('J54: a cancelled upload leaves no asset on Barkpark', async ({page}, info)
   await card.getByRole('button', {name: 'Cancel'}).click()
   await expect(card).toBeHidden()
   try {
-    // Long enough for Barkpark to have taken it, had it gone on (it answers in 0.6-1.4 s).
-    await page.waitForTimeout(4000)
+    // The server's part over: this upload's handler has ended, whatever it did (cut the send
+    // off, or awaited Barkpark's answer and deleted what it made), and no send to Barkpark is
+    // still open (one that went on regardless is waited out to its answer). Then long enough
+    // for Barkpark to have made an asset from what it got (it answers in 0.6-1.4 s).
+    // Without the hooks: 4 s from the cancel, as before.
+    if (before) {
+      await expect.poll(async () => {
+        const now = await relays(page)
+        return !!now && now.ended > before.ended && now.relaying === 0 && now.sending === 0
+      }, {message: 'the upload has ended on the studio server and on its way to Barkpark', timeout: 15_000}).toBe(true)
+      await page.waitForTimeout(1500)
+    } else await page.waitForTimeout(4000)
     expect(await named(name), 'no asset left on Barkpark').toEqual([])
   } finally {
     for (const a of await named(name)) await fetch(`${base()}/v1/media/${process.env.BARKPARK_DATASET}/${a.id}`, {method: 'DELETE', headers: auth()})

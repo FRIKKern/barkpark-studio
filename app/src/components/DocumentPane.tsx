@@ -11,7 +11,7 @@ import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, formOrder, validate, worst, type Problem} from '../lib/validation'
 import {advisoryProblems} from '../lib/findings'
-import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
+import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
 import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
@@ -161,9 +161,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // J13: the schema's rules, checked as you type (the draft only; published is what it is).
   const schemaForPane = schemaOf(schemas, pane.type)
   // The docs this one's reference fields point at (cached already for their previews).
-  const refFields = (schemaForPane?.fields ?? []).filter((f) => f.type === 'reference' && typeof doc?.[f.name] === 'string')
-  const targets = useQueries({queries: refFields.map((f) => docQuery(refTypesOf(f), doc![f.name] as string))})
-  const byId = new Map(refFields.map((f, i) => [doc![f.name] as string, targets[i].data]))
+  // A bare id or Sanity's {_ref} alike (an import, a weak reference).
+  const refFields = (schemaForPane?.fields ?? []).filter((f) => f.type === 'reference' && refId(doc?.[f.name]))
+  const targets = useQueries({queries: refFields.map((f) => docQuery(refTypesOf(f), refId(doc![f.name])!))})
+  const byId = new Map(refFields.map((f, i) => [refId(doc![f.name])!, targets[i].data]))
   // J18: a new doc nobody has typed in yet exists only here; Sanity checks nothing until the first edit.
   const pristine = isPristine(doc, useSaveState(pane.id).state)
   // D04: on a doc made here, fields stay quiet until someone types (its initial values or an

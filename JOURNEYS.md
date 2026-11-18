@@ -34,7 +34,7 @@ status lives on the task board. A scout's honest gap adds a row: never a shrinki
 | J24 | 1 | List search filters as you type; "no matching" and "no documents" empty states | F1 F2 |
 | J25 | 1 | List "…" menu: sort by created / last edited, compact / detailed view; sticks per type | F2 F10 |
 | J26 | 1 | Split pane right on a doc, edit both sides, close the split; focus mode hides the navigation and back | F2 F6 |
-| J27 | 1 | Odd reference states: missing doc (+ Clear), draft-only target badge, search respects the field filter, "Create new" asks which type | F9 |
+| J27 | 1 | Odd reference states: missing doc (+ Clear), draft-only target badge, search respects the field filter, "Create new" asks which type; weak references (`weak: true` stores `_weak`, a never-published pick stays weak until Publish makes it strong, a strength the schema disagrees with shows Convert) | F9 |
 | J28 | 2 | Doc actions menu: Duplicate (opens in place), copy ID / URL; Inspect (Ctrl+Alt+I) raw JSON | F2 F5 |
 | J29 | 2 | Field "…" menu: copy / paste a field or whole doc; clear error when types don't match | F9 |
 | J30 | 2 | Conditional fields: hidden / read-only react instantly, no layout jump, focus kept; by the editor's role too (`form.conditions` callbacks with `currentUser`; a hidden value is kept, Paste document skips a locked field). A deprecated field shows Sanity's badge and reason, still editable; a deprecated Portable Text block type stays in Insert, disabled, its reason the tooltip | F1 F10 |
