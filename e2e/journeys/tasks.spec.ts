@@ -11,14 +11,15 @@ test('J66: create a task on a document, comment on it, duplicate it, see it unde
   test.skip(t.name === 'sanity', 'the reference refuses writes; its create form and panel are the clip')
   await t.prepare(page.context())
   // Tasks and comments are the studio's own records (declared, hidden types): not in the
-  // desk's type list.
-  await page.goto('/structure')
+  // desk's type list. Read in a tab of its own, loaded alongside the document.
+  const desk = await page.context().newPage()
+  await Promise.all([desk.goto('/structure'), page.goto(t.docPath('post', 'post-05'))])
   await signInIfAsked(page)
-  await t.settle(page)
-  await expect(page.locator('[data-pane="types"] .type-row')).not.toHaveCount(0)
-  await expect(page.locator('[data-pane="types"] .type-row', {hasText: /Studio (task|comment)/})).toHaveCount(0)
-  await page.goto(t.docPath('post', 'post-05'))
-  await t.settle(page)
+  if (desk.url().includes('/login')) await desk.goto('/structure')
+  await Promise.all([t.settle(desk), t.settle(page)])
+  await expect(desk.locator('[data-pane="types"] .type-row')).not.toHaveCount(0)
+  await expect(desk.locator('[data-pane="types"] .type-row', {hasText: /Studio (task|comment)/})).toHaveCount(0)
+  await desk.close()
   await page.getByRole('button', {name: 'Show document actions'}).click()
   await page.getByRole('menuitem', {name: 'Create new task'}).click()
   const panel = page.getByRole('complementary', {name: 'Tasks'})

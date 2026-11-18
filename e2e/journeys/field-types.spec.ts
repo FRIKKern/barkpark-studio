@@ -57,6 +57,18 @@ test('field types store as Sanity: a dateFormat date, a list in its order, "1,50
   await width.pressSequentially('x')
   await expect.poll(() => value('width'), {timeout: 10_000}).toBe(123456789012)
   await expect(width).toHaveValue('123456789012')
+  // A weak field (Sanity's `weak: true`) holding the seed's bare id, which Barkpark counts as
+  // strong: Sanity's strip offers Convert, and a pick then stays weak (main stored the bare id).
+  const strip = page.getByTestId('alert-reference-strength-mismatch')
+  await expect(strip).toContainText('This reference is strong, but according to the current schema it should be weak.')
+  await strip.getByRole('button', {name: 'Convert to weak reference'}).click()
+  await expect.poll(() => value('weakRef'), {timeout: 10_000}).toEqual({_type: 'reference', _ref: 'post-01', _weak: true})
+  await expect(strip).toBeHidden()
+  await page.locator('.field').filter({has: page.locator('[id="weakRef"]')}).getByRole('button', {name: 'Reference actions'}).click()
+  await page.getByRole('menuitem', {name: /Replace/}).click()
+  await page.locator('[id="weakRef"]').fill('Fixture post 02')
+  await page.getByRole('option', {name: /Fixture post 02/}).click()
+  await expect.poll(() => value('weakRef'), {timeout: 10_000}).toEqual({_type: 'reference', _ref: 'post-02', _weak: true})
 })
 
 test("@local field types: Sanity's options drawn: dates, grid tiles, a checkbox, Add item, slugs, fieldsets, a reference without Create", async ({page, context}, info) => {

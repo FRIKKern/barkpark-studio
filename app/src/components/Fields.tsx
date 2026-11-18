@@ -571,8 +571,11 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
           types={refTypesOf(field)}
           filter={refFilterOf(field.options)}
           disableNew={!!(field.options as {disableNew?: boolean} | undefined)?.disableNew}
-          // A Sanity-shaped reference ({_ref}, as an import from Sanity holds it) reads as its id.
+          // A Sanity-shaped reference ({_ref}, as an import from Sanity holds it) reads as its id;
+          // a pick keeps that shape and the field's strength (lib/refs.ts pickedRef).
           value={refId(value)}
+          stored={value}
+          weak={field.weak}
           invalid={invalid}
           onChange={onChange}
           linkFor={(id, type) => openRef(type, id, path)}

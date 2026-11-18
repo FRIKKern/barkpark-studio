@@ -4,6 +4,7 @@
 // Sanity would show and in what order. Checked against the reference project.
 import type {Field, Schema} from './data.ts'
 import {pathsOf} from './preview.ts'
+import {refId} from './refs.ts'
 
 type Part = {words: string[]; prefix: boolean; idWords: string[]}
 export type TextQuery = {any: Part[]; not: Part[]; raw: string}
@@ -53,7 +54,11 @@ export function docText(doc: Record<string, unknown>, schema?: Schema): {text: s
   const text: string[][] = []
   const refs: string[] = []
   const walk = (v: unknown, f: Field | undefined, inBlocks: boolean) => {
-    if (f?.type === 'reference') return void (typeof v === 'string' && refs.push(v))
+    // A bare id or Sanity's {_ref} (a weak one, one waiting for a publish): the same exact id.
+    if (f?.type === 'reference') {
+      const id = refId(v)
+      return void (id && refs.push(id))
+    }
     if (typeof v === 'string') return void text.push(words(v))
     if (Array.isArray(v)) return v.forEach((x) => walk(x, f?.of, inBlocks))
     if (!v || typeof v !== 'object') return

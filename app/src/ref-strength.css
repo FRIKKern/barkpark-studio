@@ -1,0 +1,15 @@
+/* Sanity's reference strength mismatch strip (components/RefStrength.tsx): its AlertStrip, a
+   caution card under the reference with the warning icon, a 13 px title, two lines of text
+   and a ghost caution button (Sanity's size large: 35 px). Colours are the theme's caution
+   tokens (styles.css), so dark mode follows. */
+.ref-strength { display: flex; gap: 8px; margin-top: 4px; padding: 12px 12px 12px 8px; border-radius: 3px; background: var(--caution-card-bg); color: var(--caution-card-fg); font-size: 13px; line-height: 19px; }
+.ref-strength > svg { flex: none; width: 21px; height: 21px; margin-top: -1px; color: var(--caution-code-fg); }
+.ref-strength-body { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.ref-strength-body strong { font-weight: 600; }
+.ref-strength-body p { margin: 0; overflow-wrap: anywhere; }
+.ref-strength-btn { min-height: 35px; padding: 0 12px; border: 0; border-radius: 3px; background: transparent; box-shadow: inset 0 0 0 1px var(--caution-code-fg); color: var(--caution-code-fg); font: inherit; font-weight: 500; cursor: pointer; }
+.ref-strength-btn:hover:not(:disabled) { background: var(--caution-code-bg); }
+.ref-strength-btn:focus-visible { outline: 2px solid var(--caution-code-fg); outline-offset: 1px; }
+.ref-strength-btn:disabled { opacity: 0.5; cursor: default; }
+/* In a reference array's row: under the row's preview, inside the row. */
+.ref-row-preview > .ref-strength { margin: 4px 0 0; }

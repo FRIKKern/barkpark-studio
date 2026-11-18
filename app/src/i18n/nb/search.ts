@@ -128,6 +128,16 @@ export default {
   'Reference actions': 'Referansehandlinger',
   Replace: 'Erstatt',
   'Open in new tab': 'Åpne i ny fane',
+  // Sanity's reference strength mismatch strip (its nb-NO pack, inputs.reference.strength-mismatch.*)
+  'Reference strength mismatch': 'Avvik i referansestyrke',
+  'This reference is <em>weak</em>, but according to the current schema it should be <em>strong</em>.': 'Denne referansen er <em>svak</em>, men ifølge gjeldende skjema skal den være <em>sterk</em>.',
+  'This reference is <em>strong</em>, but according to the current schema it should be <em>weak</em>.': 'Denne referansen er <em>sterk</em>, men ifølge gjeldende skjema skal den være <em>svak</em>.',
+  'This makes it possible to delete the referenced document without first deleting this reference, leaving this field referencing a nonexisting document.':
+    'Dette gjør det mulig å slette det refererte dokumentet uten å først fjerne denne referansen, noe som etterlater dette feltet som en tom peker.',
+  'It will not be possible to delete the reference document without first removing this reference or converting it to weak.':
+    'Det vil ikke være mulig å slette det refererte dokumentet uten først å fjerne denne referansen eller gjøre den om til en svak referanse.',
+  'Convert to strong reference': 'Gjør om til sterk referanse',
+  'Convert to weak reference': 'Gjør om til svak referanse',
 
   // Vision
   Dataset: 'Datasett',
