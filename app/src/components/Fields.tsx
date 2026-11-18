@@ -507,19 +507,21 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   // A form shown to read (the published version, a revision, no write access): its fieldset
   // disables the inputs, and the text editor (no input, the fieldset does not reach it) is told.
   const formDisabled = useContext(FormDisabledContext)
+  // A fix-it card's buttons write the value: a read-only field (its condition, a role) keeps them shut.
+  const shut = (card: ReactElement) => (readOnly ? <fieldset className="readonly-wrap" disabled>{card}</fieldset> : card)
   // S4a: Portable Text in a rich text field (a Sanity import, gyl's bodies) edits in place.
   if (isPortableTextField(field, value)) {
     // Blocks without keys, or sharing one: fixed first, as Sanity asks.
     const keys = Array.isArray(value) && keyProblem(value)
-    if (keys) return <KeysAlert problem={keys} onChange={onChange} />
+    if (keys) return shut(<KeysAlert problem={keys} onChange={onChange} />)
     return <PortableTextField id={path} field={field} value={value as PtBlock[] | undefined} onChange={onChange} readOnly={readOnly || formDisabled} openRef={openRef} />
   }
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)
-  if (wrongType) return <InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />
+  if (wrongType) return shut(<InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />)
   // An asset from elsewhere (a Sanity export, a Sanity asset id): kept as it is, never read as empty.
   const foreign = unsupportedAsset(field, value)
-  if (foreign) return <UnsupportedAssetCard asset={foreign} value={value} onChange={onChange} />
+  if (foreign) return shut(<UnsupportedAssetCard asset={foreign} value={value} onChange={onChange} />)
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
   if (readOnly && !['string', 'url', 'email', 'text', 'slug', 'composite', 'datetime', 'arrayOf', 'markdown', 'date', 'time', 'tags', 'color', 'source', 'json', 'localizedText', 'codelist'].includes(field.type))
@@ -594,7 +596,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'arrayOf': {
       const items = (value as unknown[]) ?? []
       const keys = keyProblem(items)
-      if (keys) return <KeysAlert problem={keys} onChange={onChange} />
+      if (keys) return shut(<KeysAlert problem={keys} onChange={onChange} />)
       // Barkpark serves `of` as a list when it names member types. Several objects (a page
       // builder) are rows of items, each by its own member (task-3da190705a269df1); a list of
       // one is that member.
@@ -662,7 +664,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     }
     case 'richText': {
       const broken = richTextProblem(value)
-      if (broken) return <RichTextCard problem={broken} onChange={onChange} />
+      if (broken) return shut(<RichTextCard problem={broken} onChange={onChange} />)
       // J10: a block-editor field is Barkpark's canvas (decision 0004), scoped to the field.
       return field.editor === 'blocks' && !path.includes('.') ? <BodyCanvas field={path} title={field.title ?? field.name} value={value} vocabulary={(field as {blocks?: unknown}).blocks} readOnly={readOnly} openRef={openRef} /> : <ClassicBody id={path} value={value} />
     }
