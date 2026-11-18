@@ -2,14 +2,19 @@ import assert from 'node:assert/strict'
 import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {dirname, join} from 'node:path'
-import test from 'node:test'
+import test, {after} from 'node:test'
 
 import {COPIED, PACK_DIR, SOURCE_PATH, compare, landing, rowsMoved, selfCheck, sha256, sourceNote, sourcePack} from './pack.mjs'
+
+// Every temporary folder a test makes, gone after the run.
+const made = []
+const tmp = (prefix) => (made.push(mkdtempSync(join(tmpdir(), prefix))), made.at(-1))
+after(() => made.forEach((d) => rmSync(d, {recursive: true, force: true})))
 
 // A Barkpark checkout with a pack of two blocks, and a studio holding it as the sync writes it.
 const put = (path, text) => (mkdirSync(dirname(path), {recursive: true}), writeFileSync(path, text))
 function source(blocks = {paragraph: '{"type":"paragraph"}', heading: '{"type":"heading"}'}) {
-  const checkout = mkdtempSync(join(tmpdir(), 'pack-source-'))
+  const checkout = tmp('pack-source-')
   const src = join(checkout, SOURCE_PATH)
   const files = {}
   for (const [type, text] of Object.entries(blocks)) {
@@ -24,7 +29,7 @@ function source(blocks = {paragraph: '{"type":"paragraph"}', heading: '{"type":"
   return {checkout, src}
 }
 function studioFrom({src}) {
-  const root = mkdtempSync(join(tmpdir(), 'pack-studio-'))
+  const root = tmp('pack-studio-')
   const {files, errors} = sourcePack(src)
   assert.deepEqual(errors, [])
   for (const f of Object.keys(files)) put(join(root, PACK_DIR, f), readFileSync(join(src, COPIED[f] ?? f)))

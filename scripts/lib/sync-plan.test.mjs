@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import {spawnSync} from 'node:child_process'
-import {chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync} from 'node:fs'
+import {chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import test from 'node:test'
+import test, {after} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
 import {PACK_DIR, SOURCE_PATH, compare, ghWrite, selfCheck, sha256, sourceDir} from './pack.mjs'
@@ -11,6 +11,10 @@ import {codeAfterKey} from './workflow-keys.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const workflows = join(root, '.github/workflows')
+// Every temporary folder a test makes, gone after the run.
+const made = []
+const tmp = (prefix) => (made.push(mkdtempSync(join(tmpdir(), prefix))), made.at(-1))
+after(() => made.forEach((d) => rmSync(d, {recursive: true, force: true})))
 
 test('ghWrite: reads pass; every PR write, a non-GET API call and anything else is a write', () => {
   for (const read of [['pr', 'list', '--head', 'x'], ['pr', 'view', '7'], ['pr', 'checks', '7', '--json', 'name'], ['api', 'repos/{owner}/{repo}/rules/branches/main', '--jq', '.'], ['api', '-X', 'GET', 'x']])
@@ -19,30 +23,53 @@ test('ghWrite: reads pass; every PR write, a non-GET API call and anything else 
     assert.equal(ghWrite(write), true, write.join(' '))
 })
 
-test('a keyed checkout is followed by no project code, in every workflow', () => {
-  // housekeeping.yml's refresh job regenerates the roadmap after its keyed checkout: moved to a job of its own in the next PR.
-  const known = new Set(['housekeeping.yml refresh: name: Regenerate and push (from origin/main, retried if main moves)'])
+test('after a keyed checkout, every workflow runs only the allow-list', () => {
+  // housekeeping.yml's refresh job regenerates the roadmap after its keyed checkout: it moves to the same
+  // two-job shape in its own PR, which drops this exception.
   const found = readdirSync(workflows).filter((f) => f.endsWith('.yml')).flatMap((f) => codeAfterKey(readFileSync(join(workflows, f), 'utf8')).map((v) => `${f} ${v}`))
-  assert.deepEqual(found.filter((v) => !known.has(v)), [])
+  assert.deepEqual(found.filter((v) => !v.startsWith('housekeeping.yml refresh: ')), [])
   assert.ok(readFileSync(join(workflows, 'sync-pack.yml'), 'utf8').includes('ssh-key'), 'the sync pushes with the key')
 })
 
-test('the key lint: project code after a keyed checkout is named; before it, or with no key, it is not', () => {
+test('the key lint: past a keyed checkout only git, gh, jq, sleep and built-ins run; before it, or with no key, anything', () => {
   const job = (steps) => `name: x\non: push\njobs:\n  act:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`
   const keyed = "      # the key\n      - uses: actions/checkout@v5\n        with: { ssh-key: '${{ secrets.K }}' }\n      # a comment between steps\n"
-  const bare = '      - uses: actions/checkout@v5\n'
-  assert.deepEqual(codeAfterKey(job(`${keyed}      - run: node scripts/x.mjs\n`)), ['act: run: node scripts/x.mjs'])
-  assert.deepEqual(codeAfterKey(job(`${keyed}      - name: build\n        run: |\n          git fetch\n          pnpm --dir app install\n`)), ['act: name: build'])
-  assert.deepEqual(codeAfterKey(job(`${keyed}      - uses: ./.github/actions/mine\n`)), ['act: uses: ./.github/actions/mine'])
-  assert.deepEqual(codeAfterKey(job(`${keyed}      - run: |\n          ./push.sh\n`)), ['act: run: |'])
-  assert.deepEqual(codeAfterKey(job(`      - run: node scripts/x.mjs\n${keyed}      - run: git push origin HEAD:x\n      - uses: actions/download-artifact@v4\n`)), [])
-  assert.deepEqual(codeAfterKey(job(`${bare}      - run: node scripts/x.mjs\n`)), [])
-  assert.deepEqual(codeAfterKey(job(`      - uses: actions/checkout@v5\n        with: { ssh-key: '\${{ secrets.K }}', persist-credentials: false }\n      - run: node x.mjs\n`)), [])
+  const lint = (steps) => codeAfterKey(job(steps)).map((v) => v.split(': ').at(-1))
+  assert.deepEqual(lint(`${keyed}      - run: node scripts/x.mjs\n`), ['node'])
+  assert.deepEqual(lint(`${keyed}      - name: build\n        run: |\n          git fetch\n          pnpm --dir app install\n`), ['pnpm'])
+  assert.deepEqual(lint(`${keyed}      - uses: ./.github/actions/mine\n`), ['uses ./.github/actions/mine'])
+  assert.deepEqual(lint(`${keyed}      - uses: actions/github-script@v7\n`), ['uses actions/github-script@v7'])
+  assert.deepEqual(lint(`${keyed}      - run: |\n          ./push.sh\n`), ['./push.sh'])
+  // Not on any deny-list: an allow-list names them all.
+  for (const [line, bad] of [['tsx x.ts', ['tsx']], ['a=$(which node)', ['which']], ['X=1 vitest run', ['vitest']], ['cp a b', ['cp']], ['git log | cat', ['cat']], ['echo `id`', ['!backtick']], ['eval "$x"', ['eval']], ['source ./x', ['source']], ["cat <<EOF\n          x\n          EOF", ['cat', '!heredoc', 'x', 'EOF']], ['"pnpm" i', ['""']]])
+    assert.deepEqual(lint(`${keyed}      - run: |\n          ${line}\n`), bad, line)
+  // A double-quoted key is a key too.
+  assert.deepEqual(lint(`      - uses: actions/checkout@v5\n        with: { ssh-key: "\${{ secrets.K }}" }\n      - run: node x.mjs\n`), ['node'])
+  // What the push job writes passes: pipes, $( ), <( ), [[ ]], case patterns, redirections, assignments.
+  const ok = [
+    'set -euo pipefail',
+    'n=$(gh pr list --json number | jq -r \'.[] | .number\')',
+    'case "$a" in',
+    '  close) [ -n "$n" ] || { echo "none"; exit 0; } ;;',
+    '  *) exit 1 ;;',
+    'esac',
+    'while IFS= read -r -d \'\' m && IFS= read -r -d \'\' p; do',
+    '  [[ $m =~ $re && ! $p =~ $re2 ]] || bad+="$p; "',
+    'done < <(git diff --raw -z a b)',
+    'for try in 1 2 3; do git push origin x && exit 0; sleep $((try * 5)); done',
+    'echo "merged=true" >> "$GITHUB_OUTPUT"',
+    'read -r _ base <<<"$(git rev-list --parents -n 1 x)"',
+    'if ! { [ -f x ] && git bundle verify -q x; }; then echo "::error::no"; exit 1; fi',
+  ]
+  assert.deepEqual(lint(`${keyed}      - run: |\n${ok.map((l) => `          ${l}\n`).join('')}`), [])
+  assert.deepEqual(lint(`      - run: node scripts/x.mjs\n${keyed}      - run: git push origin HEAD:x\n      - uses: actions/download-artifact@v4\n`), [])
+  assert.deepEqual(lint(`      - uses: actions/checkout@v5\n      - run: node scripts/x.mjs\n`), [])
+  assert.deepEqual(lint(`      - uses: actions/checkout@v5\n        with: { ssh-key: '\${{ secrets.K }}', persist-credentials: false }\n      - run: node x.mjs\n`), [])
 })
 
 // The plan with a stub gh on PATH that logs every call: it writes nothing to GitHub.
 function stubGh(open) {
-  const bin = mkdtempSync(join(tmpdir(), 'stub-gh-'))
+  const bin = tmp('stub-gh-')
   const log = join(bin, 'calls.log')
   writeFileSync(
     join(bin, 'gh'),
@@ -53,7 +80,7 @@ function stubGh(open) {
 }
 /** A Barkpark checkout holding the studio's own pack, its stamp naming only the block goldens (so only the stamp differs). */
 function sourceLikeStudio() {
-  const checkout = mkdtempSync(join(tmpdir(), 'pack-source-'))
+  const checkout = tmp('pack-source-')
   const src = join(checkout, SOURCE_PATH)
   const pack = join(root, PACK_DIR)
   cpSync(join(pack, 'goldens/blocks'), join(src, 'goldens/blocks'), {recursive: true})
@@ -64,7 +91,7 @@ function sourceLikeStudio() {
   return checkout
 }
 const planWith = (gh, checkout) => {
-  const out = mkdtempSync(join(tmpdir(), 'plan-'))
+  const out = tmp('plan-')
   const r = spawnSync(process.execPath, ['scripts/pack-sync-pr.mjs', checkout, '--out', out], {cwd: root, encoding: 'utf8', env: {...process.env, PATH: `${gh.bin}:${process.env.PATH}`}})
   return {status: r.status, stdout: r.stdout, plan: existsSync(join(out, 'plan.json')) ? JSON.parse(readFileSync(join(out, 'plan.json'), 'utf8')) : undefined}
 }
@@ -99,7 +126,7 @@ test('the plan reaches gh only through its read-only wrapper', () => {
 })
 
 test('the self-check skips an uncommitted file git ignores, and counts every other file', () => {
-  const repo = mkdtempSync(join(tmpdir(), 'pack-git-'))
+  const repo = tmp('pack-git-')
   cpSync(join(root, PACK_DIR), join(repo, PACK_DIR), {recursive: true})
   writeFileSync(join(repo, '.gitignore'), '.DS_Store\n')
   const git = (...args) => assert.equal(spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {cwd: repo}).status, 0, args.join(' '))

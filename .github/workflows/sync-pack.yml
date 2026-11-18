@@ -1,7 +1,11 @@
 # Keeps conformance/pack/ the same as Barkpark main's api/priv/portable_doc, once a day and on demand.
 # `plan` (no key, read-only token) compares, builds the sync commit and decides; `act` writes: it pushes
 # that one commit to sync/barkpark-pack with the deploy key, opens or updates the PR, merges a green one
-# or closes a leftover one. `act` installs and runs no project code (scripts/lib/workflow-keys.test.mjs).
+# or closes a leftover one.
+# `act` trusts nothing `plan` hands it: `plan` ran install scripts, the renderer and Barkpark's
+# conformance.mjs. It finds the sync PR itself, checks the bundle, the commit's parent and both sides of
+# every changed path, and runs only git, gh, jq, sleep and shell built-ins (scripts/lib/workflow-keys.mjs,
+# held by scripts/lib/sync-plan.test.mjs; its own cases in scripts/lib/sync-act.test.mjs).
 # Why and how: docs/decisions/0009-pack-syncs-itself.md. To hold the sync back, disable this workflow.
 name: sync-pack
 on:
@@ -54,7 +58,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with: { name: plan, path: '${{ runner.temp }}/plan', retention-days: 7 }
 
-  # Installs and runs nothing from the repo: git, gh and jq on the plan's files.
+  # Installs and runs nothing from the repo: git, gh, jq, sleep and shell built-ins on the plan's files.
   act:
     needs: plan
     if: needs.plan.outputs.action != 'none'
@@ -76,15 +80,24 @@ jobs:
         run: |
           set -euo pipefail
           plan="$RUNNER_TEMP/plan"
-          action=$(jq -r .action "$plan/plan.json")
-          number=$(jq -r '.number // empty' "$plan/plan.json")
           branch=sync/barkpark-pack
+          re_sha='^[0-9a-f]{40}$'
+          action=$(jq -r .action "$plan/plan.json")
+          # The sync PR, found here: this repo's (not a fork's) open PR from sync/barkpark-pack into main.
+          number=$(gh pr list --head "$branch" --base main --state open --json number,headRefName,baseRefName,isCrossRepository |
+            jq -r --arg b "$branch" '[.[] | select((.isCrossRepository | not) and .headRefName == $b and .baseRefName == "main") | .number] | if length > 1 then "many" else (.[0] // "" | tostring) end')
+          [ "$number" != many ] || { echo "::error::more than one sync PR is open"; exit 1; }
+          asked=$(jq -r '.number // "" | tostring' "$plan/plan.json")
+          [ "$asked" = "$number" ] || { echo "::error::the plan names #$asked; the sync PR is #${number:-none}"; exit 1; }
           case "$action" in
             close)
+              [ -n "$number" ] || { echo "no sync PR open: nothing to close"; exit 0; }
               gh pr close "$number" --delete-branch --comment 'main already carries these files: nothing left to sync.'
               ;;
             land)
+              [ -n "$number" ] || { echo "no sync PR open: nothing to land"; exit 0; }
               head=$(jq -r .head "$plan/plan.json")
+              [[ $head =~ $re_sha ]] || { echo "::error::head $head"; exit 1; }
               for try in 1 2 3 4 5; do
                 gh pr merge "$number" --squash --delete-branch --match-head-commit "$head" || true
                 if [ "$(gh pr view "$number" --json state --jq .state)" = MERGED ]; then echo "merged=true" >> "$GITHUB_OUTPUT"; exit 0; fi
@@ -95,26 +108,43 @@ jobs:
             push)
               git config user.name 'github-actions[bot]'
               git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-              lease=$(jq -r '.lease // ""' "$plan/plan.json")
               main=$(jq -r .main "$plan/plan.json")
+              [[ $main =~ $re_sha ]] || { echo "::error::main $main"; exit 1; }
               git fetch -q origin main
-              [ -z "$lease" ] || git fetch -q origin "$branch"
-              git fetch -q "$plan/sync.bundle" HEAD:refs/heads/sync
-              # One commit touching the pack and its report only, on main as the plan read it, or on the
-              # PR's head with that main merged in (the merge git's own, checked by redoing it).
-              read -r _ base extra <<<"$(git rev-list --parents -n 1 sync)"
-              [ -n "$base" ] && [ -z "$extra" ] || { echo "::error::the sync commit is a merge"; exit 1; }
-              stray=$(git diff --name-only "$base" sync | grep -Ev '^(conformance/pack/|conformance/barkpark-studio\.json$)' || true)
-              [ -z "$stray" ] || { echo "::error::the sync commit touches $stray"; exit 1; }
               git merge-base --is-ancestor "$main" origin/main || { echo "::error::$main is not on main"; exit 1; }
-              if [ "$base" != "$main" ]; then
+              lease=$(git ls-remote origin "refs/heads/$branch")
+              lease=${lease%%[[:space:]]*}
+              [ -z "$lease" ] || git fetch -q origin "$branch"
+              if ! { [ -f "$plan/sync.bundle" ] && git bundle verify -q "$plan/sync.bundle"; }; then echo "::error::no valid sync.bundle"; exit 1; fi
+              git fetch -q "$plan/sync.bundle" HEAD:refs/heads/sync
+              # One commit. With the sync PR open: on its current head with that main merged in (git redoes
+              # the merge to check it; none when the head holds that main), so a hand commit there stays.
+              # Without: straight on that main.
+              read -r _ base extra <<<"$(git rev-list --parents -n 1 sync)"
+              if [ -z "$base" ] || [ -n "$extra" ]; then echo "::error::the sync commit is a merge"; exit 1; fi
+              if [ -n "$number" ]; then
                 read -r _ ours theirs more <<<"$(git rev-list --parents -n 1 "$base")"
-                [ -n "$number" ] && [ "$ours" = "$lease" ] && [ "$theirs" = "$main" ] && [ -z "$more" ] &&
-                  [ "$(git merge-tree --write-tree "$lease" "$main")" = "$(git rev-parse "$base^{tree}")" ] ||
-                  { echo "::error::the sync commit is on neither main nor the PR's head merged with main"; exit 1; }
+                if [ "$base" = "$lease" ] && git merge-base --is-ancestor "$main" "$lease"; then
+                  : # the PR's head already holds that main
+                elif ! { [ "$ours" = "$lease" ] && [ "$theirs" = "$main" ] && [ -z "$more" ] && [ "$(git merge-tree --write-tree "$lease" "$main")" = "$(git rev-parse "$base^{tree}")" ]; }; then
+                  echo "::error::the sync commit is not on #$number's head merged with main"; exit 1
+                fi
+              else
+                [ "$base" = "$main" ] || { echo "::error::the sync commit is not on main"; exit 1; }
               fi
+              # Every changed path, renames as a delete and an add, so both sides are seen: under the pack or
+              # its report, a plain file (100644) before and after, no . or .. segment.
+              re_path='^(conformance/pack/[^/].*|conformance/barkpark-studio\.json)$'
+              re_dot='(^|/)\.\.?(/|$)'
+              re_mode='^(100644|000000)$'
+              bad=''
+              while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
+                read -r old new _ _ status <<<"${meta#:}"
+                [[ $old =~ $re_mode && $new =~ $re_mode && $path =~ $re_path && ! $path =~ $re_dot ]] || bad+="$status $old $new $path; "
+              done < <(git diff --no-renames --raw -z "$base" sync)
+              [ -z "$bad" ] || { echo "::error::the sync commit changes what the pack never holds: $bad"; exit 1; }
               git push -q --force-with-lease="$branch:$lease" origin "sync:refs/heads/$branch"
-              title=$(cat "$plan/title.txt")
+              read -r title < "$plan/title.txt"
               if [ -n "$number" ]; then
                 gh pr edit "$number" --title "$title" --body-file "$plan/body.md"
               else

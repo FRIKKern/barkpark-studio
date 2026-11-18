@@ -20,11 +20,11 @@ act (deploy key, installs and runs nothing): the commit touches only the pack â”
 - `.github/workflows/sync-pack.yml` runs once a day and on demand, on main only. A source that disagrees
   with its own stamp is refused. Barkpark's stamp alone changes several times a day (gettext and render
   versions); such a change opens no PR, the run summary names it, and the next real change carries it.
-- Two jobs. `plan` installs the app and runs `scripts/pack-sync-pr.mjs`, which reads GitHub and writes
-  nothing to it (each write is printed as `would:`). `act` has the deploy key and runs only git, gh and jq:
-  it takes the one sync commit, checks that it touches only `conformance/pack/` and
-  `conformance/barkpark-studio.json` on main (or on the PR's head with main merged in, the merge redone by
-  git), and pushes that branch. A unit test holds every workflow to this: no project code after a keyed checkout.
+- Two jobs. `plan` installs the app and runs `scripts/pack-sync-pr.mjs`, which writes nothing to GitHub.
+  `act` has the deploy key and trusts nothing `plan` hands it. It finds the sync PR itself, checks the
+  bundle, the commit's parent (main, or with the PR open its head with main merged in) and both sides of
+  every changed path (plain files under the pack or its report), then pushes that branch. After a keyed
+  checkout every workflow runs only git, gh, jq, sleep and shell built-ins (a unit test reads them all).
 - Conformance runs on the new pack; the report takes the new stamp only when no row moved, else the PR's
   `unit` fails (the renderer is behind). Fix the renderer, or accept the rows on the sync branch
   (`conformance:write`) and say why; the next sync builds on that branch, so the commit stays.
