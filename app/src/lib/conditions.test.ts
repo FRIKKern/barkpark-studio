@@ -4,6 +4,7 @@ import {test} from 'node:test'
 import type {Field} from './data.ts'
 import {currentUserOf, fieldState, groupShows, isHidden, pasteSkips, type FieldConditions} from './conditions.ts'
 import {roleConditions} from './conditions.fixture.ts'
+import {pasteDocument} from './paste-locked.ts'
 
 test('scope "parent" reads the enclosing object, the default reads the document', () => {
   const url = {name: 'url', type: 'url', visibleWhen: {field: 'kind', operator: 'eq', value: 'url', scope: 'parent'}} as unknown as Field
@@ -81,8 +82,10 @@ test('hidden by role: its group tab goes when nothing in it shows, and Paste doc
   const hiddenFor = (u: typeof editor) => (f: Field) => fieldState('post', f, doc, u, rules).hidden
   assert.equal(groupShows(fields, 'admin', doc, hiddenFor(editor)), false)
   assert.equal(groupShows(fields, 'admin', doc, hiddenFor(currentUserOf(me('admin')))), true)
-  const editorPaste = pasteSkips('post', fields, doc, editor, rules)
-  assert.deepEqual([...editorPaste.skip], ['internal', 'stage'])
-  assert.deepEqual(editorPaste.named, ['Stage']) // the hidden one is never named
-  assert.equal(pasteSkips('post', fields, doc, currentUserOf(me('owner')), rules).skip.size, 0)
+  // Paste document: the read-only field is skipped and named, the hidden one never named.
+  const editorPaste = pasteDocument(fields, {title: 'P', internal: 'pasted', stage: 'idea'}, {type: 'post', doc, user: editor, rules})
+  assert.deepEqual(editorPaste.writes, [['title', 'P']])
+  assert.deepEqual(editorPaste.named, ['Stage'])
+  assert.deepEqual([...pasteSkips('post', fields, doc, editor, rules).skip], ['stage'])
+  assert.equal(pasteDocument(fields, {title: 'P', internal: 'pasted', stage: 'idea'}, {type: 'post', doc, user: currentUserOf(me('owner')), rules}).writes.length, 3)
 })

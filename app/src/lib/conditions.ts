@@ -141,15 +141,17 @@ export function fieldState(type: string, f: Field, doc: Record<string, unknown>,
 
 /**
  * Paste document (J29) leaves a read-only field as it is and names it, as Sanity's paste
- * does; a hidden one is left alone and unnamed: the clipboard never writes either.
+ * does (one hidden now is left unnamed). Read-only is judged on the document as it is;
+ * hidden on the document as the paste leaves it (lib/paste-locked.ts pasteDocument).
  */
 export function pasteSkips(type: string, fields: Field[], doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined) {
   const skip = new Set<string>()
   const named: string[] = []
   for (const f of fields) {
     const s = fieldState(type, f, doc, currentUser, rules)
-    if (s.hidden || s.readOnly) skip.add(f.name)
-    if (s.readOnly && !s.hidden) named.push(f.title ?? f.name)
+    if (!s.readOnly) continue
+    skip.add(f.name)
+    if (!s.hidden) named.push(f.title ?? f.name)
   }
   return {skip, named}
 }
