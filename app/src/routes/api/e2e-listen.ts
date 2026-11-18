@@ -6,11 +6,13 @@ import {setAccessStub, stubCalls, type StubCommand} from '../../server/access-st
 import {e2eListen, hubStats} from '../../server/listen'
 import {presencePipes} from '../../server/presence-pipe'
 import {openStreams} from '../../server/stream-registry'
+import {uploadRelays} from '../../server/upload-relays'
 
 // POST /api/e2e-listen {action: 'deaf' | 'cut' | 'flip' | 'read-blip' | 'write-fault' | 'access', ms?}: the e2e
 // rig's levers on the listen hub, presence, reads and the access-request stand-in (server/access-stub.ts).
 // Off unless the server runs with STUDIO_E2E_HOOKS=1. GET: what is open now (the tab-stream soak);
-// GET ?access=1: the calls the stand-in answered.
+// GET ?access=1: the calls the stand-in answered. GET's `uploads`: uploads handled now and finished
+// (server/upload-relays.ts).
 // {action: 'members-fake', role, ms}: the Members screen on a fake roster (server/members-fake.ts;
 // role null turns it off); answers how many writes reached it.
 export const Route = createFileRoute('/api/e2e-listen')({
@@ -21,7 +23,7 @@ export const Route = createFileRoute('/api/e2e-listen')({
           ? new Response('not found', {status: 404})
           : new URL(request.url).searchParams.has('access')
             ? Response.json({calls: stubCalls()})
-            : Response.json({streams: openStreams.size, presencePipes: presencePipes(), ...hubStats()}),
+            : Response.json({streams: openStreams.size, presencePipes: presencePipes(), uploads: uploadRelays(), ...hubStats()}),
       POST: async ({request}) => {
         if (process.env.STUDIO_E2E_HOOKS !== '1') return new Response('not found', {status: 404})
         const body = (await request.json()) as {action: 'deaf' | 'cut' | 'flip' | 'read-blip' | 'write-fault' | 'access' | 'members-fake'; ms?: number; id?: string; kind?: WriteFault['kind'] | 'none'; count?: number; role?: string | null} & Partial<StubCommand>

@@ -2,6 +2,7 @@ import {createFileRoute} from '@tanstack/react-router'
 import {bpFetch, dataset, requestToken, scope} from '../../../server/barkpark'
 import {madeAsset, relayUpload} from '../../../lib/upload-relay'
 import {clientGone} from '../../../server/client-gone'
+import {counted, sent as sending} from '../../../server/upload-relays'
 
 // POST /api/media/upload (multipart, one `file`) → Barkpark's media upload.
 // Answers what an image field stores and draws: {ref: "asset-<id>", width, height}, and
@@ -11,7 +12,7 @@ import {clientGone} from '../../../server/client-gone'
 export const Route = createFileRoute('/api/media/upload')({
   server: {
     handlers: {
-      POST: async ({request}) => {
+      POST: ({request}) => counted(async () => {
         // The whole file first: a Cancel while the browser still sends it ends here.
         const bytes = new Uint8Array(await request.arrayBuffer())
         const path = `/v1/media/${dataset()}/upload`
@@ -19,10 +20,11 @@ export const Route = createFileRoute('/api/media/upload')({
         // Pinned now, inside the request: a drop after the browser left runs outside it.
         const token = requestToken()
         const at = scope()
+        // Every send to Barkpark goes through `sending` (server/upload-relays.ts): upload-cancel.spec waits on that count.
         const sent = await relayUpload(
           bytes,
           clientGone(request),
-          (body, signal) => bpFetch(path, {method: 'POST', headers, body, signal, duplex: 'half'} as RequestInit, token, {retry: false, at}),
+          (body, signal) => sending(() => bpFetch(path, {method: 'POST', headers, body, signal, duplex: 'half'} as RequestInit, token, {retry: false, at})),
           async (res) => {
             const id = madeAsset(await res.clone().json().catch(() => ({})))
             if (id) await bpFetch(`/v1/media/${at.dataset}/${encodeURIComponent(id)}`, {method: 'DELETE'}, token, {retry: false, at}).catch(() => {})
@@ -35,7 +37,7 @@ export const Route = createFileRoute('/api/media/upload')({
         if (!res.ok || !body.result) return Response.json(body, {status: res.ok ? 502 : res.status})
         const info = body.result.asset?.fileInfo
         return Response.json({ref: `asset-${body.result.id}`, url: body.result.url, width: Number(info?.width) || undefined, height: Number(info?.height) || undefined})
-      },
+      }),
     },
   },
 })
