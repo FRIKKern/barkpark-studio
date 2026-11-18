@@ -164,7 +164,7 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
   )
   /** While a new cell is on its way, letters, Tab and Enter are kept for it (not a press of a header, or of the button again). */
   const onEarlyKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (early.current === null || e.ctrlKey || e.metaKey || e.altKey || e.nativeEvent.isComposing) return
+    if (card.parkedKey(e) || early.current === null || e.ctrlKey || e.metaKey || e.altKey || e.nativeEvent.isComposing) return
     if (e.key.length !== 1 && e.key !== 'Enter' && e.key !== 'Tab') return
     e.preventDefault()
     e.stopPropagation()
@@ -257,10 +257,11 @@ export function TableInput({id, field, value, onChange, readOnly}: {id: string; 
       // The caret's own cell as its input holds it: a word typed since the last drawing says where its column went.
       const to = caretColumn(both.map(([, cells, now]): [string[], string[]] => [cells, now]), was!.columns, follow.columns, column, both.findIndex(([k]) => k === held.key), held.text)
       if (to !== undefined && to < 0) {
-        // Its column was removed: the caret leaves with its cells, as with a removed row (what was typed there, onto the card).
+        // Its column was removed (or the table cannot tell which it is now): the caret leaves with its cells, as with a
+        // removed row (what was typed there, onto the card; keys typed after it left, onto a card too).
         if (card.lose(held)) return void (caret.current = null)
         caret.current = null
-        return void win.box.current?.focus({preventScroll: true})
+        return void (card.park(held, win.box.current), win.box.current?.focus({preventScroll: true}))
       }
       column = to ?? Math.min(column, follow.columns - 1)
     }

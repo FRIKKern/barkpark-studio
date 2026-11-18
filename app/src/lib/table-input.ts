@@ -171,7 +171,7 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
   const rows = rowsOf(value)
   const target = rows[row]
   if (!target) return []
-  if (!keyed(rows)) return rowsWrite(key, (now) => now.map((r, i) => (i === row ? {...r, cells: withCell(r.cells, column, cell)} : r)))
+  if (!keyed(rows)) return rowsWrite(key, (now) => now.map((r, i) => (i === row ? {...r, cells: withCell(padded(cellsOf(r), widthOf(now)), column, cell)} : r)))
   const drawn = cellsOf(target)
   return [
     [
@@ -183,10 +183,11 @@ export function setCell(value: unknown, row: number, column: number, cell: strin
         const cells = now
         const at = columnNow(drawn, widthOf(rows), cells, column, cell, was, otherRows(rows, table, target._key))
         // A short row's padding grows it only as wide as the table is now (the grid was drawn
-        // wider by a row of mine at the old width, and the table has narrowed since).
+        // wider by a row of mine at the old width, and the table has narrowed since), and to that
+        // width whole: a key in a padded cell stores rows as even as @sanity/table's.
         const wide = table === undefined ? Infinity : widthOf(rowsOf(table))
         if (at < 0 || (at >= cells.length && at >= wide)) return refused?.(cell), cells
-        return withCell(cells, at, keyOnto(was, cell, text(cells[at])))
+        return withCell(wide < Infinity ? padded(cells, wide) : cells, at, keyOnto(was, cell, text(cells[at])))
       },
     ],
   ]
@@ -228,9 +229,10 @@ const indexOfKey = (rows: TableRow[], k: string | undefined, otherwise: number) 
  * Where the caret's column went when the grid's width changed (TableInput's caret follow): its
  * column now, -1 when it was removed, undefined past the last. `rows`: each row as drawn (the
  * caret's own cell as its input holds it) and as it is now; `mine`: the caret's row among them.
- * Columns removed and the cells read the same whichever went (two columns alike, a word's first
- * keys): the caret follows only its own text, where that stands in its row now (saved, or put
- * back); else its cell is read as gone (its text to the card), never followed into a neighbour.
+ * Every row is read at once (sureColumn): a column added or removed and the cells read the same
+ * whichever way it went (an empty table, two columns alike, a word's first keys): the caret follows
+ * only its own text, where that stands in its row now (saved, or put back); else its cell is read
+ * as gone (its text to the card; keys typed after it, too), never followed into a neighbour.
  * `input`: what the caret's input holds, when not drawn yet (else the drawn cell is it). Keys typed
  * since the drawing: where that text stands once in its row now, the caret goes there first (the
  * drawing's other cells may hold text of mine kept since, read as saved).
