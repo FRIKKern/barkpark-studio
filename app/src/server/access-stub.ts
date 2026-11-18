@@ -8,6 +8,7 @@
 //   fail    the next `count` calls with `method` answer `status`, `code`, `message`, `retryAfter`;
 //   hang    every call waits `ms` first.
 // GET /api/e2e-listen?access=1 reads the calls made, so a spec can count what was sent.
+import {signInRequired} from './auth'
 import type {Invitation, OwnRequest} from '../lib/access-request'
 import type {Called} from './access-requests'
 
@@ -15,7 +16,8 @@ type Fail = {method: string; status: number; code?: string; message?: string; re
 type Stub = {email: string; seated: boolean; requests: OwnRequest[]; invitations: Invitation[]; fails: Fail[]; hangMs: number; calls: {method: string; path: string; body?: unknown}[]}
 let stub: Stub | null = null
 
-export const accessStub = () => (process.env.STUDIO_E2E_HOOKS === '1' ? stub : null)
+// Never with sign-in on: a real person's session is never stood in for, whatever the hooks say.
+export const accessStub = () => (process.env.STUDIO_E2E_HOOKS === '1' && !signInRequired() ? stub : null)
 
 /** whoAmI's stand-in person while the stub is on: their email, and whether they sit here now. */
 export const stubPerson = () => {

@@ -34,7 +34,8 @@ export function RequestAccess({email}: {email: string}) {
   // One call at a time: a slow answer never sends the same ask (or withdraw) twice.
   const sending = useRef(false)
   const access = useQuery({...accessQuery, refetchInterval: (q) => pollEvery(screenFor(q.state.data, {entered, askAgain}))})
-  const screen = screenFor(access.data, {entered, askAgain})
+  // The studio's own call failed (its server unreachable): say so, not "Checking…" for ever.
+  const screen = access.isError && !access.data ? ({view: 'failed'} as const) : screenFor(access.data, {entered, askAgain})
   const heading = useRef<HTMLHeadingElement>(null)
   const shown = useRef(screen.view)
 
