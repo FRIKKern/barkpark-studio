@@ -1,7 +1,7 @@
 import {queryOptions, type QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {getCookie} from '@tanstack/react-start/server'
-import {bpFetch, dataset, requestToken} from '../server/barkpark'
+import {bpFetch, dataset, requestToken, scope} from '../server/barkpark'
 import {resumeMark} from '../server/listen'
 import {fieldIcons, readDesk, readRest, readSchemas, schemaIcon, STUDIO_TYPES} from '../server/schemas'
 import type {Condition} from './conditions'
@@ -550,6 +550,12 @@ export const backlinksQuery = (id: string) =>
 
 /** Where a server-rendered page resumes its live stream (see server/listen.ts resumeMark). */
 export const fetchResumeMark = createServerFn({method: 'GET'}).handler(async () => resumeMark(requestToken()))
+
+/** This request's `<workspace> <project> <dataset>`: what a remembered content model is kept under (lib/early-reads.ts). */
+export const fetchModelScope = createServerFn({method: 'GET'}).handler(async () => {
+  const at = scope()
+  return `${at.workspace} ${at.project} ${at.dataset}`
+})
 
 /** Last known viewport width (cookie), so the server lays panes out like the client will. */
 export const fetchViewportHint = createServerFn({method: 'GET'}).handler(async () => {
