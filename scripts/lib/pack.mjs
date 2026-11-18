@@ -1,6 +1,7 @@
 // The studio's copy of Barkpark's PortableDoc pack (conformance/pack/), and how it is checked
 // against its source: FRIKKern/barkpark main, api/priv/portable_doc. Barkpark is the source;
 // conformance/pack/ is written only by scripts/pack-sync.mjs (docs/decisions/0009-pack-syncs-itself.md).
+import {spawnSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {existsSync, readFileSync, readdirSync} from 'node:fs'
 import {join} from 'node:path'
@@ -52,14 +53,21 @@ export function sourcePack(src) {
   return {files, errors}
 }
 
-/** What the studio holds: every file under conformance/pack/ but SOURCE.md, `{studio path: sha256}`. */
+/** Files under conformance/pack/ that git ignores and does not track (a Finder .DS_Store): never part of the pack. */
+function ignored(root) {
+  const r = spawnSync('git', ['ls-files', '--others', '--ignored', '--exclude-standard', '--', PACK_DIR], {cwd: root, encoding: 'utf8'})
+  return new Set(r.status === 0 ? r.stdout.split('\n').filter(Boolean).map((f) => f.slice(PACK_DIR.length + 1)) : [])
+}
+
+/** What the studio holds: every file under conformance/pack/ but SOURCE.md and what git ignores, `{studio path: sha256}`. */
 export function studioPack(root) {
   const files = {}
+  const skip = ignored(root)
   const walk = (rel) => {
     for (const d of readdirSync(join(root, PACK_DIR, rel), {withFileTypes: true})) {
       const f = rel ? `${rel}/${d.name}` : d.name
       if (d.isDirectory()) walk(f)
-      else if (f !== 'SOURCE.md') files[f] = hashOf(join(root, PACK_DIR, f))
+      else if (f !== 'SOURCE.md' && !skip.has(f)) files[f] = hashOf(join(root, PACK_DIR, f))
     }
   }
   walk('')
@@ -121,13 +129,29 @@ export function landing(required, checks) {
   return {verdict: 'merge', names: required}
 }
 
+/**
+ * A gh call that writes to GitHub: anything but reading PRs, checks and the API by GET. The sync's plan
+ * (scripts/pack-sync-pr.mjs) refuses these; only the workflow's act job writes.
+ */
+export function ghWrite(args) {
+  const [cmd, sub] = args
+  if (cmd === 'pr') return !['list', 'view', 'checks', 'diff', 'status'].includes(sub)
+  if (cmd === 'api') {
+    const at = args.findIndex((a) => a === '-X' || a === '--method')
+    const method = at >= 0 ? args[at + 1] : args.find((a) => a.startsWith('--method='))?.slice(9) ?? args.find((a) => /^-X./.test(a))?.slice(2)
+    const fields = args.some((a) => ['-f', '-F', '--field', '--raw-field', '--input'].includes(a) || /^(-[fF]|--field=|--raw-field=|--input=)/.test(a))
+    return (method !== undefined && method.toUpperCase() !== 'GET') || fields
+  }
+  return true
+}
+
 /** SOURCE.md as pack-sync writes it: the commit, and the sha256 of every file the stamp does not cover. */
 export function sourceNote(commit, files) {
   const rows = Object.keys(COPIED).map((f) => `| \`${f}\` | \`${files[f]}\` |`)
   return `# PortableDoc conformance pack
 
 Written by \`scripts/pack-sync.mjs\` from \`${SOURCE_REPO}\` commit \`${commit}\`, path \`${SOURCE_PATH}\`.
-Never edit it by hand: Barkpark is the source, and an hourly job (\`.github/workflows/sync-pack.yml\`)
+Never edit it by hand: Barkpark is the source, and a daily job (\`.github/workflows/sync-pack.yml\`)
 brings it here (docs/decisions/0009-pack-syncs-itself.md).
 
 | File | sha256 |

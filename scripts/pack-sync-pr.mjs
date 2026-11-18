@@ -1,114 +1,127 @@
-// The hourly sync's one step (.github/workflows/sync-pack.yml; docs/decisions/0009-pack-syncs-itself.md):
+// The daily sync's plan (.github/workflows/sync-pack.yml, job `plan`; docs/decisions/0009-pack-syncs-itself.md).
+// It reads GitHub and git and writes nothing to either: every write (push, PR, merge, close) is printed
+// as `would:` and left to the workflow's `act` job, which runs no project code.
 //
-//   main's pack same as Barkpark? ── yes ─► close a leftover sync PR, done
-//        │ no
-//   an open sync PR? ── yes ─► its branch, main merged in ── carries this pack? ── yes ─► land it
-//        │ no                                                   │ no
-//   a branch from main ◄────────────────────────────────────────┘
-//        ▼
-//   pack-sync.mjs ─► commit ─► push (deploy key: starts the checks) ─► open or update the PR
+//   a file other than the stamp differs from Barkpark main? ── no ─► an open sync PR is closed; done
+//        │ yes                                                       (a stamp-only difference rides along)
+//   an open sync PR that carries those files? ── yes ─► every required check green at its head? ─► land it
+//        │ no                                              │ one red ─► this run fails, naming it
+//        ▼                                                 └ running ─► the next run looks again
+//   pack-sync.mjs in a scratch worktree (the PR's branch with main merged in, or main) ─► one commit
+//        ─► the act job pushes it to sync/barkpark-pack, opens or updates the PR
 //
-// Land: every required check green at the PR's head ─► squash-merge by number at that head, then
-// ask again that it is MERGED. A failed check fails this run (the alarm: the studio renderer is
-// behind Barkpark); checks still running wait for the next run.
-//   node scripts/pack-sync-pr.mjs <barkpark checkout> [--dry-run] [--commit <sha>]   (--commit: as pack-sync.mjs)
-// --dry-run: reads GitHub as the run would and prints each write to it (push, PR, merge, close) instead.
-// It still switches and commits in this checkout: run it in a scratch clone, never in a working one.
+//   node scripts/pack-sync-pr.mjs <barkpark checkout> --out <dir> [--commit <sha>] [--summary <file>]
+// <dir>/plan.json: {action: 'none' | 'close' | 'land' | 'push', number?, head?, lease?, main?, title?}; for a
+// push, also sync.bundle (ref HEAD: the sync commit), title.txt and body.md. --commit: as pack-sync.mjs.
 import {execFileSync, spawnSync} from 'node:child_process'
-import {mkdtempSync} from 'node:fs'
+import {appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {parseArgs} from 'node:util'
-import {PACK_DIR, compare, landing, sourceDir} from './lib/pack.mjs'
+import {PACK_DIR, compare, ghWrite, landing, sourceDir} from './lib/pack.mjs'
 
 const BRANCH = 'sync/barkpark-pack'
 const BASE = 'main'
-const MERGE_TRIES = 5
-const WAIT_MS = Number(process.env.SYNC_PR_WAIT_MS ?? 5000)
 
-const {values, positionals} = parseArgs({allowPositionals: true, options: {'dry-run': {type: 'boolean', default: false}, commit: {type: 'string'}}})
-if (positionals.length !== 1) {
-  console.error('usage: node scripts/pack-sync-pr.mjs <barkpark checkout> [--dry-run] [--commit <sha>]')
+const {values, positionals} = parseArgs({allowPositionals: true, options: {out: {type: 'string'}, commit: {type: 'string'}, summary: {type: 'string'}}})
+if (positionals.length !== 1 || !values.out) {
+  console.error('usage: node scripts/pack-sync-pr.mjs <barkpark checkout> --out <dir> [--commit <sha>] [--summary <file>]')
   process.exit(2)
 }
-const dry = values['dry-run']
 const root = fileURLToPath(new URL('..', import.meta.url))
-const checkout = positionals[0]
-const run = (cmd, ...args) => execFileSync(cmd, args, {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']}).trim()
-const write = (cmd, ...args) => (dry ? (console.log(`dry-run: ${cmd} ${args.join(' ')}`), '') : run(cmd, ...args))
-const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+const src = sourceDir(positionals[0])
+const out = values.out
+mkdirSync(out, {recursive: true})
+const git = (...args) => execFileSync('git', args, {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']}).trim()
+// GitHub, read only: a write never leaves this script (lib/pack.mjs ghWrite names them).
+const gh = (...args) => {
+  if (ghWrite(args)) throw new Error(`pack-sync-pr: refused a write to GitHub: gh ${args.join(' ')}`)
+  return spawnSync('gh', args, {cwd: root, encoding: 'utf8'})
+}
+const ghOut = (...args) => {
+  const r = gh(...args)
+  if (r.status !== 0) throw new Error(`gh ${args.join(' ')}: ${r.stderr.trim()}`)
+  return r.stdout.trim()
+}
+const say = (line) => (console.log(line), values.summary && appendFileSync(values.summary, `${line}\n`))
+const plan = (p) => {
+  writeFileSync(join(out, 'plan.json'), `${JSON.stringify(p, null, 2)}\n`)
+  process.exit(0)
+}
 const fail = (message) => {
-  console.error(`pack-sync-pr: ${message}`)
+  say(`pack-sync-pr: ${message}`)
   process.exit(1)
 }
 
+/** What differs from the source, and whether any of it is more than the stamp. */
+const differs = (dir) => {
+  const lines = compare(dir, src)
+  return {lines, real: lines.some((l) => !l.startsWith(`${PACK_DIR}/goldens/stamp.json:`))}
+}
+
 // Only this repo's PR: anyone can open a fork PR from a branch of the same name.
-const openPr = () => run('gh', 'pr', 'list', '--head', BRANCH, '--base', BASE, '--state', 'open', '--json', 'number,isCrossRepository', '--jq', '.[] | select(.isCrossRepository | not) | .number').split('\n')[0] || undefined
+const number = ghOut('pr', 'list', '--head', BRANCH, '--base', BASE, '--state', 'open', '--json', 'number,isCrossRepository', '--jq', '.[] | select(.isCrossRepository | not) | .number').split('\n')[0] || undefined
+const here = differs(root)
+if (here.lines.some((l) => l.startsWith('source '))) fail(`Barkpark's pack is not valid:\n${here.lines.join('\n')}`)
 
-/** Every required check green at `head` ─► merge by number at `head`. Red ─► fail the run. */
-function land(number) {
-  const head = run('gh', 'pr', 'view', number, '--json', 'headRefOid', '--jq', '.headRefOid')
-  // What main's ruleset requires, by name; gh exits non-zero while checks run or fail, so read its output alone.
-  const required = JSON.parse(run('gh', 'api', `repos/{owner}/{repo}/rules/branches/${BASE}`, '--jq', '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context]'))
-  const checks = JSON.parse(spawnSync('gh', ['pr', 'checks', number, '--json', 'name,bucket,startedAt'], {cwd: root, encoding: 'utf8'}).stdout || '[]')
-  const {verdict, names} = landing(required, checks)
-  if (verdict === 'red') fail(`#${number} at ${head.slice(0, 12)}: ${names.join(', ')} failed. The studio renderer is behind Barkpark's pack, or a check needs a rerun; the PR waits.`)
-  if (verdict === 'wait') return console.log(`#${number}: waiting at ${head.slice(0, 12)} for ${names.join(', ')}; a later run lands it`)
-  for (let attempt = 1; attempt <= MERGE_TRIES; attempt++) {
-    // By number at the head the checks passed on: gh exits 0 on a PR merged long ago, 1 when only its cleanup failed.
-    if (dry) return console.log(`dry-run: gh pr merge ${number} --squash --delete-branch --match-head-commit ${head}`)
-    spawnSync('gh', ['pr', 'merge', number, '--squash', '--delete-branch', '--match-head-commit', head], {cwd: root, stdio: ['ignore', 'inherit', 'inherit']})
-    if (run('gh', 'pr', 'view', number, '--json', 'state', '--jq', '.state') === 'MERGED') return console.log(`merged #${number} at ${head.slice(0, 12)}`)
-    if (attempt < MERGE_TRIES) sleep(attempt * WAIT_MS)
-  }
-  fail(`#${number} is not merged after ${MERGE_TRIES} tries`)
+if (!here.real) {
+  say(here.lines.length ? `${PACK_DIR}: only the stamp differs from Barkpark; it rides along with the next real change` : `${PACK_DIR}: same as Barkpark`)
+  if (!number) plan({action: 'none'})
+  say(`would: gh pr close ${number} --delete-branch (main already carries these files)`)
+  plan({action: 'close', number})
 }
 
-const same = () => compare(root, sourceDir(checkout)).length === 0
-const number = openPr()
-
-if (same()) {
-  if (number) write('gh', 'pr', 'close', number, '--delete-branch', '--comment', `main already carries this pack (${PACK_DIR} same as Barkpark main).`)
-  console.log(`${PACK_DIR}: same as Barkpark, nothing to do${number ? `; closed #${number}` : ''}`)
-  process.exit(0)
-}
-
-run('git', 'fetch', '-q', 'origin', BASE)
+// The open PR's files, read from its branch without checking it out.
 if (number) {
-  run('git', 'fetch', '-q', 'origin', BRANCH)
-  run('git', 'switch', '-q', '-C', BRANCH, `origin/${BRANCH}`)
-  // main merged in, so the restamp below judges main's renderer, as the PR's checks will.
-  if (spawnSync('git', ['merge', '-q', '--no-edit', `origin/${BASE}`], {cwd: root, stdio: 'inherit'}).status !== 0) fail(`#${number}: ${BRANCH} does not merge with ${BASE}; close the PR and the next run opens a fresh one`)
-  if (same()) {
-    console.log(`#${number} already carries this pack: no push, its head holds still`)
-    land(number)
-    process.exit(0)
-  }
-} else run('git', 'switch', '-q', '-C', BRANCH, `origin/${BASE}`)
-
-const tmp = mkdtempSync(join(tmpdir(), 'pack-sync-'))
-const sync = spawnSync(process.execPath, ['scripts/pack-sync.mjs', checkout, '--pr-body', join(tmp, 'body.md'), ...(values.commit ? ['--commit', values.commit] : [])], {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']})
-if (sync.status !== 0) fail('pack-sync failed (see above); nothing pushed')
-const title = sync.stdout.trim().split('\n').at(-1)
-run('git', 'add', '-A', '--', PACK_DIR, 'conformance/barkpark-studio.json')
-run('git', 'commit', '-q', '-m', title)
-// Pushed with the deploy key (the checkout's): a push by the workflow's own token starts no checks.
-// Over the open PR's head only as fetched (someone's push meanwhile refuses this one); a branch
-// left by a closed PR is replaced.
-write('git', 'push', '-q', number ? `--force-with-lease=${BRANCH}:${run('git', 'rev-parse', `origin/${BRANCH}`)}` : '--force', 'origin', `HEAD:${BRANCH}`)
-if (number) {
-  write('gh', 'pr', 'edit', number, '--title', title, '--body-file', join(tmp, 'body.md'))
-  console.log(`updated #${number}: ${title}`)
-} else {
-  const made = spawnSync('gh', ['pr', 'create', '--head', BRANCH, '--base', BASE, '--title', title, '--body-file', join(tmp, 'body.md')], {cwd: root, encoding: 'utf8'})
-  if (dry) console.log(`dry-run: gh pr create --head ${BRANCH} --base ${BASE} --title ${title}`)
-  else if (made.status !== 0)
-    fail(`${made.stderr.trim()}\nThe sync PR cannot be opened. If GitHub says Actions may not create pull requests: Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests" must be on.`)
-  else {
-    console.log(`opened ${made.stdout.trim()}: ${title}`)
-    // A PR the workflow's token opens starts no checks; a push by the deploy key does.
-    run('git', 'commit', '-q', '--allow-empty', '-m', 'Start the checks: a PR opened by the workflow token starts none')
-    write('git', 'push', '-q', 'origin', `HEAD:${BRANCH}`)
+  git('fetch', '-q', 'origin', `${BRANCH}:refs/remotes/origin/${BRANCH}`)
+  const head = git('rev-parse', `origin/${BRANCH}`)
+  const tree = mkdtempSync(join(tmpdir(), 'pack-pr-'))
+  execFileSync('sh', ['-c', `git archive "${head}" ${PACK_DIR} | tar -x -C "${tree}"`], {cwd: root})
+  if (!differs(tree).real) {
+    say(`#${number} already carries these files at ${head.slice(0, 12)}`)
+    const required = JSON.parse(ghOut('api', `repos/{owner}/{repo}/rules/branches/${BASE}`, '--jq', '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context]'))
+    // gh exits non-zero while checks run or fail: its output alone is read.
+    const checks = JSON.parse(gh('pr', 'checks', number, '--json', 'name,bucket,startedAt').stdout || '[]')
+    const {verdict, names} = landing(required, checks)
+    if (verdict === 'red') fail(`#${number} at ${head.slice(0, 12)}: ${names.join(', ')} failed. The studio renderer is behind Barkpark's pack, or a check needs a rerun.`)
+    if (verdict === 'wait') (say(`#${number}: waiting for ${names.join(', ')}`), plan({action: 'none'}))
+    say(`would: gh pr merge ${number} --squash --delete-branch --match-head-commit ${head}`)
+    plan({action: 'land', number, head})
   }
 }
+
+// The sync commit, in a scratch worktree (this checkout is left as it is): on the open PR's branch with
+// main merged in, so a hand commit there stays and conformance judges main's renderer; else on main.
+git('fetch', '-q', 'origin', BASE)
+// The branch's head as this run read it: the push is refused if it moved meanwhile.
+const lease = number ? git('rev-parse', `origin/${BRANCH}`) : git('ls-remote', 'origin', `refs/heads/${BRANCH}`).split('\t')[0] || ''
+const main = git('rev-parse', `origin/${BASE}`)
+const work = join(mkdtempSync(join(tmpdir(), 'pack-tree-')), 'tree')
+git('worktree', 'add', '-q', '--detach', work, number ? lease : main)
+let title
+let refused
+try {
+  if (existsSync(join(root, 'app/node_modules'))) symlinkSync(join(root, 'app/node_modules'), join(work, 'app/node_modules'))
+  const w = (...args) => execFileSync('git', args, {cwd: work, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']}).trim()
+  if (number && spawnSync('git', ['merge', '-q', '--no-edit', main], {cwd: work, stdio: 'inherit'}).status !== 0) {
+    spawnSync('git', ['merge', '--abort'], {cwd: work})
+    refused = `#${number}: ${BRANCH} does not merge with ${BASE}; close the PR and the next run opens a fresh one`
+  }
+  const sync = refused ? {status: 1} : spawnSync(process.execPath, ['scripts/pack-sync.mjs', positionals[0], '--pr-body', join(out, 'body.md'), ...(values.commit ? ['--commit', values.commit] : [])], {cwd: work, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']})
+  if (sync.status === 0) {
+    title = sync.stdout.trim().split('\n').at(-1)
+    w('add', '-A', '--', PACK_DIR, 'conformance/barkpark-studio.json')
+    w('commit', '-q', '-m', title)
+    // The commits the branch lacks, as ref HEAD; the act job checks them and pushes HEAD.
+    w('bundle', 'create', '-q', join(out, 'sync.bundle'), 'HEAD', `^${main}`, ...(lease ? [`^${lease}`] : []))
+  }
+} finally {
+  git('worktree', 'remove', '--force', work)
+  rmSync(join(work, '..'), {recursive: true, force: true})
+}
+if (!title) fail(refused ?? 'pack-sync failed (see above); nothing to push')
+writeFileSync(join(out, 'title.txt'), `${title}\n`)
+say(`would: git push --force-with-lease=${BRANCH}:${lease} origin sync:refs/heads/${BRANCH}`)
+say(number ? `would: gh pr edit ${number} --title "${title}"` : `would: gh pr create --head ${BRANCH} --base ${BASE} --title "${title}"`)
+plan({action: 'push', number, lease, main, title})

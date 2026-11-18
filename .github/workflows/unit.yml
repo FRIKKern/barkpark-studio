@@ -3,6 +3,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # The daily pack sync asks for main's run after its merge (sync-pack.yml).
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

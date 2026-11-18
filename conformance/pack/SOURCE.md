@@ -1,7 +1,7 @@
 # PortableDoc conformance pack
 
 Written by `scripts/pack-sync.mjs` from `FRIKKern/barkpark` commit `5899093f22ca6b88649aef62c0eda2fa834c6194`, path `api/priv/portable_doc`.
-Never edit it by hand: Barkpark is the source, and an hourly job (`.github/workflows/sync-pack.yml`)
+Never edit it by hand: Barkpark is the source, and a daily job (`.github/workflows/sync-pack.yml`)
 brings it here (docs/decisions/0009-pack-syncs-itself.md).
 
 | File | sha256 |
