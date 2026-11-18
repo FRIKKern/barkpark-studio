@@ -78,3 +78,28 @@ export function refusedLately(ms = 60_000, cap = 10_000) {
     },
   }
 }
+
+/**
+ * describeToken heard `status` for `token` in `workspace` (server/auth.ts): refused on its own
+ * 401 only, and then noted in `lately`. An empty token is never noted: it names no one.
+ */
+export function heardRefused(lately: {note: (key: string) => void}, status: number | undefined, token: string, workspace: string): boolean {
+  if (status !== 401) return false
+  if (token.trim()) lately.note(`${token} ${workspace}`)
+  return true
+}
+
+/**
+ * A request signs out once (server/auth.ts signOut): who-am-I and each content-model read that
+ * hears the token refused ask for it. `first(request)`: true the first time for a request;
+ * outside a request (none), always.
+ */
+export function oncePerRequest<K extends object>() {
+  const done = new WeakSet<K>()
+  return (request: K | undefined) => {
+    if (!request) return true
+    if (done.has(request)) return false
+    done.add(request)
+    return true
+  }
+}

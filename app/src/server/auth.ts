@@ -28,7 +28,7 @@ import {devToken, editorPermissions, keepDevToken, sweepDevTokens} from '../../.
 import {getCookie, setCookie, deleteCookie, getRequest} from '@tanstack/react-start/server'
 import {scope} from './barkpark'
 import {seal, unseal} from './session-cookie'
-import {refusedLately} from '../lib/gate-head-start'
+import {heardRefused, oncePerRequest, refusedLately} from '../lib/gate-head-start'
 import {tokenSelf, type TokenBody, type TokenSelf} from '../lib/token-self'
 import {CLOUD_COOKIE, CLOUD_PATH, CLOUD_TTL_SECONDS, cloudConfig, cloudExchange, cloudStart, publicOrigin, ssoConfig, stateMatches, type CloudError, type CloudPending} from '../lib/cloud-signin'
 import {returnPath} from '../lib/return-path'
@@ -231,13 +231,9 @@ async function endBarkparkSession(session: string) {
 
 // A request signs out once: who-am-I and each content-model read that hears the token
 // refused (server/schemas.ts) ask for it, and one Barkpark logout ends the session.
-const signedOut = new WeakSet<Request>()
+const firstSignOut = oncePerRequest<Request>()
 export async function signOut() {
-  const request = thisRequest()
-  if (request) {
-    if (signedOut.has(request)) return
-    signedOut.add(request)
-  }
+  if (!firstSignOut(thisRequest())) return
   const editor = readSession()
   deleteCookie(COOKIE, {path: '/'})
   // Dev sign-in keeps its token (other sessions and lanes share it); an account's ends.
@@ -324,7 +320,7 @@ export function describeToken(token: string): Promise<TokenSelf> {
   const self = (async (): Promise<TokenSelf> => {
     const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}}).catch(() => undefined)
     // 401: dead (revoked or expired). 403: alive but not allowed here: nothing to write with.
-    if (res?.status === 401) return refused.note(`${token} ${workspace}`), {permissions: [], boundDataset: null, refused: true}
+    if (heardRefused(refused, res?.status, token, workspace)) return {permissions: [], boundDataset: null, refused: true}
     if (res?.status === 403) return {permissions: [], boundDataset: null}
     if (!res?.ok) return {permissions: ['read', 'write'], boundDataset: null}
     const me = tokenSelf((await res.json()) as TokenBody, workspace)

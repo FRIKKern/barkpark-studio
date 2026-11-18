@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
+import {readFileSync} from 'node:fs'
 import {test} from 'node:test'
-import {handOff, headStartAllowed, letsIn, readMeWithHeadStart, refusedLately} from './gate-head-start.ts'
+import {handOff, headStartAllowed, heardRefused, letsIn, oncePerRequest, readMeWithHeadStart, refusedLately} from './gate-head-start.ts'
 import type {TokenSelf} from './token-self.ts'
 
 /** A read whose answer the test gives when it chooses. */
@@ -137,4 +138,52 @@ test('refused lately: a minute, bounded, and only what was noted', () => {
   for (const k of ['a', 'b', 'c']) r.note(k, 1)
   assert.equal(r.has('a', 2), false, 'the oldest goes past the cap')
   assert.equal(r.has('c', 2), true)
+})
+
+test('a refusal is noted on describeToken\'s own 401 only, and never for an empty token', () => {
+  const noted: string[] = []
+  const lately = {note: (key: string) => void noted.push(key)}
+  assert.equal(heardRefused(lately, 401, 'dead', 'studio-parity'), true)
+  assert.deepEqual(noted, ['dead studio-parity'])
+  for (const status of [200, 403, 429, 500, undefined]) assert.equal(heardRefused(lately, status, 'alive', 'studio-parity'), false, `${status}: not refused`)
+  assert.deepEqual(noted, ['dead studio-parity'], 'nothing but a 401 is noted')
+  for (const token of ['', ' ']) assert.equal(heardRefused(lately, 401, token, 'studio-parity'), true, 'still refused for this request')
+  assert.deepEqual(noted, ['dead studio-parity'], 'an empty token adds nothing to the memory')
+})
+
+test('sign-out runs once per request; outside a request it always runs', () => {
+  const first = oncePerRequest<object>()
+  const a = {}
+  const b = {}
+  assert.equal(first(a), true)
+  assert.equal(first(a), false, 'the same request again: no second logout')
+  assert.equal(first(a), false)
+  assert.equal(first(b), true, 'another request signs out on its own')
+  assert.equal(first(undefined), true)
+  assert.equal(first(undefined), true)
+})
+
+// The server-only modules (server/auth.ts, lib/structure-route.tsx) cannot load under node:test:
+// these read their code, comments left out, to hold them to the decisions tested above.
+const code = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\/|(^|[^:'"])\/\/.*$/gm, '$1')
+const count = (text: string, re: RegExp) => text.match(new RegExp(re.source, 'g'))?.length ?? 0
+
+test('server/auth.ts notes refusals and signs out through the helpers above', () => {
+  const auth = code('../server/auth.ts')
+  assert.equal(count(auth, /\.note\(/), 0, 'no refusal noted beside heardRefused')
+  assert.equal(count(auth, /heardRefused\(refused, res\?\.status, token, workspace\)/), 1, "describeToken's answer goes through heardRefused")
+  assert.match(auth, /export async function signOut\(\) \{\s*if \(!firstSignOut\(thisRequest\(\)\)\) return\n/, 'signOut asks first, before anything else')
+  assert.match(auth, /const firstSignOut = oncePerRequest<Request>\(\)/)
+})
+
+test('the structure route starts its early reads only when chainMayStart says yes', () => {
+  const route = code('./structure-route.tsx')
+  assert.match(route, /import \{[^}]*\bchainMayStart\b[^}]*\} from '\.\/session'/)
+  const calls = [...route.matchAll(/readMeWithHeadStart\(\{([^}]*)\}\)/g)].map((m) => m[1])
+  assert.equal(calls.length, 1, 'one head start')
+  assert.match(calls[0], /(^|,)\s*cookieLetsIn: \(\) => chainMayStart\(\)\s*(,|$)/, 'gated on chainMayStart')
+  assert.match(calls[0], /(^|,)\s*start: startChain\s*(,|$)/)
+  assert.equal(count(route, /\bstartChain\b/), 2, 'startChain is begun nowhere else')
+  // And chainMayStart is the decision tested above, from the cookie and memory alone.
+  assert.match(code('./session.ts'), /export const chainMayStart = createServerFn\(\{method: 'GET'\}\)\.handler\(async \(\) => headStartAllowed\(signInMode\(\), currentEditor\(\), requestToken\(\), knownTokenSelf\)\)/)
 })
