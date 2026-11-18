@@ -1,7 +1,7 @@
 import type {Field} from './data'
 import {mergeText} from './merge.ts'
 import {getPath, keyedPath, setPath} from './paths.ts'
-import {alignColumns, placeColumns, sureColumn, withColumns} from './table-merge.ts'
+import {alignColumns, placeColumns, stillStands, sureColumn, withColumns} from './table-merge.ts'
 
 // The table field (Sanity's @sanity/table 3.1): an object `{_type: 'table', rows: [{_type:
 // 'tableRow', _key, cells: string[]}]}` edited as a grid of text inputs. The stored shape is
@@ -141,10 +141,10 @@ export function columnNow(drawn: unknown[], width: number, now: unknown[], colum
  */
 const otherRows = (drawn: TableRow[], now: unknown, row: string | undefined): [unknown[], unknown[]][] => {
   const by = new Map(rowsOf(now).map((r) => [r._key, cellsOf(r)]))
-  // A row whose drawn text is gone or cut now is left out: my unsent text taken to the card (seed
-  // 41009 #1350: it read as a column kept, and my key went into the other editor's word), or a removed column's.
-  const held = (was: unknown[], now: unknown[]) => was.every((c) => typeof c !== 'string' || c === '' || now.some((n) => typeof n === 'string' && n.startsWith(c)))
-  return drawn.flatMap((r) => (r._key !== row && by.has(r._key) && held(cellsOf(r), by.get(r._key)!) ? [[cellsOf(r), by.get(r._key)!] as [unknown[], unknown[]]] : []))
+  // Only a row whose drawn text still stands (stillStands) is read. One whose text is gone or cut
+  // (my unsent text taken to the card, seed 41009 #1350: it read as a column kept, and my key went
+  // into the other editor's word; a removed column's), or grew beside a lookalike, is left out.
+  return drawn.flatMap((r) => (r._key !== row && by.has(r._key) && stillStands(cellsOf(r), by.get(r._key)!) ? [[cellsOf(r), by.get(r._key)!] as [unknown[], unknown[]]] : []))
 }
 
 /**

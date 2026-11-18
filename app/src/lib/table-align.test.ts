@@ -122,3 +122,21 @@ for (const [name, drawnA, nowA] of [
     if (placed) assert.equal(placed.indexOf('Mine'), 1, `placed ${JSON.stringify(placed)}`)
     else assert.deepEqual(e.kept?.map((k) => k.text), ['Mine'])
   })
+
+// Review of #1280, the typing path: a key from the old grid after the other editor added a column,
+// in a table where a drawn word grew and a new one began beside it with the same keys. That row
+// says nothing of where the column went; my key lands in its own column or goes to the card.
+for (const [name, drawn, now, r, c, meant] of [
+  ['S grew to Size, a new S beside it', [['S', '', '', ''], ['', '', '', '']], [['Size', 'S', '', '', ''], ['', '', '', '', '']], 1, 1, 1],
+  ['Si grew to Size, a new Si beside it', [['Si', '', '', ''], ['', '', '', '']], [['Size', 'Si', '', '', ''], ['', '', '', '', '']], 1, 1, 1],
+  ['two rows grew', [['S', '', '', ''], ['M', '', '', ''], ['', '', '', '']], [['Size', 'S', '', '', ''], ['Med', 'M', '', '', ''], ['', '', '', '', '']], 2, 1, 1],
+  ['a key in column 3, the column added after it', [['S', '', '', ''], ['', '', '', '']], [['Size', 'S', '', '', ''], ['', '', '', '', '']], 1, 2, 2],
+  ['the drawn S in column 2 grew', [['', 'S', '', ''], ['', '', '', '']], [['', 'Size', 'S', '', ''], ['', '', '', '', '']], 1, 2, 2],
+] as const)
+  test(`a grown word beside a lookalike (${name}): my key never lands one cell right`, () => {
+    let card = ''
+    const [[, write]] = setCell(doc(drawn as unknown as string[][]), r, c, 'M', () => 'k', '', (t) => void (card = t)) as [string, (now: unknown, table?: unknown) => unknown][]
+    const out = write(now[r], doc(now as unknown as string[][])) as string[]
+    if (card) assert.equal(card, 'M')
+    else assert.equal(out.indexOf('M'), meant, JSON.stringify(out))
+  })

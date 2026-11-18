@@ -1,5 +1,5 @@
 import {getPath, within} from './paths.ts'
-import {alignColumns, cellsOf, isTable, ownColumns, sureColumn, tableSpot, width} from './table-merge.ts'
+import {alignColumns, cellsOf, isTable, ownColumns, stillStands, sureColumn, tableSpot, width} from './table-merge.ts'
 
 // Two editors in one @sanity/table, when the other changed its columns or rows while I had
 // text not saved yet. A cell has no key: a column is only a place, and nothing stored says
@@ -99,12 +99,8 @@ export function keepOnShapeChange(e: Pending, d: unknown, before: unknown) {
     // column (sureColumn; empty cells read alike to text, theirs may have typed in one since),
     // and the cell there still holds what I typed on from, my text goes there. A column theirs
     // added right of mine, or a new empty column the other rows show, says where it is.
-    // Only rows whose drawn text all still stands, each word whole and the only cell that starts
-    // with it, say where columns went. A row theirs typed on since says nothing: the first key it
-    // was drawn with ('S') matches a new word theirs began in the next column ('S' beside 'Size')
-    // as well as the word it grew into, and that lookalike puts my text one cell right (review of #1280).
-    const stands = (a: unknown[], b: unknown[]) => a.every((x) => typeof x !== 'string' || x === '' || (b.includes(x) && b.filter((y) => typeof y === 'string' && y.startsWith(x)).length === 1))
-    const sureAt = (c: Change) => (c.from >= 0 ? sureColumn(keyedPairs.flatMap(([k, a, b]): [unknown[], unknown[]][] => (k === c.row || stands(a, b) ? [[a, b]] : [])), w0, w1, c.from, true) : undefined)
+    // Only my own row and rows whose drawn text still stands (stillStands) say where columns went.
+    const sureAt = (c: Change) => (c.from >= 0 ? sureColumn(keyedPairs.flatMap(([k, a, b]): [unknown[], unknown[]][] => (k === c.row || stillStands(a, b) ? [[a, b]] : [])), w0, w1, c.from, true) : undefined)
     const only = (c: Change, j: number) => near(c.from, j) && c.was.every((v, i) => i === c.from || v !== c.base || !near(i, j)) && fits(c.from, j)
     const placed = new Map<string, unknown[]>()
     for (const c of changes) {

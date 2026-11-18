@@ -75,6 +75,16 @@ export function alignColumns(rows: [from: unknown[], to: unknown[]][], from: num
 }
 
 /**
+ * Whether a row read as drawn (`drawn`) still says where its columns went (`now`): each drawn word
+ * is in the row whole, and no other cell starts with it. A row typed on since says nothing: a word
+ * that grew ('S' to 'Size') and a new one begun beside it with the same keys ('S') read as a column
+ * put in left of it, and a cell placed by that lands one cell right (review of #1280).
+ */
+export function stillStands(drawn: unknown[], now: unknown[]): boolean {
+  return drawn.every((x) => typeof x !== 'string' || x === '' || (now.includes(x) && now.filter((y) => typeof y === 'string' && y.startsWith(x)).length === 1))
+}
+
+/**
  * Where column `i` of `from` sits among `to`'s (-1: removed) when the whole table says so: every
  * best alignment of the rows (`rows`, all of them at once) puts it there. Undefined when two best
  * ones place it apart (cells that read alike either way: an empty table, a row of the same text),
