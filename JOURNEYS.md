@@ -16,7 +16,7 @@ status lives on the task board. A scout's honest gap adds a row: never a shrinki
 | J06 | 3 | Two browsers type in the **same** field; converge, no focus jump | F4 F6 F7 |
 | J07 | 3 | Presence everywhere: avatars on doc, field, list rows, array items/blocks; navbar "who's online" jumps to them; above/below hints | F4 |
 | J08 | 1 ★ | Pick author by search; open it in the next pane | F2 F5 |
-| J09 | 4 | Arrays of refs and objects: add, drag by handle and keyboard, item "…" menu (remove, copy, duplicate, add before/after) | F1 F5 F7 |
+| J09 | 4 | Arrays of refs and objects: add, drag by handle and keyboard, item "…" menu (remove, copy, duplicate, add before/after); at Rule.max every way to add (Add item, duplicate, add before/after, Paste field, an image drop) says "Maximum items reached" | F1 F5 F7 |
 | J10 | 5 | Type in body (shared canvas, [0004](docs/decisions/0004-portabledoc-freeform.md)): styles H1–H6, quote, marks, link popover, lists, markdown shortcuts; paste from Google Docs, Word, a web page, Markdown and plain text keeps structure, marks and links, never drops text silently (paste.spec) | F1 F5 F7 F9 |
 | J11 | 5 | Insert callout + image block, edit in dialog; block "…" menu, drag blocks, inline objects (yes, [0006](docs/decisions/0006-owner-calls-roles-comments-scheduling.md)). A Portable Text field takes Sanity's table (`blocks.of: ["table"]`, [EXTENDING](docs/EXTENDING.md)): Insert → Table, type in cells (Tab, arrows; marks, links, lists), row and column handles, insert dots, add at end, header row, Select and Delete table (pt-table.spec); two editors in one table both keep their words | F2 F4 F10 |
 | J12 | 5 | Image: upload, hotspot/crop (mouse + keyboard), alt text | F9 F10 |

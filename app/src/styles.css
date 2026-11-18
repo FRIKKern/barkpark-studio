@@ -1574,8 +1574,8 @@ html[data-diagnostics-open] .toasts { z-index: 75; } /* not body:has(): lib/html
 /* Add item: Sanity's secondary button (fill, ring, muted words, its + 21 px), its content 3 px left of centre, measured at 1440. */
 .add-item { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 8px; padding: 6px 10px 6px 4px; font: inherit; font-size: 13px; font-weight: 500; line-height: 19px; border: 0; border-radius: 3px; background: var(--bg-soft); box-shadow: inset 0 0 0 1px var(--btn-secondary-ring); color: var(--btn-secondary-fg); cursor: pointer; }
 /* Sanity's secondary button under the pointer: fill, words, ring and icon each a step darker (lighter in dark). */
-:is(.btn-create, .add-item, .vision-actions .btn:not(.btn-primary)):hover:not(:disabled) { background: var(--btn-secondary-hover-bg); box-shadow: inset 0 0 0 1px var(--btn-secondary-hover-ring); color: var(--btn-secondary-hover-fg); }
-:is(.btn-create, .add-item, .vision-actions .btn:not(.btn-primary)):hover:not(:disabled) svg { color: var(--btn-secondary-hover-icon); }
+:is(.btn-create, .add-item, .vision-actions .btn:not(.btn-primary)):hover:not(:disabled, [aria-disabled='true']) { background: var(--btn-secondary-hover-bg); box-shadow: inset 0 0 0 1px var(--btn-secondary-hover-ring); color: var(--btn-secondary-hover-fg); }
+:is(.btn-create, .add-item, .vision-actions .btn:not(.btn-primary)):hover:not(:disabled, [aria-disabled='true']) svg { color: var(--btn-secondary-hover-icon); }
 .add-item svg { width: 21px; height: 21px; color: var(--btn-secondary-icon); }
 /* J33: the insert menu of a several-type array, centred under Add item as Sanity's. */
 .menu-wrap.add-item-wrap { display: block; position: relative; }
