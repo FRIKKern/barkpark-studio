@@ -1,0 +1,53 @@
+# Keeps conformance/pack/ the same as Barkpark main's api/priv/portable_doc: compare, and when it
+# differs open or update one sync PR, which lands itself once every required check is green.
+# Why and how: docs/decisions/0009-pack-syncs-itself.md. To hold the sync back, disable this workflow.
+name: sync-pack
+on:
+  schedule:
+    - cron: '37 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+# One run at a time; a newer one waits for it (never cancels it mid-push).
+concurrency:
+  group: sync-pack
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env: { GH_TOKEN: '${{ github.token }}' }
+    steps:
+      # Pushes to the sync branch go with the housekeeping deploy key: a push by the workflow's own
+      # token starts no workflows, so the PR's required checks would never run.
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0, ssh-key: '${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}' }
+      # Barkpark is public: read with no token.
+      - uses: actions/checkout@v5
+        with:
+          repository: FRIKKern/barkpark
+          ref: main
+          path: .barkpark
+          sparse-checkout: api/priv/portable_doc
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.0 }
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - name: Same as Barkpark?
+        id: fresh
+        run: |
+          if node scripts/pack-compare.mjs --against .barkpark; then echo same=true >> "$GITHUB_OUTPUT"; else echo same=false >> "$GITHUB_OUTPUT"; fi
+      # The renderer runs on the new pack (conformance), so the app's dependencies come first.
+      - if: steps.fresh.outputs.same == 'false'
+        run: pnpm --dir app install --frozen-lockfile
+      - name: Close, or open or update the sync PR, and land it when green
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          node scripts/pack-sync-pr.mjs .barkpark
