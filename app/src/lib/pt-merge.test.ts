@@ -4,7 +4,8 @@ import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import {mergeList3, onto} from './merge.ts'
 import {freshItems, remoteBlockPatches} from './pt-value.ts'
-import {keysFrom, mergeBlock, withTheirWords} from './pt-merge.ts'
+import {keysFrom, withTheirWords} from './pt-merge.ts'
+import {caught, keepWords, mergeBlock, mergeBlocks} from './pt-keep.ts'
 import {rebase, type Spots} from './edit-bases.ts'
 
 let n = 0
@@ -81,9 +82,10 @@ test('where no text merge can be made, their words go at the end of that block, 
   const second = mergeList3(doc, rewrote, added)!
   assert.deepEqual(texts(second), want) // in the block they typed in, not at the end of the body
   assert.deepEqual(texts(mergeList3(doc, added, rewrote)), want)
-  // It settles: their words come back in the next frame and are not added again.
-  assert.deepEqual(texts(mergeList3(doc, second, added)), want)
-  assert.deepEqual(texts(freshItems(doc, second, added)), want)
+  // It settles: the other editor takes the merged frame as it is, and a merge after that is made
+  // from it (a frame moves the base: edit-bases rebase, the save measured from what was drawn).
+  assert.deepEqual(texts(mergeList3(added, added, second)), want)
+  assert.deepEqual(texts(freshItems(second, second, second)), want)
 })
 
 test('a frame R moves the fence and the base together: every pending spot holds R\'s words', () => {
@@ -110,9 +112,11 @@ test('their block edited by text only still comes in as diff-match-patch after o
   assert.deepEqual(remoteBlockPatches(b1Line, [blk('b1', ['af06', 'x y z Start'])], b2Line, [], new Set(), new Map([['b1/af06', 'x y z Start text']])), [])
 })
 
-test('withTheirWords leaves a list alone when no block was changed by both', () => {
+test('a new block after an unchanged one, their words in that one: both, in their blocks', () => {
   const mine = [blk('b1', ['b1s', 'Start text']), blk('n', ['ns', 'new'])]
-  assert.deepEqual(withTheirWords(base, mine, b1Line).mine, mine)
+  assert.deepEqual(texts(mergeList3(base, mine, b1Line)), ['Start text one two three', 'new'])
+  assert.deepEqual(texts(mergeList3(base, b1Line, mine)), ['Start text one two three', 'new'])
+  assert.deepEqual(withTheirWords(base, [base[0]], b1Line).mine, [base[0]]) // nothing of mine changed: left alone
 })
 
 test('a block saved by its key that they split meanwhile: the field goes whole, their split and my words kept', () => {
@@ -144,4 +148,58 @@ test('a block written back unchanged with its keys in another order is not an ed
   const mine = [reordered(was[0]!), blk('t', ['ts', 'three four'])]
   const theirs = [blk('b1', ['x1', 'x']), blk('z3', ['z3s', 'z Start text one']), was[1]]
   assert.deepEqual(texts(mergeList3(was, mine, theirs)), ['x', 'z Start text one', 'three four'])
+})
+
+test('their words are kept when the same words are elsewhere in mine (a rewrite), either order, once more', () => {
+  const rewrite = 'Totally different words, as a rewrite'
+  for (const [was, X] of [['Start text here', ' as'], ['Start text here', ' words'], ['Start text here', ' a'], ['Start text here', ' new'], ['Start text here fox', 'e']] as const) {
+    const doc = [blk('b1', ['b1s', was])]
+    const mine = [blk('b1', ['n', rewrite])]
+    const theirs = [blk('b1', ['b1s', was + X])]
+    const one = texts(mergeList3(doc, mine, theirs))
+    assert.deepEqual(texts(mergeList3(doc, theirs, mine)), one)
+    assert.equal(one[0]!.split(X).length - 1, rewrite.split(X).length, `${X} in ${one[0]}`)
+  }
+})
+
+test('a paste over a selection next to the other paste: both pastes kept, either order', () => {
+  const doc = [blk('b1', ['s', 'abcdefghij'])]
+  for (const [a, b, want] of [['abcdefghijABC', 'abcdefgh123', 'abcdefgh123ABC'], ['ABCbcdefghij', '123bcdefghij', '123ABCbcdefghij'], ['abcdefABCghij', 'abc123ghij', 'abc123ABCghij']]) {
+    assert.deepEqual(texts(mergeList3(doc, [blk('b1', ['s', a!])], [blk('b1', ['s', b!])])), [want])
+    assert.deepEqual(texts(mergeList3(doc, [blk('b1', ['s', b!])], [blk('b1', ['s', a!])])), [want])
+  }
+})
+
+test('the same text at the same place by both is stored once; at two places, twice', () => {
+  const doc = [blk('b1', ['s', 'Start text'])]
+  const at = (i: number) => [blk('b1', ['s', `Start text`.slice(0, i) + 'abc' + 'Start text'.slice(i)])]
+  assert.deepEqual(texts(mergeList3(doc, at(5), at(5))), ['Startabc text'])
+  assert.deepEqual(texts(freshItems(doc, at(10), at(10))), ['Start textabc'])
+  assert.deepEqual(texts(mergeList3(doc, at(0), at(10))), ['abcStart textabc'])
+  assert.deepEqual(texts(mergeList3(doc, at(10), at(0))), ['abcStart textabc'])
+})
+
+test('a paste that splits a block the other joined to the one before: every word once, either order', () => {
+  const doc = [blk('a', ['as', 'Above']), blk('b1', ['b1s', 'Start text']), blk('c', ['cs', 'Below'])]
+  const joined = [blk('a', ['as', 'AboveStart text']), doc[2]]
+  const split = [doc[0], blk('b1', ['b1s', 'Stax']), blk('y', ['ys', 'y']), blk('z', ['zs', 'zrt text']), doc[2]]
+  const want = ['AboveStax', 'y', 'zrt text', 'Below']
+  assert.deepEqual(texts(mergeList3(doc, joined, split)), want)
+  assert.deepEqual(texts(mergeList3(doc, split, joined)), want)
+  assert.deepEqual(texts(freshItems(doc, joined, split)), want)
+  assert.deepEqual(texts(freshItems(doc, split, joined)), want)
+})
+
+test('the net: words a list merge dropped go at the end of their block run, once; a sound merge is left as it is', () => {
+  const doc = [blk('a', ['as', 'Alpha']), blk('b1', ['b1s', 'Start text']), blk('c', ['cs', 'Gamma'])]
+  const mine = [doc[0], blk('b1', ['b1s', 'Start text']), blk('n', ['ns', 'new words']), doc[2]]
+  const theirs = [doc[0], blk('b1', ['b1s', 'Start text and more']), doc[2]]
+  const was = caught.count
+  // A path that loses mine's new block and their words both.
+  const out = mergeBlocks(doc, mine, theirs, () => doc)!
+  assert.deepEqual(texts(out), ['Alpha', 'Start text and more new words', 'Gamma'])
+  assert.equal(caught.count, was + 1)
+  assert.deepEqual(keepWords(doc, mine, theirs, out), out)
+  assert.deepEqual(keepWords(doc, mine, theirs, mergeList3(doc, mine, theirs)!), mergeList3(doc, mine, theirs))
+  assert.equal(caught.count, was + 1)
 })

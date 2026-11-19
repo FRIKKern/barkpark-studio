@@ -3,7 +3,8 @@ import type {Field} from './data'
 import {refId} from './refs.ts'
 import {applyPatches, DIFF_DELETE, makeDiff, makePatches, parsePatch, stringifyPatches} from '@sanity/diff-match-patch'
 import {isTable, TABLE_FIELDS, tablesIn} from './pt-table.ts'
-import {hasTextBlocks, withTheirWords} from './pt-merge.ts'
+import {mergeBlocks} from './pt-keep.ts'
+import {hasTextBlocks} from './pt-merge.ts'
 
 // S4a (task-7f77f41c95cc6d9f): Portable Text in a richText field, edited with
 // @portabletext/editor. S4b: annotations. S4c: custom blocks and inline objects. The jobs
@@ -430,21 +431,29 @@ export function changedBlocks(prev: unknown, next: unknown): {key: string; block
 export function freshItems(prior: unknown, next: unknown[], now: unknown, theirs: (item: Obj) => boolean = () => false): unknown[] {
   if (!Array.isArray(now)) return next
   // A text block this editor changed that another editor changed too: their words go into
-  // it as text (lib/pt-merge.ts), never this editor's copy over them.
-  const pt = Array.isArray(prior) && hasTextBlocks(next) ? withTheirWords(prior, next, now) : null
-  if (pt) next = pt.mine
+  // it as text, never this editor's copy over them; the net then checks no word is lost
+  // (lib/pt-keep.ts).
+  if (Array.isArray(prior) && hasTextBlocks(next)) return mergeBlocks(prior, next, now, (m, consumed, own) => fresh(prior, m, now, theirs, consumed, own))!
+  return fresh(prior, next, now, theirs, new Set(), new Set())
+}
+
+/** freshItems' list merge; `own`: items a text merge made, as they are. */
+function fresh(prior: unknown, next: unknown[], now: unknown[], theirs: (item: Obj) => boolean, consumed: Set<string>, own: Set<string>): unknown[] {
   const was = byKey<Obj>(prior)
   const held = byKey<Obj>(now)
   const mine = byKey<Obj>(next)
-  const out = next.map((item) => {
-    const fresh = isObj(item) && typeof item._key === 'string' ? held.get(item._key) : undefined
-    if (!fresh) return item
-    const before = was.get((item as Obj)._key as string)
-    return (before && equal(before, item)) || theirs(item as Obj) ? fresh : item
-  })
+  const out = next
+    // A text block the other editor removed (a join, a delete across blocks) that this one left as it was: gone.
+    .filter((item) => !(isText(item) && typeof item._key === 'string' && !own.has(item._key) && !held.has(item._key) && was.has(item._key) && equal(was.get(item._key), item)))
+    .map((item) => {
+      const fresh = isObj(item) && typeof item._key === 'string' ? held.get(item._key) : undefined
+      if (!fresh || own.has((item as Obj)._key as string)) return item
+      const before = was.get((item as Obj)._key as string)
+      return (before && equal(before, item)) || theirs(item as Obj) ? fresh : item
+    })
   now.forEach((item, i) => {
     const key = isObj(item) && typeof item._key === 'string' ? item._key : undefined
-    if (!key || was.has(key) || mine.has(key) || pt?.consumed.has(key)) return
+    if (!key || was.has(key) || mine.has(key) || consumed.has(key)) return
     let at = -1
     for (let j = i - 1; j >= 0 && at < 0; j--) at = out.findIndex((x) => isObj(x) && isObj(now[j]) && x._key !== undefined && x._key === (now[j] as Obj)._key)
     // Past the text blocks this editor added right after that one (a paste that split it).

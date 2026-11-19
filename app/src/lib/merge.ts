@@ -1,5 +1,6 @@
 import {applyPatches as apply, makePatches, type Patch} from '@sanity/diff-match-patch'
-import {hasTextBlocks, mergeBlock, same, withTheirWords} from './pt-merge.ts'
+import {mergeBlock, mergeBlocks} from './pt-keep.ts'
+import {hasTextBlocks, same} from './pt-merge.ts'
 
 // A patch placed on other text than it was made from: its byte offset may fall inside one of
 // that text's letters (an æ or an emoji the other editor typed before it). The library throws
@@ -97,36 +98,10 @@ export function mergeList3(base: unknown[], mine: unknown[], theirs: unknown[]):
   const item = (b: unknown, m: unknown, t: unknown) => (typeof b === 'string' && typeof m === 'string' && typeof t === 'string' ? merge3(b, m, t) ?? m : same(t, b) ? m : same(m, b) ? t : nested(b, m, t) ?? m)
   const keyed = [base, mine, theirs].every((xs) => xs.every((x) => keyOf(x) !== null))
   if (keyed) {
-    // Portable Text: a block both changed is merged as text (lib/pt-merge.ts), their new
-    // blocks whose words went into mine that way not added again.
-    if (hasTextBlocks(mine)) {
-      const pt = withTheirWords(base, mine, theirs)
-      mine = pt.mine
-      theirs = theirs.filter((x) => !pt.consumed.has(keyOf(x)!))
-    }
-    const baseBy = new Map(base.map((x) => [keyOf(x)!, x]))
-    const mineBy = new Map(mine.map((x) => [keyOf(x)!, x]))
-    const out = theirs
-      .filter((x) => !(baseBy.has(keyOf(x)!) && !mineBy.has(keyOf(x)!))) // I removed it
-      .map((x) => {
-        const k = keyOf(x)!
-        const b = baseBy.get(k)
-        const m = mineBy.get(k)
-        return b !== undefined && m !== undefined && !same(m, b) ? item(b, m, x) : x
-      })
-    // Mine added: after the item it follows in mine (or first). One theirs has too, with a
-    // key no one else drew, is my own add come back (saved, or cached) and mine is newer:
-    // an item added and typed into at once kept the add's value ("Read more", J33).
-    mine.forEach((x, i) => {
-      const k = keyOf(x)!
-      if (baseBy.has(k)) return
-      const there = out.findIndex((y) => keyOf(y) === k)
-      if (there >= 0) return void (out[there] = x)
-      const prev = i > 0 ? keyOf(mine[i - 1]) : null
-      const at = prev === null ? 0 : out.findIndex((y) => keyOf(y) === prev) + 1
-      out.splice(at > 0 || prev === null ? at : out.length, 0, x)
-    })
-    return out
+    // Portable Text: a block both changed is merged as text, their new blocks whose words went
+    // into mine that way not added again, then the net (lib/pt-keep.ts): no added word dropped.
+    if (hasTextBlocks(mine)) return mergeBlocks(base, mine, theirs, (m, consumed, own) => keyedMerge(base, m, theirs.filter((x) => !consumed.has(keyOf(x)!)), item, own))
+    return keyedMerge(base, mine, theirs, item)
   }
   // Unkeyed. I only moved items and they edited some in place: their edits onto my order.
   const sorted = (xs: unknown[]) => xs.map((x) => JSON.stringify(x)).sort().join('\u0000')
@@ -147,6 +122,34 @@ export function mergeList3(base: unknown[], mine: unknown[], theirs: unknown[]):
     if (j < 0) return null // they changed or removed the item I edited: can't place mine
     out[j] = item(base[i], mine[i], theirs[j])
   }
+  return out
+}
+
+/** mergeList3 for a keyed list: their list with my edits, adds and removes put in (`own`: mine as it is, already merged). */
+function keyedMerge(base: unknown[], mine: unknown[], theirs: unknown[], item: (b: unknown, m: unknown, t: unknown) => unknown, own = new Set<string>()): unknown[] {
+  const baseBy = new Map(base.map((x) => [keyOf(x)!, x]))
+  const mineBy = new Map(mine.map((x) => [keyOf(x)!, x]))
+  const out = theirs
+    .filter((x) => !(baseBy.has(keyOf(x)!) && !mineBy.has(keyOf(x)!))) // I removed it
+    .map((x) => {
+      const k = keyOf(x)!
+      const b = baseBy.get(k)
+      const m = mineBy.get(k)
+      return m !== undefined && own.has(k) ? m : b !== undefined && m !== undefined && !same(m, b) ? item(b, m, x) : x
+    })
+  // Mine added: after the item it follows in mine (or first). One theirs has too, with a
+  // key no one else drew, is my own add come back (saved, or cached) and mine is newer:
+  // an item added and typed into at once kept the add's value ("Read more", J33).
+  mine.forEach((x, i) => {
+    const k = keyOf(x)!
+    if (baseBy.has(k)) return
+    const there = out.findIndex((y) => keyOf(y) === k)
+    if (there >= 0) return void (out[there] = x)
+    // After the nearest one before it in mine that is still there (or first).
+    let at = 0
+    for (let j = i - 1; j >= 0 && !at; j--) at = out.findIndex((y) => keyOf(y) === keyOf(mine[j])) + 1
+    out.splice(at, 0, x)
+  })
   return out
 }
 

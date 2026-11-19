@@ -1,6 +1,6 @@
 import type {Doc} from './data'
 import {merge3, mergeList3, mergeText} from './merge.ts'
-import {mergeBlock} from './pt-merge.ts'
+import {mergeBlock} from './pt-keep.ts'
 import {answeredInto, anyInside, applyPaths, getPath, mergePending, setInside, within} from './paths.ts'
 import {SPAN_TEXT} from './pt-dmp.ts'
 import {columnsOf, mergeTablePart, waitsWithTable} from './table-merge.ts'
