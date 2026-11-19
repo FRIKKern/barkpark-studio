@@ -18,7 +18,7 @@ import {MarkdownShortcutsPlugin} from '@portabletext/plugin-markdown-shortcuts'
 import {PasteLinkPlugin, type LinkMatcher} from '@portabletext/plugin-paste-link'
 import {createDecoratorGuard, TypographyPlugin} from '@portabletext/plugin-typography'
 import {getActiveAnnotations, getActiveStyle, getFocusTextBlock, isActiveAnnotation, isActiveDecorator, isActiveListItem, isSelectionCollapsed, isSelectionExpanded} from '@portabletext/editor/selectors'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {schemasQuery, type Field} from '../lib/data'
 import {imageRef, imageSrc} from '../lib/image'
 import {getPath, keyedPath} from '../lib/paths'
@@ -493,6 +493,7 @@ const Text = memo(function Text({id}: {id: string}) {
 function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onReady, mine, focused, onBlur}: Shared & {id: string; tables: boolean; stored: PtBlock[]; incoming: unknown; onChange: (v: unknown) => void; editPath: ((path: string, value: unknown) => void) | null; onInvalid: () => void; onReady: () => void}) {
   const editor = useEditor()
   const docId = useContext(DocIdContext)
+  const qc = useQueryClient()
   const seen = useRef<PtBlock[] | null>(null)
   const last = useRef<unknown>(stored)
   // The editor's own value at its previous change: a block is this editor's edit when it
@@ -582,7 +583,12 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
       const was = Array.isArray(prior) ? (prior as PtBlock[]).find((b) => b?._key === p.key) : undefined
       return {...p, was, edits: tables ? tableEdits(was, p.block) : null}
     })
-    if (fine && (fine.length * 2 <= next!.length || fine.every((p) => p.edits)))
+    // Blocks came or went there since the editor drew them (another editor's paste split one):
+    // the field whole, so a block both changed merges with the blocks around it (lib/pt-merge.ts).
+    const there = docId ? getPath(qc.getQueryData(['doc', docId]), id) : undefined
+    const keys = (v: unknown) => (Array.isArray(v) ? v.map((b) => (b as PtBlock)?._key).join('\u0000') : '')
+    const shifted = Array.isArray(there) && keys(there) !== keys(base)
+    if (fine && !shifted && (fine.length * 2 <= next!.length || fine.every((p) => p.edits)))
       for (const p of fine) {
         sentAt.current.set(p.key, ++seq.current)
         sentWhen.current.set(p.key, Date.now())
@@ -598,13 +604,18 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
         }
         // Another editor's words in the block meanwhile go into it as text (lib/pt-merge.ts).
         const from = Array.isArray(base) ? (base as PtBlock[]).find((b) => b?._key === p.key) : undefined
-        if (!p.edits) editPath!(keyedPath(id, p.key), from ? (now: unknown) => mergeBlock(from, p.block, now) ?? p.block : p.block)
+        let sent: unknown = p.block
+        if (!p.edits) editPath!(keyedPath(id, p.key), from ? (now: unknown) => (sent = mergeBlock(from, p.block, now) ?? p.block) : p.block)
+        if (sent !== p.block) show(next!, next!.map((b) => (b._key === p.key ? sent : b)))
       }
     // The field whole (a block came, went or moved): onto the blocks as they are held now, so
     // a block this editor did not touch goes as it is there, another editor's newest words in
     // it (freshItems; sent as this editor last drew it, their keys typed since were undone).
-    else if (editPath && next) editPath(id, (now: unknown) => freshItems(base, next, now, (b) => theirs(b._key as string, b)))
-    else onChange(next)
+    else if (editPath && next) {
+      let sent: unknown = next
+      editPath(id, (now: unknown) => (sent = freshItems(base, next, now, (b) => theirs(b._key as string, b))))
+      show(next, sent)
+    } else onChange(next)
     // The span texts this change made are accounted for. Not a span another editor's patch
     // still waits for (held until this editor's typing pauses): it stays at their text, or
     // their next patch was made from what the editor draws now and put the waiting one's words in twice.
@@ -617,6 +628,19 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
   const give = (patches: RemotePatch[], snapshot: unknown) => {
     editor.send({type: 'patches', patches: patches as never, snapshot: snapshot as never})
     drawn.current = withRemote(drawn.current, patches, true)
+  }
+  // What a save merged in of another editor's (lib/pt-merge.ts: their words in a block this
+  // editor changed too) goes onto the screen at once, as their live edits do: left for the
+  // answer to bring, a block this editor changed itself kept its own copy until it lost focus.
+  const show = (next: unknown, sent: unknown) => {
+    if (!Array.isArray(sent) || equal(sent, next)) return
+    const patches = remoteBlockPatches(next, sent, editor.getSnapshot().context.value ?? [], [], new Set(), text.current)
+    for (const p of patches) if (typeof p.path.at(-1) === 'object' && (p.type === 'set' || p.type === 'insert')) remember(p.type === 'set' ? [p.value] : p.items, p.path.slice(0, -1))
+    mine.current = [...mine.current.slice(-19), sent]
+    last.current = sent
+    if (!patches.length) return
+    give(patches, sent)
+    before.current = withRemote(before.current, patches, true)
   }
   const flushText = useRef(() => {})
   flushText.current = () => {
