@@ -33,6 +33,7 @@ import {OneLine} from '../lib/pt-one-line'
 import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, dialogFields, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
+import {mergeBlock} from '../lib/pt-merge'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
 import {CodeCard, codeCardLine} from './CodeCard'
 import type {CodeOptions} from '../lib/code-input'
@@ -498,6 +499,11 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
   // differs from that, not from the last save (another editor's block it has not drawn yet,
   // its patch deferred while this one types, would read as an edit and go back stale).
   const before = useRef<unknown>(stored)
+  // What the editor holds of the server's: its own changes as emitted, and every patch of
+  // another editor's given to it (their text too). A block both changed merges from this
+  // (lib/pt-merge.ts): their words it has drawn are not theirs to add again, and theirs it
+  // has not drawn yet (held while this editor types) are not this editor's to take out.
+  const drawn = useRef<unknown>(stored)
   // Each block's versions as the server sent them (`incoming`), and when this editor last
   // sent each block: a block that reads as one the server sent since this editor last sent it
   // is theirs (drawn, or not drawn yet), never sent back as this editor's edit.
@@ -541,6 +547,8 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     const next = merged.length ? merged : undefined
     const prior = before.current
     before.current = next
+    const base = drawn.current
+    drawn.current = next
     // Typing alone: its diff-match-patch goes onto each span as stored now, so another
     // editor's words in that span stay (two editors in one block, as Sanity's).
     const typed = editPath && textPatches(event.patches)
@@ -588,12 +596,14 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
           const list = e.value as unknown[]
           editPath!(`${id}${at}`, Array.isArray(was) ? (now: unknown) => freshItems(was, list, now, (x) => theirsIn(p.key, `${at}[_key=="${x._key}"]`, `${e.path}[_key=="${x._key}"]`, x)) : e.value)
         }
-        if (!p.edits) editPath!(keyedPath(id, p.key), p.block)
+        // Another editor's words in the block meanwhile go into it as text (lib/pt-merge.ts).
+        const from = Array.isArray(base) ? (base as PtBlock[]).find((b) => b?._key === p.key) : undefined
+        if (!p.edits) editPath!(keyedPath(id, p.key), from ? (now: unknown) => mergeBlock(from, p.block, now) ?? p.block : p.block)
       }
     // The field whole (a block came, went or moved): onto the blocks as they are held now, so
     // a block this editor did not touch goes as it is there, another editor's newest words in
     // it (freshItems; sent as this editor last drew it, their keys typed since were undone).
-    else if (editPath && next) editPath(id, (now: unknown) => freshItems(prior, next, now, (b) => theirs(b._key as string, b)))
+    else if (editPath && next) editPath(id, (now: unknown) => freshItems(base, next, now, (b) => theirs(b._key as string, b)))
     else onChange(next)
     // The span texts this change made are accounted for. Not a span another editor's patch
     // still waits for (held until this editor's typing pauses): it stays at their text, or
@@ -604,12 +614,16 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
   }
   const typing = useRef(0)
   const held = useRef<RemotePatch[]>([])
+  const give = (patches: RemotePatch[], snapshot: unknown) => {
+    editor.send({type: 'patches', patches: patches as never, snapshot: snapshot as never})
+    drawn.current = withRemote(drawn.current, patches, true)
+  }
   const flushText = useRef(() => {})
   flushText.current = () => {
     clearTimeout(flushTimer.current)
     const wait = typing.current + WORD_PAUSE_MS - Date.now()
     if (wait > 0) flushTimer.current = setTimeout(() => flushText.current(), wait)
-    else if (held.current.length) editor.send({type: 'patches', patches: held.current.splice(0) as never, snapshot: known.current as never})
+    else if (held.current.length) give(held.current.splice(0), known.current)
   }
   const flushTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(flushTimer.current), [])
@@ -641,7 +655,7 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     // lands right after the last). Anything else goes now, with what waited before it.
     held.current.push(...patches)
     if (patches.every((p) => p.type === 'diffMatchPatch')) flushText.current()
-    else editor.send({type: 'patches', patches: held.current.splice(0) as never, snapshot: incoming as never})
+    else give(held.current.splice(0), incoming)
     // The next save is measured from the last one with their blocks in: they are not sent back
     // as this editor's own, and its typing not emitted yet still goes.
     last.current = withRemote(last.current, patches)

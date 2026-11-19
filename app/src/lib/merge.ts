@@ -1,4 +1,5 @@
 import {applyPatches as apply, makePatches, type Patch} from '@sanity/diff-match-patch'
+import {hasTextBlocks, mergeBlock, withTheirWords} from './pt-merge.ts'
 
 // A patch placed on other text than it was made from: its byte offset may fall inside one of
 // that text's letters (an æ or an emoji the other editor typed before it). The library throws
@@ -95,6 +96,13 @@ export function mergeList3(base: unknown[], mine: unknown[], theirs: unknown[]):
   const item = (b: unknown, m: unknown, t: unknown) => (typeof b === 'string' && typeof m === 'string' && typeof t === 'string' ? merge3(b, m, t) ?? m : same(t, b) ? m : same(m, b) ? t : nested(b, m, t) ?? m)
   const keyed = [base, mine, theirs].every((xs) => xs.every((x) => keyOf(x) !== null))
   if (keyed) {
+    // Portable Text: a block both changed is merged as text (lib/pt-merge.ts), their new
+    // blocks whose words went into mine that way not added again.
+    if (hasTextBlocks(mine)) {
+      const pt = withTheirWords(base, mine, theirs)
+      mine = pt.mine
+      theirs = theirs.filter((x) => !pt.consumed.has(keyOf(x)!))
+    }
     const baseBy = new Map(base.map((x) => [keyOf(x)!, x]))
     const mineBy = new Map(mine.map((x) => [keyOf(x)!, x]))
     const out = theirs
@@ -178,12 +186,12 @@ export function revertSteps(steps: readonly (readonly [from: unknown, to: unknow
 /**
  * A change made from `seen` (what the pane last drew) to `mine`, put onto `now` (what the
  * cache holds, a live frame newer than that drawing): text merges, lists item by item,
- * anything else is mine. A drop or keystroke in the gap before a frame is drawn otherwise
+ * a Portable Text block as text, anything else is mine. A drop or keystroke in the gap before a frame is drawn otherwise
  * goes out against the newer version and silently undoes it (task-8cc2a447b03bf599).
  */
 export function onto(seen: unknown, mine: unknown, now: unknown): unknown {
   if (same(seen, now)) return mine
   if (typeof seen === 'string' && typeof mine === 'string' && typeof now === 'string') return merge3(seen, mine, now) ?? mine
   if (Array.isArray(seen) && Array.isArray(mine) && Array.isArray(now)) return mergeList3(seen, mine, now) ?? mine
-  return mine
+  return mergeBlock(seen, mine, now) ?? mine
 }

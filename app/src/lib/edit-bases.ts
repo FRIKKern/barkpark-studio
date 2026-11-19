@@ -1,5 +1,6 @@
 import type {Doc} from './data'
 import {merge3, mergeList3, mergeText} from './merge.ts'
+import {mergeBlock} from './pt-merge.ts'
 import {answeredInto, anyInside, applyPaths, getPath, mergePending, setInside, within} from './paths.ts'
 import {SPAN_TEXT} from './pt-dmp.ts'
 import {columnsOf, mergeTablePart, waitsWithTable} from './table-merge.ts'
@@ -98,6 +99,10 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
       const note = columnsOf(merged)
       if (note) (e.notes ??= new Map()).set(f, [note])
       else e.notes?.delete(f)
+    } else {
+      // A Portable Text block saved by its key (`body[_key=="b"]`): their words in it merge as text.
+      const merged = mergeBlock(base, mine, theirs)
+      if (merged) e.dirty.set(f, merged)
     }
     e.base.set(f, theirs)
   }

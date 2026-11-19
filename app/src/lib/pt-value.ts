@@ -1,8 +1,9 @@
 import {CODE_FIELDS, codeOptions, isCodeBlock, type CodeOptions} from './code-input.ts'
 import type {Field} from './data'
 import {refId} from './refs.ts'
-import {makePatches, stringifyPatches} from '@sanity/diff-match-patch'
+import {applyPatches, DIFF_DELETE, makeDiff, makePatches, parsePatch, stringifyPatches} from '@sanity/diff-match-patch'
 import {isTable, TABLE_FIELDS, tablesIn} from './pt-table.ts'
+import {hasTextBlocks, withTheirWords} from './pt-merge.ts'
 
 // S4a (task-7f77f41c95cc6d9f): Portable Text in a richText field, edited with
 // @portabletext/editor. S4b: annotations. S4c: custom blocks and inline objects. The jobs
@@ -302,9 +303,9 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
   for (const [k, b] of now) {
     const old = was.get(k)
     const mine = here.get(k)
-    if (!old || !mine || equal(old, b) || ours(k, b)) continue
-    const theirs = spanTextChanges(old, b)
-    if (theirs && spanTextChanges(old, mine)) {
+    if (!mine || ours(k, b) || (old && equal(old, b))) continue
+    const theirs = old ? spanTextChanges(old, b) : null
+    if (old && theirs && spanTextChanges(old, mine)) {
       for (const {span, text} of theirs) {
         const from = seen.get(name(k, span)) ?? (((old.children as Obj[]).find((c) => c._key === span)?.text ?? '') as string)
         if (text === from || echo(name(k, span), text)) continue
@@ -313,6 +314,21 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
       }
       continue
     }
+    // This editor's own block (its spans, as it shows them) back from a save with another
+    // editor's words merged in (lib/pt-merge.ts: a paste and their typing in one block): their
+    // words go in as text. Never a letter of this editor's taken out: an older answer lacks
+    // keys typed since, and the next one has them.
+    const grown = spanTextChanges(mine, b)
+    if (grown && !(old && theirs)) {
+      for (const {span, text} of grown) {
+        const from = seen.get(name(k, span)) ?? (((mine.children as Obj[]).find((c) => c._key === span)?.text ?? '') as string)
+        if (text === from || echo(name(k, span), text) || makeDiff(from, text).some(([op]) => op === DIFF_DELETE)) continue
+        out.push({type: 'diffMatchPatch', path: [...at(k), 'children', {_key: span}, 'text'], value: stringifyPatches(makePatches(from, text)), origin: 'remote'})
+        seen.set(name(k, span), text)
+      }
+      continue
+    }
+    if (!old) continue
     // A table (a row, a cell): their change goes into the rows, cells and blocks this editor
     // has not changed, each as a block of the field does (the caret in another cell stays).
     // A field beside the items (the header row) is theirs where this editor left it alone.
@@ -328,13 +344,21 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
     const inside = (v: unknown) => (Array.isArray(v) ? (v as PtBlock[]).find((x) => x?._key === k)?.[field] : undefined)
     out.push(...remoteBlockPatches(old[field], b[field], mine[field], sent.map(inside), keep, seen, echo, [...at(k), field]))
   }
-  // New blocks, in place: after the block before them that this editor has (or will have).
+  // New blocks, in place: after the block before them that this editor has (or will have),
+  // and after the blocks this editor made next to it, not saved yet (a paste that split it):
+  // where their save puts them too (lib/merge.ts mergeList3, freshItems).
   const present = new Set([...here.keys()].filter((k) => now.has(k) || !was.has(k)))
+  const shownKeys = [...here.keys()]
+  const past = (k: string) => {
+    let i = shownKeys.indexOf(k)
+    while (i >= 0 && i + 1 < shownKeys.length && !was.has(shownKeys[i + 1]!) && !now.has(shownKeys[i + 1]!)) i++
+    return i >= 0 ? shownKeys[i]! : k
+  }
   let prev: string | undefined
   for (const [k, b] of now) {
     if (!was.has(k) && !here.has(k)) {
       const first = [...here.keys()].find((x) => present.has(x))
-      if (prev) out.push({type: 'insert', path: at(prev), position: 'after', items: [b], origin: 'remote'})
+      if (prev) out.push({type: 'insert', path: at(past(prev)), position: 'after', items: [b], origin: 'remote'})
       else if (first) out.push({type: 'insert', path: at(first), position: 'before', items: [b], origin: 'remote'})
       else continue
       present.add(k)
@@ -347,19 +371,21 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
 /**
  * `value` with another editor's patches applied: what the editor holds after them, minus
  * its own typing not yet emitted (a save is measured from this, so that typing still goes).
+ * Their text too with `text` (what the editor has drawn of theirs: a merge's base).
  */
-export function withRemote(value: unknown, patches: RemotePatch[]): PtBlock[] {
+export function withRemote(value: unknown, patches: RemotePatch[], text = false): PtBlock[] {
   let out = (Array.isArray(value) ? value : []) as PtBlock[]
   // The editor's text: its next change is sent as patches, not measured from this.
-  for (const p of patches) if (p.type !== 'diffMatchPatch') out = patched(out, p.path, p)
+  for (const p of patches) if (text || p.type !== 'diffMatchPatch') out = patched(out, p.path, p)
   return out
 }
 
 /** `list` with one patch applied at `path`: an item of it, or on into that item (a table's rows, cells, blocks, fields). */
-function patched(list: PtBlock[], path: Step[], p: Exclude<RemotePatch, {type: 'diffMatchPatch'}>): PtBlock[] {
+function patched(list: PtBlock[], path: Step[], p: RemotePatch): PtBlock[] {
   const [head, field, ...rest] = path
   const at = isObj(head) ? list.findIndex((b) => b?._key === head._key) : -1
   if (path.length === 1) {
+    if (p.type === 'diffMatchPatch') return list
     if (p.type === 'unset') return at < 0 ? list : list.filter((_, i) => i !== at)
     if (p.type === 'set') return at < 0 ? list : list.map((b, i) => (i === at ? (p.value as PtBlock) : b))
     return at < 0 ? list : [...list.slice(0, p.position === 'after' ? at + 1 : at), ...p.items, ...list.slice(p.position === 'after' ? at + 1 : at)]
@@ -371,6 +397,7 @@ function patched(list: PtBlock[], path: Step[], p: Exclude<RemotePatch, {type: '
     node[field] = patched(node[field] as PtBlock[], rest, p)
   } else if (p.type === 'unset') delete node[field]
   else if (p.type === 'set') node[field] = p.value
+  else if (p.type === 'diffMatchPatch') node[field] = applyPatches(parsePatch(p.value), typeof node[field] === 'string' ? node[field] : '', {allowExceedingIndices: true})[0]
   return list.map((b, i) => (i === at ? node : b))
 }
 
@@ -402,6 +429,10 @@ export function changedBlocks(prev: unknown, next: unknown): {key: string; block
  */
 export function freshItems(prior: unknown, next: unknown[], now: unknown, theirs: (item: Obj) => boolean = () => false): unknown[] {
   if (!Array.isArray(now)) return next
+  // A text block this editor changed that another editor changed too: their words go into
+  // it as text (lib/pt-merge.ts), never this editor's copy over them.
+  const pt = Array.isArray(prior) && hasTextBlocks(next) ? withTheirWords(prior, next, now) : null
+  if (pt) next = pt.mine
   const was = byKey<Obj>(prior)
   const held = byKey<Obj>(now)
   const mine = byKey<Obj>(next)
@@ -413,9 +444,12 @@ export function freshItems(prior: unknown, next: unknown[], now: unknown, theirs
   })
   now.forEach((item, i) => {
     const key = isObj(item) && typeof item._key === 'string' ? item._key : undefined
-    if (!key || was.has(key) || mine.has(key)) return
+    if (!key || was.has(key) || mine.has(key) || pt?.consumed.has(key)) return
     let at = -1
     for (let j = i - 1; j >= 0 && at < 0; j--) at = out.findIndex((x) => isObj(x) && isObj(now[j]) && x._key !== undefined && x._key === (now[j] as Obj)._key)
+    // Past the items this editor added right after that one (a paste that split it).
+    const added = (x: unknown) => isObj(x) && typeof x._key === 'string' && !was.has(x._key) && !held.has(x._key)
+    if (at >= 0) while (at + 1 < out.length && added(out[at + 1])) at++
     out.splice(at + 1, 0, item)
   })
   return out
