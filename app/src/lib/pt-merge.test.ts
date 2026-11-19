@@ -114,3 +114,15 @@ test('withTheirWords leaves a list alone when no block was changed by both', () 
   const mine = [blk('b1', ['b1s', 'Start text']), blk('n', ['ns', 'new'])]
   assert.deepEqual(withTheirWords(base, mine, b1Line).mine, mine)
 })
+
+test('a block saved by its key that they split meanwhile: the field goes whole, their split and my words kept', () => {
+  const doc = [blk('a', ['as', 'Above']), blk('b1', ['b1s', 'Start text']), blk('c', ['cs', 'Below'])]
+  // This editor pasted at the block's end (saved by key); the other split it with a paste at its start.
+  const mine = blk('b1', ['b1s', 'Start text one two three'])
+  const theirs = [doc[0], blk('b1', ['x1', 'x']), blk('y2', ['x1', 'y']), blk('z3', ['z3s', 'z Start text']), doc[2]]
+  const e: Spots = {dirty: new Map([['ptBody[_key=="b1"]', mine]]), inflight: null, base: new Map([['ptBody[_key=="b1"]', doc[1]]]), rev: 'r1'}
+  rebase(e, {_id: 'd', _type: 'post', _rev: 'R', ptBody: theirs} as never, {_id: 'd', _type: 'post', _rev: 'r1', ptBody: [doc[0], mine, doc[2]]} as never)
+  assert.equal(e.rev, 'R')
+  assert.deepEqual([...e.dirty.keys()], ['ptBody'])
+  assert.deepEqual(texts(e.dirty.get('ptBody')), ['Above', 'x', 'y', 'z Start text one two three', 'Below'])
+})

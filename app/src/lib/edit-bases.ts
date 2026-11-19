@@ -101,6 +101,14 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
       else e.notes?.delete(f)
     } else {
       // A Portable Text block saved by its key (`body[_key=="b"]`): their words in it merge as text.
+      // They added or removed blocks (a paste that split it, its text moved to a new block):
+      // the field goes whole, merged as a list, or their split would read as their rewrite.
+      const whole = wholeField(e, f, base, mine, before, d)
+      if (whole) {
+        e.dirty.delete(f), e.base.delete(f), e.notes?.delete(f)
+        e.dirty.set(whole.field, whole.merged), e.base.set(whole.field, getPath(d, whole.field))
+        continue
+      }
       const merged = mergeBlock(base, mine, theirs)
       if (merged) e.dirty.set(f, merged)
     }
@@ -109,6 +117,26 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
   if (missed) (e.missed = d), (e.missedFrom ??= before)
   else (e.rev = d._rev), (e.missedFrom = undefined)
   return clashed
+}
+
+/**
+ * A text block pending by its key (`field[_key=="k"]`, nothing else of the field pending) where
+ * the server's version `d` has blocks the one before it (`before`) had not, or lacks some: the
+ * field whole, merged as a list from `before` (lib/merge.ts mergeList3: the block as text,
+ * their new blocks once). Null otherwise.
+ */
+function wholeField(e: Spots, f: string, base: unknown, mine: unknown, before: Record<string, unknown> | undefined, d: Doc): {field: string; merged: unknown[]} | null {
+  const m = /^([^[.]+)\[_key=="([^"]+)"\]$/.exec(f)
+  if (!m || !before || (mine as {_type?: unknown} | null)?._type !== 'block') return null
+  const [, field, key] = m
+  const was = getPath(before, field!)
+  const now = getPath(d, field!)
+  const keys = (l: unknown[]) => l.map((x) => (x && typeof x === 'object' ? (x as {_key?: unknown})._key : undefined)).join('\u0000')
+  if (!Array.isArray(was) || !Array.isArray(now) || keys(was) === keys(now) || !was.some((x) => (x as {_key?: unknown})?._key === key)) return null
+  if ([...e.dirty.keys(), ...(e.inflight?.keys() ?? [])].some((k) => k !== f && within(k, field!))) return null
+  const at = (v: unknown) => was.map((x) => ((x as {_key?: unknown})?._key === key ? v : x))
+  const merged = mergeList3(at(base), at(mine), now)
+  return merged ? {field: field!, merged} : null
 }
 
 /**
