@@ -18,13 +18,17 @@ test.setTimeout(90_000)
 
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
-  if (target(info).name === 'studio') await target(info).restore(ID, {excerpt: EXCERPT, title: TITLE})
+  if (opened && target(info).name === 'studio') await target(info).restore(ID, {excerpt: EXCERPT, title: TITLE})
+  opened = false
 })
+// Put back only after a test that opened the doc: set as its path is taken, so before any write (c1df slice 2).
+let opened = false
+const idPath = (t: Target) => ((opened = true), t.docPath('post', ID))
 
 async function typeThenCrash(context: BrowserContext, t: Target, text: string) {
   const page = await context.newPage()
   await page.addInitScript(() => (navigator.sendBeacon = () => true))
-  await page.goto(t.docPath('post', ID))
+  await page.goto(idPath(t))
   await signInIfAsked(page)
   await t.settle(page)
   await page.route('**/_serverFn/**', (route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes('mutations') ? route.abort('failed') : route.continue()))
@@ -39,7 +43,7 @@ async function typeThenCrash(context: BrowserContext, t: Target, text: string) {
 
 async function reopen(context: BrowserContext, t: Target): Promise<Page> {
   const page = await context.newPage()
-  await page.goto(t.docPath('post', ID))
+  await page.goto(idPath(t))
   await t.settle(page)
   return page
 }
@@ -91,7 +95,7 @@ test('@local two tabs, same editor: one dies mid-save while the other saves; its
   // Tab A types into the excerpt; its saves never land, then it dies.
   const a = await context.newPage()
   await a.addInitScript(() => (navigator.sendBeacon = () => true))
-  await a.goto(t.docPath('post', ID))
+  await a.goto(idPath(t))
   await t.settle(a)
   await a.route('**/_serverFn/**', (route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes('mutations') ? route.abort('failed') : route.continue()))
   await t.field(a, 'excerpt').click()
@@ -162,7 +166,7 @@ test('@local offline, then reload: the edits typed offline are replayed once bac
   const page = await context.newPage()
   // Offline, the unload beacon does not get out; Playwright's offline still lets it.
   await page.addInitScript(() => (navigator.sendBeacon = () => true))
-  await page.goto(t.docPath('post', ID))
+  await page.goto(idPath(t))
   await signInIfAsked(page)
   await t.settle(page)
   page.on('dialog', (d) => void d.accept()) // "leave with unsaved changes?" yes
@@ -183,7 +187,7 @@ test('@local offline, then reload: the edits typed offline are replayed once bac
   // Back online, the same tab opens the doc again: same rev, sent again quietly, and said so.
   await context.setOffline(false)
   await page.unroute('**/_serverFn/**', cut)
-  await page.goto(t.docPath('post', ID))
+  await page.goto(idPath(t))
   await t.settle(page)
   await expect(page.getByText(/Unsaved changes from .* were put back/)).toBeVisible({timeout: 10_000})
   await expect.poll(() => t.docValue(ID, 'excerpt'), {timeout: 15_000}).toBe(`${EXCERPT} offline`)
@@ -200,7 +204,7 @@ test('@local the doc deleted while kept edits are replayed: they come back with 
     const page = await context.newPage()
     const held: Route[] = []
     await page.route('**/_serverFn/**', (route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes('mutations') ? void held.push(route) : route.continue()))
-    await page.goto(t.docPath('post', ID))
+    await page.goto(idPath(t))
     await t.settle(page)
     await expect.poll(() => held.length, {intervals: [50], timeout: 10_000}).toBeGreaterThan(0)
     await bpMutate([{delete: {id: ID, type: 'post', force: true}}])
