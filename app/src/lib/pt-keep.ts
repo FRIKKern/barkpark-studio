@@ -1,5 +1,5 @@
 import {DIFF_DELETE, DIFF_INSERT, makeDiff} from '@sanity/diff-match-patch'
-import {basedOn, isText, keyOf, newKey, OBJ, SEP, textOf, withTheirWords} from './pt-merge.ts'
+import {basedOn, diff, isText, keyOf, newKey, OBJ, SEP, textOf, withTheirWords} from './pt-merge.ts'
 
 // The one way out of a Portable Text merge (a list merge, a whole-field save, a block saved
 // by its key): whatever the path did (a text merge, a split, a join, a block one side
@@ -29,7 +29,7 @@ function field(list: unknown[]) {
 function provenance(base: string, side: string): number[] {
   const at: number[] = []
   let p = 0
-  for (const [op, chunk] of makeDiff(base, side)) {
+  for (const [op, chunk] of diff(base, side)) {
     if (op === DIFF_DELETE) p += chunk.length
     else for (let i = 0; i < chunk.length; i++) at.push(op === DIFF_INSERT ? -1 : p++)
   }
@@ -40,7 +40,7 @@ function provenance(base: string, side: string): number[] {
 function removed(base: string, side: string): Uint8Array {
   const del = new Uint8Array(base.length)
   let p = 0
-  for (const [op, chunk] of makeDiff(base, side)) {
+  for (const [op, chunk] of diff(base, side)) {
     if (op === DIFF_DELETE) del.fill(1, p, p + chunk.length)
     if (op !== DIFF_INSERT) p += chunk.length
   }

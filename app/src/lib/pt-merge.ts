@@ -1,4 +1,4 @@
-import {DIFF_DELETE, DIFF_INSERT, makeDiff} from '@sanity/diff-match-patch'
+import {DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, makeDiff} from '@sanity/diff-match-patch'
 
 // Two editors changed one Portable Text block at once (a paste, a split, a join: anything
 // that is not typing in a span, which goes as diff-match-patch). The save carries the field
@@ -39,12 +39,41 @@ export const keysFrom = (make: () => string) => void (fresh = make)
 export type Op = {op: -1 | 0 | 1; ch: string; t?: number}
 
 /** One side's change to `base`: the text it puts before each base letter, and the base letters it takes out. */
+/**
+ * A diff that reads a block break moved past letters as those letters taken out on one side of
+ * it and typed again on the other (`op|q` → `o|pq`: p out, p in; a paste that joined a piece
+ * of the next block onto this one) says it as the break moving: the letters stay the base's,
+ * so the other side's deletion of them still holds.
+ */
+function breaksMoved(diffs: [number, string][]): [number, string][] {
+  const out = diffs.map((d) => [...d] as [number, string])
+  const brk = (t: string) => !!t && [...t].every((c) => c === SEP)
+  for (let i = 0; i + 2 < out.length; i++) {
+    const [a, x] = out[i]!
+    const [eq, gap] = out[i + 1]!
+    const [b, y] = out[i + 2]!
+    if (eq !== DIFF_EQUAL || !brk(gap)) continue
+    // Letters typed before the break that the base had after it: base `gap y`.
+    const fix: [number, string][] | null =
+      a === DIFF_INSERT && b === DIFF_DELETE && y && x.startsWith(y) ? [[DIFF_DELETE, gap], [DIFF_EQUAL, y], [DIFF_INSERT, x.slice(y.length) + gap]]
+      : a === DIFF_INSERT && b === DIFF_DELETE && y && x.endsWith(y) ? [[DIFF_DELETE, gap], [DIFF_INSERT, x.slice(0, -y.length)], [DIFF_EQUAL, y], [DIFF_INSERT, gap]]
+      // Letters typed after the break that the base had before it: base `x gap`.
+      : a === DIFF_DELETE && b === DIFF_INSERT && x && y.startsWith(x) ? [[DIFF_INSERT, gap], [DIFF_EQUAL, x], [DIFF_DELETE, gap], [DIFF_INSERT, y.slice(x.length)]]
+      : a === DIFF_DELETE && b === DIFF_INSERT && x && y.endsWith(x) ? [[DIFF_INSERT, gap + y.slice(0, -x.length)], [DIFF_EQUAL, x], [DIFF_DELETE, gap]]
+      : null
+    if (fix) out.splice(i, 3, ...fix.filter(([, t]) => t))
+  }
+  return out
+}
+/** `base` → `side` letter by letter (a raw diff: no semantic clean-up), a moved block break read as one. */
+export const diff = (base: string, side: string) => breaksMoved(makeDiff(base, side))
+
 function edits(base: string, side: string) {
   const ins = new Map<number, {text: string; at: number}>()
   const del = new Uint8Array(base.length)
   let p = 0
   let s = 0
-  for (const [op, chunk] of makeDiff(base, side)) {
+  for (const [op, chunk] of diff(base, side)) {
     if (op === DIFF_INSERT) {
       const was = ins.get(p)
       ins.set(p, {text: (was?.text ?? '') + chunk, at: was?.at ?? s})
@@ -140,7 +169,12 @@ function cut(mine: (Obj & {children: Obj[]})[], ops: Op[], theirs: Obj[], now: s
   const j = segments[1]?.theirs
   if (j && segments[0]!.runs.every((r) => !r.from) && theirs[j - 1]) segments[0]!.who = theirs[j - 1]!
   const used = new Set<string>()
-  return segments.map(({who, runs}) => {
+  // Span keys are unique across the field: a span of mine whose letters went to two blocks (a
+  // split of theirs) keeps its key in the first; in the next it takes that block's own span key
+  // (their block as they have it), else a new one. Twice in one field, the editor holding their
+  // block took the second for another block and stored its text twice (task-30946f2255a30d93).
+  const spanKeys = new Set<string>()
+  const out = segments.map(({who, runs}) => {
     // A letter of theirs joins the span before it in the block, else the one after it.
     const span = (r: Run) => !!r.from && !r.obj
     runs.forEach((r, i) => {
@@ -152,17 +186,18 @@ function cut(mine: (Obj & {children: Obj[]})[], ops: Op[], theirs: Obj[], now: s
     const text = runs.map((r) => (r.obj ? OBJ : r.text)).join('')
     // No letter of mine in it: their block as they have it, when it says just that.
     const like = runs.every((r) => !r.from) ? ([who, ...theirs, ...mine].find((b) => isText(b) && keyOf(b) === keyOf(who) && textOf(b) === text) as (Obj & {children: Obj[]}) | undefined) : undefined
-    const keys = new Set<string>()
+    const theirsSpans = (Array.isArray(who.children) ? (who.children as Obj[]) : []).filter((c) => isSpan(c) && keyOf(c)).map((c) => keyOf(c)!)
     const children = like
       ? like.children
       : runs.flatMap((r): Obj[] => {
           if (!r.from) return r.text ? [{_type: 'span', _key: fresh(), text: r.text, marks: []}] : []
           const c = mine[r.from[0]]!.children[r.from[1]]!
           if (r.obj) return [c]
-          const k = keyOf(c) && !keys.has(keyOf(c)!) ? keyOf(c)! : fresh()
-          keys.add(k)
+          const k = keyOf(c) && !spanKeys.has(keyOf(c)!) ? keyOf(c)! : (theirsSpans.find((t) => !spanKeys.has(t)) ?? fresh())
+          spanKeys.add(k)
           return [{...c, _key: k, text: r.text}]
         })
+    for (const c of children) if (keyOf(c)) spanKeys.add(keyOf(c)!)
     if (!children.length) children.push({_type: 'span', _key: fresh(), text: '', marks: []})
     // Marks on a span that moved here name its block's markDefs: they come with it.
     const defs = new Map<string, unknown>()
@@ -173,6 +208,12 @@ function cut(mine: (Obj & {children: Obj[]})[], ops: Op[], theirs: Obj[], now: s
     const key = keyOf(who) && !used.has(keyOf(who)!) ? keyOf(who)! : fresh()
     used.add(key)
     return {...who, _key: key, children, ...(markDefs.length || 'markDefs' in who ? {markDefs} : {})}
+  })
+  // A block taken as they have it may carry a span key mine used before it: that one goes new.
+  const seen = new Set<string>()
+  return out.map((b) => {
+    const children = b.children.map((c) => (!keyOf(c) ? c : seen.has(keyOf(c)!) ? {...c, _key: fresh()} : (seen.add(keyOf(c)!), c)))
+    return children.every((c, i) => c === b.children[i]) ? b : {...b, children}
   })
 }
 
@@ -209,7 +250,7 @@ export function basedOn(base: unknown[], side: unknown[]): Map<string, Set<strin
   const of = new Map<string, Set<string>>()
   let p = 0
   let s = 0
-  for (const [op, chunk] of makeDiff(b, field(side))) {
+  for (const [op, chunk] of diff(b, field(side))) {
     if (op === DIFF_INSERT) s += chunk.length
     else if (op === DIFF_DELETE) p += chunk.length
     else for (let k = 0; k < chunk.length; k++, p++, s++) if (b[p] !== SEP) of.set(at[s]!, (of.get(at[s]!) ?? new Set()).add(owner[p]!))
