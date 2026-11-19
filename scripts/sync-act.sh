@@ -5,8 +5,8 @@
 # GitHub's own state), the studio's report file and SOURCE.md's prose. The report file is
 # conformance/barkpark-studio.json.
 # It finds the sync PR itself; checks the bundle, the commit's parent and both sides of every changed path;
-# checks that every other pack file is Barkpark's own, byte for byte, at the commit SOURCE.md names, on
-# Barkpark's main and not older than main's; and writes the commit message, PR title and body itself.
+# checks that every other pack file is Barkpark's own plain file, byte for byte, at the commit SOURCE.md
+# names, on Barkpark's main and not older than main's; and writes the commit message, PR title and body itself.
 # docs/decisions/0009-pack-syncs-itself.md
 set -euo pipefail
 branch=sync/barkpark-pack
