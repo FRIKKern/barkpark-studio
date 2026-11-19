@@ -97,6 +97,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // Split siblings share a document id; field focus belongs to this pane instance.
   const paneRoot = useRef<HTMLElement>(null)
   const {data: schemas = []} = useQuery(schemasQuery)
+  // Who is signed in: a role condition can make the body read-only, and the canvas with it.
+  const user = useCurrentUser()
   // Sanity's two perspectives, in the URL: the draft you edit (default), or the
   // published version, read-only (?perspective=published).
   const viewingPublished = usePublishedPerspective()
@@ -354,7 +356,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useLayoutEffect(() => () => hideDoc(pane.id, lockHolder), [pane.id])
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
   // Published and a revision are read in Classic: the canvas holds the draft. Locked, it is read-only.
-  const canvasMode = freeformCanvas(lockState)
+  const canvasMode = freeformCanvas(lockState, {schema, doc, user, rules: studio.form?.conditions})
   const freeform = mode !== 'none' && canvasMode !== 'hidden' && (mode === 'main' || Array.isArray(doc?.blocks))
   const view: View = viewOf(pane.view, mode) === 'freeform' && !freeform ? 'classic' : viewOf(pane.view, mode)
   const [canvasSeen, setCanvasSeen] = useState<string | null>(null)
