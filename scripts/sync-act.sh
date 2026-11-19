@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sync-pack.yml's `act` job runs this file from main's checkout, with the deploy key; the job and this
+# sync-pack.yml's `act` job runs this file from main's checkout (no credentials kept); the job and this
 # file are pinned in scripts/lib/keyed-jobs.json, and scripts/lib/sync-act.test.mjs runs these same bytes.
 # It trusts nothing from the plan job except the studio's own report file (conformance/barkpark-studio.json)
 # and SOURCE.md's text: it finds the sync PR itself, checks the bundle, the commit's parent and both sides
@@ -17,6 +17,20 @@ fail() {
   m=${m//$'\r'/%0D}
   printf '::error::%s\n' "${m//$'\n'/%0A}"
   exit 1
+}
+# The deploy key, from this step's env only: out of every child's env, written to a file just for each push
+# (after every check on the bundle), and that file removed after the push or when this script ends.
+key=${SYNC_DEPLOY_KEY:-}
+unset SYNC_DEPLOY_KEY
+keyfile="$RUNNER_TEMP/sync-deploy-key"
+trap 'rm -f "$keyfile" "$keyfile.hosts"' EXIT
+push() { # <lease> <refspec>
+  [ -n "$key" ] || fail 'no deploy key'
+  (umask 077 && printf '%s\n' "$key" > "$keyfile")
+  printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$keyfile.hosts"
+  GIT_SSH_COMMAND="ssh -F /dev/null -i $keyfile -o IdentitiesOnly=yes -o UserKnownHostsFile=$keyfile.hosts -o StrictHostKeyChecking=yes" \
+    git push -q --force-with-lease="$1" "${SYNC_PUSH_URL:-git@github.com:$GH_REPO.git}" "$2"
+  rm -f "$keyfile" "$keyfile.hosts"
 }
 
 action=$(jq -r .action "$plan/plan.json")
@@ -107,7 +121,7 @@ case "$action" in
       [ "$(git -C "$bp" rev-parse -q --verify "$at:api/priv/portable_doc/$src" || true)" = "$oid" ] || bad+="$rel; "
     done < <(git ls-tree -r -z "$new" -- conformance/pack/)
     [ -z "$bad" ] || fail "the pack differs from Barkpark $at: $bad"
-    git push -q --force-with-lease="$branch:$lease" origin "$new:refs/heads/$branch"
+    push "$branch:$lease" "$new:refs/heads/$branch"
     read -r title < "$plan/title.txt"
     if [ -n "$number" ]; then
       gh pr edit "$number" --title "$title" --body-file "$plan/body.md"
@@ -116,7 +130,7 @@ case "$action" in
         fail 'The sync PR cannot be opened. Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests" must be on.'
       # A PR the workflow token opens starts no checks; a push by the deploy key does.
       start=$(git commit-tree "$new^{tree}" -p "$new" -m 'Start the checks')
-      git push -q --force-with-lease="$branch:$(git rev-parse "$new")" origin "$start:refs/heads/$branch"
+      push "$branch:$(git rev-parse "$new")" "$start:refs/heads/$branch"
     fi
     ;;
   *) fail "unknown action $action" ;;

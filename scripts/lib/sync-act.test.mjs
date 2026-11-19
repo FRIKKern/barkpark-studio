@@ -2,7 +2,7 @@
 // repo as origin, a local Barkpark and a stub gh. The plan's files are made by hand, as a hostile plan job could.
 import assert from 'node:assert/strict'
 import {execFileSync, spawnSync} from 'node:child_process'
-import {chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
+import {chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import test, {after} from 'node:test'
@@ -12,6 +12,7 @@ import {COPIED} from './pack.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const ACT = join(root, 'scripts/sync-act.sh')
+const REAL_GIT = execFileSync('sh', ['-c', 'command -v git'], {encoding: 'utf8'}).trim()
 const BRANCH = 'sync/barkpark-pack'
 const made = []
 const tmp = (prefix) => (made.push(mkdtempSync(join(tmpdir(), prefix))), made.at(-1))
@@ -69,19 +70,39 @@ function plan(w, json, not = [w.main]) {
   return join(dir, '..')
 }
 
-/** Act's script in a fresh clone of origin (the job's checkout); gh answers `pr list` with `prs`. */
+/**
+ * Act's script in a fresh clone of origin (the job's checkout); gh answers `pr list` with `prs` and logs
+ * `KEY IN ENV` if the deploy key reaches it. Origin's pre-receive hook logs the key file as a push sees it.
+ * `keyWhile`: each git command run while the key file exists; `keyLeft`: key files left in RUNNER_TEMP;
+ * `sshCommand`: the checkout's core.sshCommand.
+ */
 function act(w, runnerTemp, prs = []) {
   const bin = tmp('gh-')
   const log = join(bin, 'calls.log')
-  writeFileSync(join(bin, 'gh'), `#!/bin/sh\necho "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
+  const pushed = join(bin, 'pushed-key.log')
+  writeFileSync(join(w.origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "$RUNNER_TEMP/sync-deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
+  chmodSync(join(w.origin, 'hooks/pre-receive'), 0o755)
+  const keyWhile = join(bin, 'key-while.log')
+  writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ ! -e "$RUNNER_TEMP/sync-deploy-key" ] || echo "$1" >> "${keyWhile}"\nexec "${REAL_GIT}" "$@"\n`)
+  chmodSync(join(bin, 'git'), 0o755)
+  writeFileSync(join(bin, 'gh'), `#!/bin/sh\n[ -z "$SYNC_DEPLOY_KEY" ] || echo "KEY IN ENV" >> "${log}"\necho "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
   writeFileSync(join(bin, 'prs.json'), JSON.stringify(prs))
   chmodSync(join(bin, 'gh'), 0o755)
   const checkout = join(tmp('checkout-'), 'repo')
   git(w.base, 'clone', '-q', w.origin, checkout)
   const out = join(bin, 'out')
-  const r = spawnSync('bash', [ACT], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark}})
+  const r = spawnSync('bash', [ACT], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, SYNC_DEPLOY_KEY: 'the deploy key', SYNC_PUSH_URL: w.origin}})
   const calls = existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []
-  return {status: r.status, err: r.stdout + r.stderr, writes: calls.filter((c) => !/^pr (list|view)/.test(c))}
+  const sshCommand = spawnSync('git', ['config', '--get', 'core.sshCommand'], {cwd: checkout, env, encoding: 'utf8'}).stdout.trim()
+  return {
+    status: r.status,
+    err: r.stdout + r.stderr,
+    writes: calls.filter((c) => !/^pr (list|view)/.test(c)),
+    keyWhile: existsSync(keyWhile) ? readFileSync(keyWhile, 'utf8').trim().split('\n') : [],
+    pushedWith: existsSync(pushed) ? readFileSync(pushed, 'utf8').trim().split('\n') : [],
+    keyLeft: readdirSync(runnerTemp).filter((f) => f.startsWith('sync-deploy-key')),
+    sshCommand,
+  }
 }
 const syncPr = (number = 9, more = {}) => ({number, headRefName: BRANCH, baseRefName: 'main', isCrossRepository: false, ...more})
 const commit = (w, msg) => (git(w.work, 'add', '-A'), git(w.work, 'commit', '-q', '-m', msg), git(w.work, 'rev-parse', 'HEAD'))
@@ -96,6 +117,10 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
   // The empty commit that starts the checks, on the sync commit, made without a checkout.
   assert.equal(git(ok.origin, 'rev-parse', `${BRANCH}^`), synced)
   assert.equal(git(ok.origin, 'log', '-1', '--format=%s', BRANCH), 'Start the checks')
+  // The deploy key: a file only while each push runs, gone after; never in gh's env.
+  assert.deepEqual(r.pushedWith, ['the deploy key', 'the deploy key'])
+  assert.deepEqual(r.keyWhile.filter((c) => c !== 'receive-pack'), ['push', 'push'], 'the key file exists only while git pushes')
+  assert.deepEqual(r.keyLeft, [])
 
   const refused = (name, change, needle) => {
     const w = world()
@@ -105,6 +130,7 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
     assert.match(r.err, needle, name)
     assert.equal(branchAt(w), '', `${name}: nothing pushed`)
     assert.deepEqual(r.writes, [], `${name}: no PR`)
+    assert.deepEqual([r.keyWhile, r.pushedWith, r.keyLeft, r.sshCommand], [[], [], [], ''], `${name}: the key never written`)
   }
   const mv = (from, to) => (w) => (git(w.work, 'mv', from, to), commit(w, 'sync'))
   refused('a file moved out of app/ into the pack', mv('app/x.ts', 'conformance/pack/x.ts'), /D 100644 000000 app\/x\.ts/)
@@ -159,12 +185,13 @@ test('act finds the sync PR itself: a plan naming another PR is refused for clos
   const fork = act(w, plan(w, {action: 'close', number: '41'}), [syncPr(41, {isCrossRepository: true})])
   assert.equal(fork.status, 1, fork.err)
   assert.deepEqual(fork.writes, [])
-  // No sync PR open: close and land do nothing.
+  // No sync PR open: close and land do nothing, and the key is never written.
   for (const json of [{action: 'close'}, {action: 'land', head: w.main}]) {
     const r = act(w, plan(w, json), [other])
     assert.equal(r.status, 0, r.err)
     assert.match(r.err, /no sync PR open/)
     assert.deepEqual(r.writes, [])
+    assert.deepEqual([r.keyWhile, r.pushedWith, r.keyLeft, r.sshCommand], [[], [], [], ''])
   }
   // The sync PR: closed and merged by its own number.
   assert.deepEqual(act(w, plan(w, {action: 'close', number: 9}), [syncPr(9)]).writes, ['pr close 9 --comment main already carries these files: nothing left to sync.'], 'the branch stays')
@@ -229,4 +256,5 @@ test('act, with the sync PR open: the commit sits on its head with main merged i
   const r2 = act(w, bad, [syncPr(9)])
   assert.equal(r2.status, 1)
   assert.match(r2.err, /no valid sync\.bundle/)
+  assert.deepEqual([r2.keyWhile, r2.pushedWith, r2.keyLeft, r2.sshCommand], [[], [], [], ''], 'a refused bundle: the key never written')
 })

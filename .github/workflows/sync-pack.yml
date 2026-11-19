@@ -72,11 +72,12 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with: { name: plan, path: '${{ runner.temp }}/plan' }
-      # The deploy key, for the push: a push by the workflow token starts no checks on the PR.
       - uses: actions/checkout@v5
-        with: { fetch-depth: 0, ssh-key: '${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}' }
+        with: { fetch-depth: 0, persist-credentials: false }
+      # The deploy key, for the push alone: a push by the workflow token starts no checks on the PR.
       - name: Push, open or update, merge, or close
         id: write
+        env: { SYNC_DEPLOY_KEY: '${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}' }
         run: bash scripts/sync-act.sh
 
   # A merge by the workflow token starts no push runs on main: ask for them.

@@ -11,7 +11,7 @@ const after = (text, anchor, insert) => {
   assert.ok(text.includes(anchor), anchor)
   return text.replace(anchor, anchor + insert)
 }
-const ACT_CHECKOUT = "        with: { fetch-depth: 0, ssh-key: '${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}' }\n"
+const ACT_SCRIPT_STEP = '      # The deploy key, for the push alone: a push by the workflow token starts no checks on the PR.\n'
 const UNIT_CHECKOUT = '      - uses: actions/checkout@v5\n        with: { persist-credentials: false }\n'
 
 test('every job in .github/workflows holds no key or matches its pin, and every keyed job is pinned', () => {
@@ -22,7 +22,7 @@ test('every job in .github/workflows holds no key or matches its pin, and every 
 })
 
 test('a keyed job changed in any way is red until its pin changes too', () => {
-  const act = (insert) => withEdit('sync-pack.yml', (t) => after(t, ACT_CHECKOUT, insert))
+  const act = (insert) => withEdit('sync-pack.yml', (t) => after(t, ACT_SCRIPT_STEP, insert))
   const changed = /^sync-pack\.yml act: changed since its pin/
   for (const [name, step] of [
     ['a pnpm install step', '      - run: pnpm --dir app install\n'],
