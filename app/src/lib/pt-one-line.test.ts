@@ -123,6 +123,14 @@ test('PortableTextInput mounts OneLine first, before the plugins that handle ins
   assert.match(src, /data-one-line=\{isOneLine\(field\) \|\| undefined\}/)
 })
 
+test('PortableTextInput gives the field\'s editable its one-line props', () => {
+  const src = readFileSync(new URL('../components/PortableTextInput.tsx', import.meta.url), 'utf8')
+  assert.match(src, /<Editable id=\{id\} oneLine=\{isOneLine\(field\)\} \/>/)
+  assert.match(src, /<Text id=\{id\} oneLine=\{oneLine\} \/>/)
+  assert.match(src, /<PortableTextEditable id=\{id\} [^>]*\{\.\.\.oneLineEditable\(oneLine\)\} \/>/)
+  assert.equal(src.match(/<PortableTextEditable\b/g)?.length, 1, 'one editable, the one above')
+})
+
 test('a one-line field\'s editable says so: aria-multiline="false"; another field\'s stays multiline', async () => {
   const {oneLineEditable} = await import('./pt-one-line.ts')
   const one = await mount(ONE, [block('a', 'Hello')], oneLineEditable(isOneLine(ONE)))
