@@ -181,3 +181,15 @@ test(`seeded fuzz of the span-text save (seed ${SEED}, ${CASES} pairs): typing s
   if (process.env.FUZZ_LOG) console.log(report)
   assert.deepEqual(tally, {a: 0, b: 0, c: 0, back: 0}, report)
 })
+
+// Open, task-39ac4770a54b587a: this editor deletes a letter; the other deletes the block break
+// after it with the next block's text, and pastes a paragraph before it. The deleted letter
+// comes back. The test pins today's wrong result: when it changes (fixed, or worse), it fails.
+test('task-39ac4770a54b587a (open): a deleted letter comes back when the other deletes the break after it and pastes a paragraph before it', () => {
+  const blk = (key: string, text: string) => ({_type: 'block', _key: key, style: 'normal', markDefs: [], children: [{_type: 'span', _key: `${key}s`, text, marks: []}]})
+  const base = [blk('b1', 'p'), blk('b2', 'q')]
+  const mine = [blk('b1', ''), blk('b2', 'q')]
+  const theirs = [blk('n1', 'x'), blk('b1', 'p')]
+  // Right would be ["x", ""]: p deleted, q deleted, x pasted.
+  for (const out of [mergeList3(base, mine, theirs), mergeList3(base, theirs, mine), freshItems(base, theirs, mine)]) assert.deepEqual(texts(out), ['x', 'p'])
+})
