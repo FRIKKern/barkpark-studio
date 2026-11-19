@@ -62,10 +62,13 @@ class Server {
   constructor(fields: Record<string, unknown>) {
     this.stamp({_id: `drafts.${ID}`, _publishedId: ID, _type: 'post', _draft: true, _hasPublished: false, ...fields})
   }
-  stamp(d: Record<string, unknown>): Doc {
+  /** Who wrote each revision: a page (`?page=…`) or another editor. */
+  by = new Map<string, string>()
+  stamp(d: Record<string, unknown>, by = 'theirs'): Doc {
     this.n++
     this.doc = {...clone(d), _rev: `r${this.n}`, _updatedAt: `2026-11-19T00:00:00.${String(this.n).padStart(6, '0')}Z`}
     this.history.push(this.doc)
+    this.by.set(this.doc._rev, by)
     return clone(this.doc)
   }
   /** Another editor's save. */
@@ -97,7 +100,7 @@ class Server {
       doc = applyPaths(doc, Object.entries(p.set ?? {}))
       for (const u of p.unset ?? []) doc = setPath(doc, u, undefined)
     }
-    const saved = this.stamp(doc)
+    const saved = this.stamp(doc, page)
     if (fault === 'lost') throw new TypeError('fetch failed')
     return answer(200, {transactionId: saved._rev, results: [{id: ID, operation: 'update', document: saved}]})
   }
@@ -109,7 +112,7 @@ let server: Server
   fetch: (page: string, ...a: [string, {body: string}]) => server.fetch(page, ...a),
   read: (page: string) => server.read(page),
 }
-const merges = () => ((globalThis as Record<string, unknown>).saveFlowMerges ??= []) as {page: string; rev: string; base: string}[]
+const merges = () => ((globalThis as Record<string, unknown>).saveFlowMerges ??= []) as {page: string; rev: string; field: string; base: string}[]
 
 type Edits = typeof import('./edits.ts')
 /** A browser page: its own lib/edits.ts (and everything it imports), its own query cache. */
@@ -138,6 +141,7 @@ const addWords = (now: unknown) => (now as Block[]).map((b) => (b._key === 'b1' 
 /** Every word once in what Barkpark stores; then the same again changes nothing. */
 async function rounds(name: string, first: (page: Awaited<ReturnType<typeof open>>) => Promise<{again: () => Promise<void>}>) {
   server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'Start text'), blk('c', 'Below')]})
+  merges().length = 0
   const page = await open(name)
   const {again} = await first(page)
   const once = (when: string) => {
@@ -149,19 +153,26 @@ async function rounds(name: string, first: (page: Awaited<ReturnType<typeof open
   await again()
   once('round 2')
   assert.equal(J(server.doc.ptBody), round1, `${name}: round 2 changed the stored text`)
-  // No server revision merged twice from the same base (the revision memory's rule).
-  const mine = merges().filter((m) => m.page.startsWith(`?page=${name}`)).map((m) => `${m.rev} ${m.base}`)
-  if (process.env.FLOW_LOG) console.log(name, J({revs: server.n, merged: mine.map((m) => m.split(' ')[0]), stored: texts(server.doc.ptBody)}))
-  assert.equal(new Set(mine).size, mine.length, `${name}: one revision merged twice from the same base`)
+  // A merge takes in each server revision once, from one base, and never one of the page's own
+  // writes as someone else's: those words are not merged in again (no text guess keeps them once).
+  if (process.env.FLOW_LOG) console.log(name, J({revs: server.n, merged: merges().map((m) => `${m.page} ${m.rev}`), stored: texts(server.doc.ptBody)}))
+  const seen = new Set<string>()
+  for (const m of merges()) {
+    assert.notEqual(server.by.get(m.rev), m.page, `${name}: ${m.page} merged its own write ${m.rev} as someone else's`)
+    const k = `${m.page} ${m.rev} ${m.field} ${m.base}`
+    assert.ok(!seen.has(k), `${name}: ${m.page} merged ${m.rev} twice from the same base`)
+    seen.add(k)
+  }
 }
 
-/** Round 2 for a page: every frame Barkpark sent comes again, and the editor sends what it shows. */
+/** Round 2 for a page: the editor sends what it shows, and every frame Barkpark sent comes again, while that is on its way and after. */
 const replay = (page: Awaited<ReturnType<typeof open>>, faults: Server['faults'] = []) => async () => {
-  for (const d of server.history) page.frame(d)
   server.faults.push(...faults)
   const shown = page.held().ptBody as Block[]
   page.save(shown, shown)
+  for (const d of server.history) page.frame(d)
   await page.drain()
+  for (const d of server.history) page.frame(d)
 }
 
 test('a save refused with a 500, then retried', () =>

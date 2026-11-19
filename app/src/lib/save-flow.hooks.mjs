@@ -3,8 +3,9 @@
 // Barkpark kept in memory by the test (globalThis.saveFlowServer). Imports without an
 // extension resolve to the .ts file, as Vite does. `?page=…` on an import gives a page of its
 // own: every module it imports again, as a reload does (the stubs and the server are shared).
-// edit-bases.ts's rebase() also notes each merge it makes: the server revision and the base it
-// was made from (globalThis.saveFlowMerges).
+// edit-bases.ts's rebase() also notes each time it comes to merge a field (one this editor
+// changed, another version of it from the server): the revision and the base it merges from
+// (globalThis.saveFlowMerges).
 const STUB = {
   '@tanstack/react-start': `
     const chain = {validator: () => chain, handler: (h) => (opts) => h({data: opts?.data})}
@@ -30,11 +31,12 @@ const STUB = {
 }
 const TRACE = `
 export function rebase(e, d, was) {
-  const base = JSON.stringify([...e.base].sort())
-  const dirty = JSON.stringify([...e.dirty])
-  const out = rebase__(e, d, was)
-  if (JSON.stringify([...e.dirty]) !== dirty) (globalThis.saveFlowMerges ??= []).push({page: new URL(import.meta.url).search, rev: d._rev, base})
-  return out
+  for (const [f, base] of e.base) {
+    const theirs = getPath(d, f)
+    if (same(theirs, base) || !e.dirty.has(f) || e.inflight?.has(f)) continue
+    ;(globalThis.saveFlowMerges ??= []).push({page: new URL(import.meta.url).search, rev: d._rev, field: f, base: JSON.stringify(base)})
+  }
+  return rebase__(e, d, was)
 }`
 const pathOf = (url) => (url.startsWith('file:') ? new URL(url).pathname : url)
 const stubOf = (url) => Object.keys(STUB).find((k) => (k.startsWith('/') ? url.startsWith('file:') && pathOf(url).endsWith(k) : url === `stub:${k}`))
