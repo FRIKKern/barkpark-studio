@@ -4,10 +4,11 @@ import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Field} from './data.ts'
 import type {FieldConditions} from './conditions.ts'
+import {known} from './persons.fixture.ts'
 import {keepLocked, pasteDocument, pasteDocumentReading, pasteFieldReading} from './paste-locked.ts'
 import {readWorkspaceRoles, ROLES_PATH, rolesFor} from './workspace-roles.ts'
 
-const editor = {id: 'u1', name: 'E', email: 'e@example.com', roles: [{name: 'editor', title: 'Editor'}]}
+const editor = known('editor', {name: 'E', email: 'e@example.com'})
 const fields = [{name: 'title', type: 'string'}, {name: 'review', type: 'string'}] as unknown as Field[]
 const onlyFor = (role: string): FieldConditions => ({hidden: ({currentUser}) => !currentUser?.roles.some((r) => r.name === role)})
 /** Barkpark's answer for a workspace with a custom `reviewer` role. */
@@ -29,7 +30,7 @@ test('a field shown only to a custom role the person lacks is kept by their past
   const inBox = {'post.box.review': onlyFor('reviewer')}
   assert.deepEqual(keepLocked(box, 'box', {title: 'B', review: 'pasted'}, {title: 'A', review: 'kept'}, {type: 'post', doc: {box: doc}, user: editor, rules: inBox, roles: roles!}), {title: 'B', review: 'kept'})
   // A reviewer sees it, so their paste writes it.
-  const reviewer = {...editor, roles: [{name: 'reviewer', title: 'reviewer'}]}
+  const reviewer = known('reviewer', {name: 'E', email: 'e@example.com'})
   assert.deepEqual(pasteDocument(fields, {title: 'B', review: 'pasted'}, {type: 'post', doc, user: reviewer, rules, roles: roles!}).writes, [['title', 'B'], ['review', 'pasted']])
   // Barkpark's names are asked under Sanity's (sanityRole): its `member` is `editor`, so no role named
   // `member` sees a field a rule shows only to that name, and the paste writes it.
@@ -71,12 +72,12 @@ test("the roles are read with the signed-in person's own token, and every paste 
   const reads = {schemas: async () => [], roles: async () => (asked++, readWorkspaceRoles(answer(200, ROUTE)))}
   const rules = {'post.review': onlyFor('reviewer')}
   const doc = {title: 'A', review: 'kept'}
-  assert.deepEqual((await pasteDocumentReading(reads, fields, {title: 'B', review: 'pasted'}, {type: 'post', doc, user: editor, rules})).writes, [['title', 'B']])
+  assert.deepEqual((await pasteDocumentReading(reads, fields, {title: 'B', review: 'pasted'}, editor, {type: 'post', doc, rules})).writes, [['title', 'B']])
   const box = {name: 'box', type: 'composite', fields} as unknown as Field
   const inBox = {'post.box.review': onlyFor('reviewer')}
-  assert.deepEqual(await pasteFieldReading(reads, box, 'box', {title: 'B', review: 'pasted'}, doc, {type: 'post', doc: {box: doc}, user: editor, rules: inBox}), {value: {title: 'B', review: 'kept'}})
+  assert.deepEqual(await pasteFieldReading(reads, box, 'box', {title: 'B', review: 'pasted'}, doc, editor, {type: 'post', doc: {box: doc}, rules: inBox}), {value: {title: 'B', review: 'kept'}})
   assert.equal(asked, 2, 'each paste reads the roles')
   // A failed roles read: today's roles, so the custom role is unknown and the field is written, as before.
   const failing = {...reads, roles: () => Promise.reject(new Error('offline'))}
-  assert.deepEqual((await pasteDocumentReading(failing, fields, {title: 'B', review: 'pasted'}, {type: 'post', doc, user: editor, rules})).writes, [['title', 'B'], ['review', 'pasted']])
+  assert.deepEqual((await pasteDocumentReading(failing, fields, {title: 'B', review: 'pasted'}, editor, {type: 'post', doc, rules})).writes, [['title', 'B'], ['review', 'pasted']])
 })

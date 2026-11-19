@@ -109,7 +109,8 @@ export function Diagnostics({onClose}: {onClose: () => void}) {
         [t('User ID'), me?.userId ?? '–'],
         [t('Email'), me?.email ?? '–'],
         [t('Sign-in'), me?.signIn ?? pending],
-        [t('Roles'), me ? (me.role ? me.role[0]!.toUpperCase() + me.role.slice(1) : me.canWrite ? t('Editor') : t('Viewer')) : pending],
+        // Not known yet (or a check Barkpark did not answer): pending, never a role guessed from what the token may do.
+        [t('Roles'), me && !me.provisional && !me.unchecked ? (me.role ? me.role[0]!.toUpperCase() + me.role.slice(1) : me.canWrite ? t('Editor') : t('Viewer')) : pending],
       ],
     ],
     [

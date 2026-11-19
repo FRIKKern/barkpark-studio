@@ -24,15 +24,9 @@
 // itself or of a pulled-out setter, a computed name, globalThis, Object(x), spread arguments or
 // Reflect.apply (each a known-limit case below, green until it is caught).
 import assert from 'node:assert/strict'
-import {readdirSync, readFileSync, statSync} from 'node:fs'
-import {dirname, join, normalize, relative} from 'node:path'
+import {dirname, join, normalize} from 'node:path'
 import {test} from 'node:test'
-import {fileURLToPath} from 'node:url'
-import {parseSync} from 'vite'
-
-const SRC = fileURLToPath(new URL('..', import.meta.url))
-const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? files(join(dir, n)) : /\.tsx?$/.test(n) && !/\.test\.tsx?$/.test(n) ? [join(dir, n)] : []))
-const tree = (): Record<string, string> => Object.fromEntries(files(SRC).map((f) => [relative(SRC, f), readFileSync(f, 'utf8')]))
+import {bound, parse, tree} from './source-tree.fixture.ts'
 /** The code without its comments (a comment may name a writer or an endpoint); `image/*` in a string is no comment. */
 const stripped = new Map<string, string>()
 const code = (text: string) => {
@@ -129,9 +123,6 @@ function imports(file: string, text: string, src: Record<string, string>): Impor
   return read.map(({spec, ...i}) => ({to: resolve(spec), ...i}))
 }
 const specifiers = new Map<string, (Omit<Import, 'to'> & {spec: string})[]>()
-/** The names a binding pattern binds (`const {a, b: c, ...d} = …` binds a, c and d). */
-const bound = (p: {type: string; [k: string]: any} | null): string[] =>
-  !p ? [] : p.type === 'Identifier' ? [p.name] : p.type === 'ObjectPattern' ? p.properties.flatMap((x: any) => bound(x.type === 'RestElement' ? x : x.value)) : p.type === 'ArrayPattern' ? p.elements.flatMap(bound) : p.type === 'RestElement' ? bound(p.argument) : p.type === 'AssignmentPattern' ? bound(p.left) : [`?${p.type}`]
 /** Top-level statements that export nothing. */
 const NOT_EXPORTS = new Set(['ImportDeclaration', 'VariableDeclaration', 'FunctionDeclaration', 'ClassDeclaration', 'ExpressionStatement', 'TSTypeAliasDeclaration', 'TSInterfaceDeclaration', 'TSEnumDeclaration', 'TSModuleDeclaration', 'TSDeclareFunction', 'TSImportEqualsDeclaration', 'EmptyStatement', 'IfStatement', 'ForStatement', 'ForOfStatement', 'ForInStatement', 'WhileStatement', 'DoWhileStatement', 'BlockStatement', 'TryStatement', 'ThrowStatement', 'SwitchStatement', 'LabeledStatement'])
 /**
@@ -147,7 +138,7 @@ function exportsOf(file: string, text: string): string[] {
   return exported.get(key)!
 }
 function readExports(file: string, text: string): string[] {
-  const {program, errors} = parseSync(file, text, {lang: file.endsWith('.tsx') ? 'tsx' : 'ts'})
+  const {program, errors} = parse(file, text)
   if (errors.length) return [`?parse error: ${errors[0]!.message}`]
   const declared = (d: {type: string; [k: string]: any}): string[] => {
     switch (d.type) {
@@ -224,7 +215,7 @@ const hung = new Map<string, string[]>()
 function hungProblems(file: string, text: string): string[] {
   const key = `${file}\0${text}`
   if (hung.has(key)) return hung.get(key)!
-  const {program, errors} = parseSync(file, text, {lang: file.endsWith('.tsx') ? 'tsx' : 'ts'})
+  const {program, errors} = parse(file, text)
   const problems: string[] = []
   if (!errors.length) {
     const line = (n: {[k: string]: any}) => text.slice(0, n.start as number).split('\n').length
@@ -289,7 +280,7 @@ const takes = (names: string[] | '*', of: string[]) => (names === '*' ? of : nam
 type Surface = {file: string; what: string; rule: 'the field rule' | 'code: document lock only'; asks: RegExp[]}
 const SURFACES: Surface[] = [
   {file: 'components/Fields.tsx', what: 'the form, every field at any depth; Paste field; a richText field’s canvas; a clash card', rule: 'the field rule', asks: [/dependsOnDoc\(/, /fieldState\(type, props\.field, doc, user/, /<FieldBody \{\.\.\.props\} readOnly=\{props\.readOnly \|\| readOnly\} \/>/, /pasteFieldWith\(/, /<PortableDocEditor [^>]*editable=\{!readOnly\}/, /<FieldClashCard path=\{props\.path\} readOnly=\{!!props\.readOnly\} \/>/]},
-  {file: 'components/DocumentPane.tsx', what: 'the group tabs; the Freeform canvas with or without a layout, its bound field blocks; the pane’s word to the save; kept edits put back', rule: 'the field rule', asks: [/fieldState\(schema\.name, f, doc, user/, /freeformCanvas\(lockState, \{schema, doc, user/, /editable=\{canvasMode === 'editable'\}/, /paneFieldLock\(/, /showDoc\(pane\.id, lockHolder, locked, fieldLock\)/, /<FieldView /, /notPutBack\(r\.refused/]},
+  {file: 'components/DocumentPane.tsx', what: 'the group tabs; the Freeform canvas with or without a layout, its bound field blocks; the pane’s word to the save; kept edits put back', rule: 'the field rule', asks: [/fieldState\(schema\.name, f, doc, user/, /freeformCanvas\(lockState, user, \{schema, doc,/, /editable=\{canvasMode === 'editable'\}/, /paneFieldLock\(/, /showDoc\(pane\.id, lockHolder, locked, fieldLock\)/, /<FieldView /, /notPutBack\(r\.refused/]},
   {file: 'components/DocumentPane.tsx', what: 'a document action’s set', rule: 'code: document lock only', asks: [/const set = \(field: string, value: unknown\) => setByAction\(qc, doc, field, value\) !== false/]},
   {file: 'components/DocHeaderMenu.tsx', what: 'Paste document', rule: 'the field rule', asks: [/pasteDocumentWith\(/]},
   {file: 'lib/paste-locked.ts', what: 'what Paste field and Paste document keep, at any depth', rule: 'the field rule', asks: [/fieldLock\(c\.type, sub, c\.doc, c\.user/, /pasteSkips\(c\.type, fields, c\.doc, c\.user/]},

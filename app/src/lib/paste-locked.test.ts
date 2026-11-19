@@ -5,7 +5,8 @@ import assert from 'node:assert/strict'
 import {readdirSync, readFileSync} from 'node:fs'
 import {test} from 'node:test'
 import type {Field} from './data.ts'
-import {pasteSkips, type FieldConditions} from './conditions.ts'
+import {pasteSkips, type FieldConditions, type Person} from './conditions.ts'
+import {known, nobody} from './persons.fixture.ts'
 import {keepLocked, pasteDocument, pasteField, type PasteContext} from './paste-locked.ts'
 import {MAX_LOCKED, MAX_REACHED, maxRefusal} from './array-max.ts'
 import type {SchemaLike} from './pt-value.ts'
@@ -17,10 +18,10 @@ const schemas = readdirSync(schemaDir).filter((n) => n.endsWith('.json')).map((n
 const F = (name: string) => post.fields.find((f) => f.name === name)!
 const seo = {name: 'seo', type: 'composite', fields: [{name: 'metaTitle', type: 'string'}, {name: 'metaDescription', type: 'text'}]} as unknown as Field
 const links = {name: 'links', type: 'arrayOf', of: {type: 'composite', fields: [{name: 'title', type: 'string'}, {name: 'url', type: 'url'}]}} as unknown as Field
-const user = {id: 'u1', name: 'A', email: 'a@example.com', roles: [{name: 'editor', title: 'Editor'}]}
+const user = known('editor')
 const isAdmin = (u: {roles: {name: string}[]} | null) => !!u?.roles.some((r) => r.name === 'administrator')
 const notAdmin: FieldConditions['hidden'] = ({currentUser}) => !isAdmin(currentUser)
-const admin = {...user, roles: [{name: 'administrator', title: 'Administrator'}]}
+const admin = known('administrator')
 const ctx = (rules: Record<string, FieldConditions> | undefined, doc: Record<string, unknown>): PasteContext => ({type: 'post', doc, user, rules})
 
 test('a role-hidden field inside an object keeps the target\'s value; the rest of the object pastes', () => {
@@ -76,24 +77,24 @@ test('a paste that would remove an item holding a read-only value leaves it wher
 })
 
 // The review's five cases (review-1288b), as written there.
-const editor = {id: 'u', name: 'A', email: 'a@x', roles: [{name: 'editor', title: 'Editor'}]}
+const editor = known('editor', {id: 'u', email: 'a@x'})
 
 test('1a no rules, shipped post.json: Paste field on cta {kind url, url} into cta {kind internal} keeps the url', () => {
   const doc = {cta: {kind: 'internal', page: {_ref: 'p1'}}}
-  assert.deepEqual(keepLocked(F('cta'), 'cta', {kind: 'url', url: 'https://b.example'}, doc.cta, {type: 'post', doc, user: null, rules: undefined}), {kind: 'url', url: 'https://b.example'})
+  assert.deepEqual(keepLocked(F('cta'), 'cta', {kind: 'url', url: 'https://b.example'}, doc.cta, {type: 'post', doc, user: nobody, rules: undefined}), {kind: 'url', url: 'https://b.example'})
 })
 
 test('1b no rules, shipped post.json: Paste document of a featured post writes featuredNote and promoLine', () => {
-  const {skip} = pasteSkips('post', post.fields, {featured: false}, null, undefined)
+  const {skip} = pasteSkips('post', post.fields, {featured: false}, nobody, undefined)
   assert.deepEqual([skip.has('featuredNote'), skip.has('promoLine')], [false, false])
   const values = {featured: true, featuredNote: 'Note B', promoLine: 'Promo B'}
-  assert.deepEqual(Object.fromEntries(pasteDocument(post.fields, values, {type: 'post', doc: {featured: false}, user: null, rules: undefined}).writes), values)
+  assert.deepEqual(Object.fromEntries(pasteDocument(post.fields, values, {type: 'post', doc: {featured: false}, user: nobody, rules: undefined}).writes), values)
 })
 
 test('1c no rules: a paste that replaces an array keeps no item for a stale value in a field its condition hides', () => {
   const f = {name: 'ctas', type: 'arrayOf', of: {type: 'composite', fields: F('cta').fields}} as unknown as Field
   const target = [{_key: 'old', kind: 'internal', page: {_ref: 'p'}, url: 'https://stale'}]
-  assert.deepEqual(keepLocked(f, 'ctas', [{_key: 'new', kind: 'url', url: 'https://new'}], target, {type: 'post', doc: {ctas: target}, user: null, rules: undefined}), [{_key: 'new', kind: 'url', url: 'https://new'}])
+  assert.deepEqual(keepLocked(f, 'ctas', [{_key: 'new', kind: 'url', url: 'https://new'}], target, {type: 'post', doc: {ctas: target}, user: nobody, rules: undefined}), [{_key: 'new', kind: 'url', url: 'https://new'}])
 })
 
 test('1d a Sanity-style callback hidden: ({parent}) => parent?.kind !== "url" gets the copied url', () => {
@@ -202,7 +203,7 @@ test('a lock is what the rule does: hidden from this person and shown to another
   const doc = {stage: 'review', seo: {metaTitle: 'A', metaDescription: 'D A'}}
   const copy = {metaTitle: 'B', metaDescription: 'D B'}
   const kept = {metaTitle: 'B', metaDescription: 'D A'}
-  const paste = (hidden: FieldConditions['hidden'], who = user as typeof user | null, d: Record<string, unknown> = doc) => keepLocked(seo, 'seo', copy, d.seo, {type: 'post', doc: d, after: {...d, seo: copy}, user: who, rules: {'post.seo.metaDescription': {hidden}}})
+  const paste = (hidden: FieldConditions['hidden'], who: Person = user, d: Record<string, unknown> = doc) => keepLocked(seo, 'seo', copy, d.seo, {type: 'post', doc: d, after: {...d, seo: copy}, user: who, rules: {'post.seo.metaDescription': {hidden}}})
   // A role rule that also reads the data, and the honest mixed one: locked for a member, open for an administrator.
   const reads: FieldConditions['hidden'] = ({currentUser, document}) => !!document && !isAdmin(currentUser)
   const mixed: FieldConditions['hidden'] = ({currentUser, document}) => document.stage === 'review' && !isAdmin(currentUser)
@@ -217,7 +218,7 @@ test('a lock is what the rule does: hidden from this person and shown to another
   assert.deepEqual(paste(() => true), copy)
   assert.deepEqual(paste(({document}) => document.stage === 'review'), copy)
   // Shared sign-in (nobody signed in): nothing changes.
-  assert.deepEqual(paste(notAdmin, null), copy)
+  assert.deepEqual(paste(notAdmin, nobody), copy)
   // The schema's visibleWhen is no lock either.
   const shown = {...seo, fields: [seo.fields![0], {...seo.fields![1], visibleWhen: {field: 'metaTitle', operator: 'eq', value: 'never'}}]} as Field
   assert.deepEqual(keepLocked(shown, 'seo', copy, doc.seo, ctx({}, doc)), copy)
@@ -235,7 +236,7 @@ test('a paste that itself makes the field role-hidden keeps the document\'s valu
   const boxRules: Record<string, FieldConditions> = {'post.box.url': {hidden: ({currentUser, parent}) => (parent as {kind?: string} | null)?.kind === 'private' && !isAdmin(currentUser)}}
   const had = {box: {kind: 'public', url: 'https://a.example'}}
   const copy = {kind: 'private', url: 'https://b.example'}
-  const c = (who: typeof user) => ({type: 'post', doc: had, after: {...had, box: copy}, user: who, rules: boxRules})
+  const c = (who: Person): PasteContext => ({type: 'post', doc: had, after: {...had, box: copy}, user: who, rules: boxRules})
   assert.deepEqual(keepLocked(box, 'box', copy, had.box, c(user)), {kind: 'private', url: 'https://a.example'})
   assert.deepEqual(keepLocked(box, 'box', copy, had.box, c(admin)), copy)
 })
@@ -248,7 +249,7 @@ test('no rules, every pair of shipped posts: Paste document writes what main wri
     for (const into of posts) {
       // Main's paste: every field of the copy that has a value.
       const main = Object.fromEntries(post.fields.filter((f) => !empty(from[f.name])).map((f) => [f.name, from[f.name]]))
-      const {writes} = pasteDocument(post.fields, main, {type: 'post', doc: into, user: null, rules: undefined, schemas})
+      const {writes} = pasteDocument(post.fields, main, {type: 'post', doc: into, user: nobody, rules: undefined, schemas})
       // reviewNote is read-only once the stage is done (post.json): skipped there, as Sanity's paste does.
       const expected = Object.entries(main).filter(([k]) => !(k === 'reviewNote' && into.stage === 'done'))
       assert.deepEqual(writes, expected, `${from._id} into ${into._id}`)
