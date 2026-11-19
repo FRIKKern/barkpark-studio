@@ -72,7 +72,8 @@ export function TranslationsMenu({doc, config, panes, index, readOnly, reason}: 
   }
   const choose = (language: Language) => {
     close()
-    edit(qc, doc, config.languageField, language.id)
+    // Said only when made: the save refuses a field read-only for this person, and says so itself.
+    if (edit(qc, doc, config.languageField, language.id) === false) return
     toast({title: tt('Set document language to {language}', {language: language.title})})
   }
 

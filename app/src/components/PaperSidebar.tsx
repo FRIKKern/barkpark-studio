@@ -15,7 +15,7 @@ import {usePrimed} from '../lib/prime'
 // Relations (what it references, what uses it). Every edit is a doc-field edit through
 // the pane's own save path; none touches a block.
 
-export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; published: boolean; onEdit: (field: string, value: unknown) => void; onClose: () => void}) {
+export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; published: boolean; onEdit: (field: string, value: unknown) => boolean; onClose: () => void}) {
   const t = useT()
   const [slug, setSlug] = useState(doc._publishedId)
   const fb = slugFeedback(slug)
@@ -33,9 +33,10 @@ export function PaperSidebar({doc, published, onEdit, onClose}: {doc: Doc; publi
     e.preventDefault()
     const r = checkLabel(add.tag, add.strength, add.rationale)
     if ('error' in r) return setAddError(r.error)
+    // The label typed stays in the form unless it was saved.
+    if (onEdit('tags', [...tags, r.entry]) === false) return
     setAddError(undefined)
     setAdd({tag: '', strength: '', rationale: ''})
-    onEdit('tags', [...tags, r.entry])
   }
   return (
     <aside ref={root} tabIndex={-1} className="inspector paper-sidebar" aria-label={t('Document metadata')}>
