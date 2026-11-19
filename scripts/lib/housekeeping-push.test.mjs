@@ -8,7 +8,7 @@ import {join} from 'node:path'
 import test, {after} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
-import {BASH, beforeTheHelper, keyShims, PRELUDE_BREAKS} from './key-shims.mjs'
+import {BASH, beforeTheHelper, keyShims, PRELUDE_BREAKS, withLine} from './key-shims.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const PUSH = join(root, 'scripts/housekeeping-push.sh')
@@ -87,11 +87,10 @@ test('housekeeping-push.sh handles no key itself: it sources scripts/lib/deploy-
   assert.deepEqual(code.filter((l) => /DEPLOY_|deploy_key|keyfile/.test(l) || /ssh|git push|\btrap\b/i.test(l)), [], 'nothing else touches the key')
 
   // Before that line DEPLOY_KEY is still in the env: only what beforeTheHelper allows, nothing that starts a process.
-  const text = readFileSync(PUSH, 'utf8')
-  assert.deepEqual(beforeTheHelper(text), [])
-  assert.deepEqual(beforeTheHelper(text.replace('set -euo pipefail\n', `set -euo pipefail\ny='a[b]'\n`)), [], 'a single-quoted value holds anything')
-  for (const [added, named = added] of PRELUDE_BREAKS)
-    assert.deepEqual(beforeTheHelper(text.replace('set -euo pipefail\n', `set -euo pipefail\n${added}\n`)), named.split('\n'), added)
+  const bytes = readFileSync(PUSH)
+  assert.deepEqual(beforeTheHelper(bytes), [])
+  assert.deepEqual(beforeTheHelper(withLine(bytes, "y='a[b]'")), [], 'a single-quoted value holds anything')
+  for (const [added, named = added] of PRELUDE_BREAKS) assert.deepEqual(beforeTheHelper(withLine(bytes, added)), named.split('\n'), JSON.stringify(added))
 })
 
 test('housekeeping push: no change, or a picture refused, pushes nothing and never writes the key', () => {

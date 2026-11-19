@@ -36,19 +36,34 @@ export function keyShims(dir, key) {
 }
 
 /**
- * The lines of a keyed script before the one that sources scripts/lib/deploy-push.sh that are not on the
- * short list of what may stand there. Until that line DEPLOY_KEY is still in the env, so nothing may start a
- * process: only comments and blank lines, `set -euo pipefail` as spelled, and an assignment to a lowercase
- * name (so never PATH, PS4, IFS or BASH_ENV) of a literal, single-quoted or of [A-Za-z0-9_./:-] alone. No
- * line may end in a backslash, which would join the next line to it.
+ * The lines of a keyed script's raw bytes before the one that sources scripts/lib/deploy-push.sh that are not
+ * on the short list of what may stand there. Until that line DEPLOY_KEY is still in the env, so nothing may
+ * start a process. Every byte there is printable ASCII (0x20-0x7E), a tab or a line feed, and each line is:
+ * spaces and tabs, then a comment or nothing; `set -euo pipefail` as spelled; or an assignment to a lowercase
+ * name (so never PATH, PS4, IFS or BASH_ENV) of a literal, single-quoted or of [A-Za-z0-9_./:-] alone. No line
+ * may end in a backslash, which would join the next line to it. Lines are named as UTF-8 text.
  */
-export function beforeTheHelper(text) {
-  const lines = text.split('\n')
-  const at = lines.indexOf('. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"')
+export function beforeTheHelper(bytes) {
+  const lines = []
+  for (let from = 0; from <= bytes.length; ) {
+    const end = bytes.indexOf(0x0a, from)
+    lines.push(bytes.subarray(from, end < 0 ? bytes.length : end))
+    from = end < 0 ? bytes.length + 1 : end + 1
+  }
+  const at = lines.findIndex((l) => l.toString('latin1') === '. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"')
   if (at < 0) return ['no line sources lib/deploy-push.sh']
-  const allowed = (l) =>
-    !/\\$/.test(l) && (/^\s*(#.*)?$/.test(l) || l === 'set -euo pipefail' || /^[a-z_][a-z0-9_]*=('[^']*'|[A-Za-z0-9_./:-]*)$/.test(l))
-  return lines.slice(0, at).filter((l) => !allowed(l))
+  const allowed = (raw) => {
+    if (raw.some((b) => b !== 0x09 && (b < 0x20 || b > 0x7e))) return false
+    const l = raw.toString('latin1')
+    return !l.endsWith('\\') && (/^[ \t]*(#.*)?$/.test(l) || l === 'set -euo pipefail' || /^[a-z_][a-z0-9_]*=('[^']*'|[A-Za-z0-9_./:-]*)$/.test(l))
+  }
+  return lines.slice(0, at).filter((l) => !allowed(l)).map((l) => l.toString('utf8'))
+}
+
+/** A script's raw bytes with `added` (and a line feed) after its `set -euo pipefail` line. */
+export function withLine(bytes, added) {
+  const at = bytes.indexOf('set -euo pipefail\n') + 'set -euo pipefail\n'.length
+  return Buffer.concat([bytes.subarray(0, at), Buffer.from(`${added}\n`), bytes.subarray(at)])
 }
 
 /** Lines a test adds after `set -euo pipefail` that beforeTheHelper must name: [added, named (default: added)]. */
@@ -62,4 +77,6 @@ export const PRELUDE_BREAKS = [
   ['set -e'],
   ['x="$RUNNER_TEMP/a"'],
   ['x=${y:-a}'],
+  // bash's blanks are a space and a tab only: each of these runs as a command. And no byte but printable ASCII.
+  ...['\r', '\u00a0# date', '\u2003# date', '\ufeff# x', '\v# date', '\f', '\u00e7=a'].map((l) => [l]),
 ]
