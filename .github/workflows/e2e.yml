@@ -116,7 +116,8 @@ jobs:
         run: node scripts/ci-lease.mjs release
   # One check whose name never changes, for the ruleset to require in place of each shard's
   # name (task-1c5694beb2930596). It passes only when every job it needs ended `success`:
-  # a failed, skipped or cancelled one fails it. A new e2e job goes in `needs`.
+  # a failed, skipped or cancelled one fails it. scripts/lib/e2e-all.test.mjs holds it to that, and to
+  # needing every other job in this file.
   e2e-all:
     needs: [studio]
     if: always()
