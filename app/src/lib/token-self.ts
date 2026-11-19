@@ -7,9 +7,17 @@ import {absoluteEnd} from './session-age.ts'
 // `elsewhere`: an API token of another workspace (a dev sign-in's is minted for one).
 // `role`: the seat's role here (the user menu shows it, as Sanity's); `name`: a login session's display name.
 // `expiresAt`: when the instance ends the token, in unix seconds (lib/session-age.ts); null, never.
-export type TokenSelf = {permissions: string[]; boundDataset: string | null; refused?: boolean; canPublish?: boolean; elsewhere?: boolean; role?: string; name?: string; userId?: string; expiresAt?: number | null}
+// `unknown`: Barkpark did not say (UNKNOWN_SELF).
+export type TokenSelf = {permissions: string[]; boundDataset: string | null; refused?: boolean; unknown?: boolean; canPublish?: boolean; elsewhere?: boolean; role?: string; name?: string; userId?: string; expiresAt?: number | null}
 type Can = Record<string, boolean>
 export type TokenBody = {kind?: string; user?: {id?: string | number}; permissions?: string[]; seat?: {role?: string; can?: Can}; workspace?: {slug?: string}; seats?: {workspace?: {slug?: string}; role?: string; can?: Can}[]; dataset?: string; dataset_bound?: boolean; expires_at?: string | null}
+
+/**
+ * Barkpark did not say what a token may do (no answer in time, a failed read, a 5xx): read and
+ * write as before, so a blip refuses nothing on its own; but who it is stays unknown (whoAmI's
+ * `unchecked`), so a field a role rule may lock waits, and the page says so (task-4ffed14fbf52dc47).
+ */
+export const UNKNOWN_SELF: Readonly<TokenSelf> = {permissions: ['read', 'write'], boundDataset: null, unknown: true}
 
 export function tokenSelf(me: TokenBody, workspace: string): TokenSelf {
   // A login session (#22783): its seat in this workspace says what it may do; none, nothing.

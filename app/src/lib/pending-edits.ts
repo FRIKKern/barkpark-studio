@@ -66,6 +66,8 @@ function run<T>(mode: IDBTransactionMode, go: (s: IDBObjectStore) => IDBRequest<
 
 /** This page's entry for a doc; `docKey` alone is an entry from before entries were per page. */
 export const pendingKey = (docKey: string, tab = TAB) => `${docKey}|${tab}`
+/** The doc of a page's entry key (pendingKey's inverse); null when `key` is not that page's. */
+export const docKeyOfEntry = (key: string, tab = TAB) => (key.endsWith(`|${tab}`) ? key.slice(0, -tab.length - 1) : null)
 export const putPending = (key: string, p: Pending) => run('readwrite', (s) => s.put(p, key)).then(() => {})
 export const dropPending = (key: string) => run('readwrite', (s) => s.delete(key)).then(() => {})
 export const readPending = (key: string) => run<Pending | undefined>('readonly', (s) => s.get(key)).then((p) => (p && Array.isArray(p.fields) ? p : null))

@@ -98,10 +98,10 @@ export function sanityRole(role: string | null | undefined, canWrite = true): st
   return role === 'owner' || role === 'admin' ? 'administrator' : role === 'member' ? 'editor' : role
 }
 
-type Me = {email: string | null; name: string | null; userId: string | null; role: string | null; canWrite: boolean; provisional?: boolean}
-/** whoAmI as Sanity's currentUser: null with nobody signed in (shared sign-in); undefined while Barkpark has not said who (not read yet, or a provisional stand-in). */
+type Me = {email: string | null; name: string | null; userId: string | null; role: string | null; canWrite: boolean; provisional?: boolean; unchecked?: boolean}
+/** whoAmI as Sanity's currentUser: null with nobody signed in (shared sign-in); undefined while Barkpark has not said who (not read yet, a provisional stand-in, or a check it did not answer). */
 export function currentUserOf(me: Me | undefined): Person {
-  if (!me || me.provisional) return undefined
+  if (!me || me.provisional || me.unchecked) return undefined
   if (!me.email) return null
   const role = sanityRole(me.role, me.canWrite)
   return {id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles: role ? [{name: role, title: roleTitle(role)}] : []}

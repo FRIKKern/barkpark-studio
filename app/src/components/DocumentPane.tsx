@@ -24,6 +24,7 @@ import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
 import {copyRank} from './OrderableRows'
 import {copyFields} from '../lib/bulk'
+import {PersonCheckBanner} from './PersonCheckBanner'
 import {meQuery, useBoundElsewhere, useCanWrite, useCurrentUser, useStudioTokenRefused} from '../lib/session'
 import {currentScopeQuery} from '../lib/scope-switch'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
@@ -823,6 +824,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <SignInAgain />
           </div>
         )}
+        {doc && <PersonCheckBanner docId={pane.id} dateOf={(at) => longDate(new Date(at).toISOString(), locale)} />}
         {recovered && doc && (
           <div className="pane-banner" role="alert" data-testid="kept-edits">
             <span>

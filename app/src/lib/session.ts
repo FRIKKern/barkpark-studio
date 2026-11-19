@@ -53,6 +53,8 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
     noSeat: !!editor && !ended && !!self && serviceAccess(self) === 'no_seat',
     /** Barkpark's answer (false), or provisionalMe's stand-in while it is late (true). */
     provisional: false as boolean,
+    /** Barkpark did not answer the check (describeToken's UNKNOWN_SELF): who this is stays unknown, and the page offers a retry. */
+    unchecked: !ended && !!self?.unknown,
   }
   // e2e only (server/access-stub.ts): a signed-in person with no seat here, until one is given.
   const stand = stubPerson()
@@ -87,6 +89,7 @@ export const provisionalMe = createServerFn({method: 'GET'}).handler(async () =>
     studioTokenRefused: false,
     noSeat: false,
     provisional: true as boolean,
+    unchecked: false,
   }
 })
 
