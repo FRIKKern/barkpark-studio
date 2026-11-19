@@ -38,26 +38,32 @@ const schema = {
     {name: 'slug', title: 'Slug', type: 'slug', group: 'main', validation: {required: true}},
   ],
 }
+/** A doc's id and its last save, `saved` ms after T; none: as created (its create stamps both times alike). */
+type Opts = {id?: string; saved?: number}
 /** A doc saved, never published, with an empty required slug, created `ago` ms before T. */
-const post = (ago: number) => ({_id: 'drafts.p1', _publishedId: 'p1', _type: 'post', _rev: 'r1', _draft: true, _hasPublished: false, _createdAt: new Date(T - ago).toISOString(), _updatedAt: new Date(T - ago).toISOString(), title: 'Pasted'})
+const post = (ago: number, {id = 'p1', saved}: Opts = {}) => {
+  const created = new Date(T - ago).toISOString()
+  return {_id: `drafts.${id}`, _publishedId: id, _type: 'post', _rev: 'r1', _draft: true, _hasPublished: false, _createdAt: created, _updatedAt: saved === undefined ? created : new Date(T + saved).toISOString(), title: 'Pasted'}
+}
 
 const realNow = Date.now
 /** The pane as the structure route mounts it, on a load at T, with the clock reading `now`. */
-async function pane(now: number, ago: number): Promise<ReactElement> {
+async function pane(now: number, ago: number, opts: Opts = {}): Promise<ReactElement> {
+  const id = opts.id ?? 'p1'
   Date.now = () => now
   // gcTime Infinity: no cache-collection timer (5 min) holding the process open after the pane unmounts.
   const qc = new QueryClient({defaultOptions: {queries: {retry: false, staleTime: Infinity, gcTime: Infinity}}})
   qc.setQueryData(schemasQuery.queryKey, [schema])
-  qc.setQueryData(docQuery('post', 'p1').queryKey, post(ago))
-  const panes = [{kind: 'doc', type: 'post', id: 'p1'}]
+  qc.setQueryData(docQuery('post', id).queryKey, post(ago, opts))
+  const panes = [{kind: 'doc', type: 'post', id}]
   const props = {panes, index: 0, split: false, closeHref: '/structure/post', header: h('span', null, 'Post'), closeIcon: null}
   const root = createRootRoute({})
   // The router is scaffolding: the pane reads its location and context, nothing renders its matches.
-  const router = createRouter({routeTree: root, context: {queryClient: qc, scope: {current: null}}, history: createMemoryHistory({initialEntries: ['/structure/post;p1']})})
+  const router = createRouter({routeTree: root, context: {queryClient: qc, scope: {current: null}}, history: createMemoryHistory({initialEntries: [`/structure/post;${id}`]})})
   await router.load()
   return h(QueryClientProvider, {client: qc}, h(RouterContextProvider, {router} as never, h(LoadedAtContext.Provider, {value: T}, h(DocumentPane, props as never))))
 }
-const server = async (ago: number, now = T) => renderToString(await pane(now, ago))
+const server = async (ago: number, now = T, opts: Opts = {}) => renderToString(await pane(now, ago, opts))
 
 // The browser, for the hydrating half: happy-dom's window as the globals (as pt-one-line.test.ts),
 // installed after every server render of this file has run.
@@ -90,7 +96,7 @@ after(async () => {
 })
 
 /** Hydrates the server's page at LATER: what React said about it, and the hydrated page. */
-async function hydrate(page: string, ago: number) {
+async function hydrate(page: string, ago: number, opts: Opts = {}) {
   const w = browser()
   const {hydrateRoot} = await import('react-dom/client')
   const box = w.document.createElement('div')
@@ -100,7 +106,7 @@ async function hydrate(page: string, ago: number) {
   const said: string[] = []
   const error = console.error
   console.error = (...a: unknown[]) => void said.push(a.map(String).join(' '))
-  const app = await pane(LATER, ago)
+  const app = await pane(LATER, ago, opts)
   let root: ReturnType<typeof hydrateRoot> | undefined
   try {
     await act(async () => {
@@ -114,9 +120,9 @@ async function hydrate(page: string, ago: number) {
 const marks = (html: string) => ({mark: /id="slug-problem"/.test(html), invalid: /data-invalid="true"/.test(html)})
 
 test('a doc made 5 s before the load: the browser hydrates it 20 s later without a mismatch, quiet until the first edit, then marked', async () => {
-  const page = await server(5_000)
+  const page = await server(5_000, T, {id: 'p-edit'})
   assert.deepEqual(marks(page), {mark: false, invalid: false}, "the server's page is quiet")
-  const {box, recovered, warned, unmount} = await hydrate(page, 5_000)
+  const {box, recovered, warned, unmount} = await hydrate(page, 5_000, {id: 'p-edit'})
   assert.deepEqual(recovered, [], 'no recoverable hydration error (React #418)')
   assert.deepEqual(warned, [], 'no hydration warning')
   assert.deepEqual(marks(box.innerHTML), {mark: false, invalid: false}, 'still quiet once hydrated, 20 s on')
@@ -158,4 +164,32 @@ test('the header validation button and the group tabs: the same on the server an
 test("a cached load: opened a minute after a load at T, a doc made 5 s before that load is judged by the load, not the clock", async () => {
   assert.deepEqual(marks(await server(5_000, T + 60_000)), {mark: false, invalid: false}, 'quiet, as at its first open')
   assert.deepEqual(marks(await server(60_000, T + 60_000)), {mark: true, invalid: true}, 'a doc made a minute before the load is marked')
+})
+
+// Edited, left, and opened again on the cached load (its `at` as old as the first open): the edit
+// ended the quiet, so the marks show at once. "Not yet edited" is read from the doc as the pane holds
+// it now (a save after its create), and from this page's own edits (one not saved yet, or the
+// keystroke that made the doc, whose save stamps both times alike).
+test('a just-made doc saved again after the load, opened on the cached load a minute later: marked at once', async () => {
+  assert.deepEqual(marks(await server(5_000, T + 60_000, {id: 'p-saved', saved: 10_000})), {mark: true, invalid: true})
+})
+
+test('a just-made doc edited in this page, left and opened again on the cached load: marked at once, its save not landed', async () => {
+  const page = await server(5_000, T, {id: 'p-back'})
+  const first = await hydrate(page, 5_000, {id: 'p-back'})
+  assert.deepEqual(marks(first.box.innerHTML), {mark: false, invalid: false}, 'quiet on its first open')
+  await act(async () => {
+    first.box.querySelector('[id="title"]')!.dispatchEvent(new win!.Event('input', {bubbles: true}))
+    await new Promise((r) => setTimeout(r, 0))
+  })
+  await first.unmount()
+  // Back to it: a new mount on the same cached load (at T) and the same copy of the doc.
+  const {createRoot} = await import('react-dom/client')
+  const box = win!.document.createElement('div')
+  win!.document.body.appendChild(box)
+  const root = createRoot(box as unknown as Element)
+  const app = await pane(T + 60_000, 5_000, {id: 'p-back'})
+  await act(async () => root.render(app))
+  assert.deepEqual(marks(box.innerHTML), {mark: true, invalid: true}, 'marked again, without another edit')
+  await act(async () => root.unmount())
 })
