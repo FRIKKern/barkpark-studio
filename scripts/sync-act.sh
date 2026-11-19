@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # sync-pack.yml's `act` job runs this file from main's checkout (no credentials kept); the job and this
 # file are pinned in scripts/lib/keyed-jobs.json, and scripts/lib/sync-act.test.mjs runs these same bytes.
-# It trusts nothing from the plan job except which of the three actions to take (each re-checked against
-# GitHub's own state), the studio's report file (conformance/barkpark-studio.json) and SOURCE.md's prose.
+# It trusts nothing from `plan` except which of the three actions to take (each re-checked against
+# GitHub's own state), the studio's report file and SOURCE.md's prose. The report file is
+# conformance/barkpark-studio.json.
 # It finds the sync PR itself; checks the bundle, the commit's parent and both sides of every changed path;
 # checks that every other pack file is Barkpark's own, byte for byte, at the commit SOURCE.md names, on
 # Barkpark's main and not older than main's; and writes the commit message, PR title and body itself.
@@ -13,27 +14,11 @@ barkpark="${BARKPARK_GIT:-https://github.com/FRIKKern/barkpark}"
 branch=sync/barkpark-pack
 new=refs/sync-pack/new
 re_sha='^[0-9a-f]{40}$'
-# An error line; % CR LF escaped as GitHub reads them, so a plan value never starts a line of its own.
-fail() {
-  local m=${1//'%'/%25}
-  m=${m//$'\r'/%0D}
-  printf '::error::%s\n' "${m//$'\n'/%0A}"
-  exit 1
-}
-# The deploy key, from this step's env only: out of every child's env, written to a file just for each push
-# (after every check on the bundle), and that file removed after the push or when this script ends.
-key=${SYNC_DEPLOY_KEY:-}
-unset SYNC_DEPLOY_KEY
-keyfile="$RUNNER_TEMP/sync-deploy-key"
-trap 'rm -f "$keyfile" "$keyfile.hosts"' EXIT
-push() { # <lease> <refspec>
-  [ -n "$key" ] || fail 'no deploy key'
-  (umask 077 && printf '%s\n' "$key" > "$keyfile")
-  printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$keyfile.hosts"
-  GIT_SSH_COMMAND="ssh -F /dev/null -i $keyfile -o IdentitiesOnly=yes -o UserKnownHostsFile=$keyfile.hosts -o StrictHostKeyChecking=yes" \
-    git push -q --force-with-lease="$1" "${SYNC_PUSH_URL:-git@github.com:$GH_REPO.git}" "$2"
-  rm -f "$keyfile" "$keyfile.hosts"
-}
+# fail, and deploy_push: the one place the deploy key is handled (a file only while each push runs, after
+# every check on the bundle).
+# shellcheck source=scripts/lib/deploy-push.sh
+# (Its path by parameter expansion, a builtin: nothing forks while DEPLOY_KEY is still in the env.)
+. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"
 
 action=$(jq -r .action "$plan/plan.json")
 # The sync PR, found here: this repo's (not a fork's) open PR from sync/barkpark-pack into main.
@@ -46,7 +31,10 @@ asked=$(jq -r '.number // "" | tostring' "$plan/plan.json")
 case "$action" in
   close)
     [ -n "$number" ] || { echo 'no sync PR open: nothing to close'; exit 0; }
-    # The branch stays: it may carry a hand commit (accepted rows) worth keeping.
+    # Only while the PR's head holds main's pack, byte for byte. The branch stays: it may carry a hand
+    # commit (accepted rows) worth keeping.
+    git fetch -q origin "+refs/heads/main:refs/sync-pack/main" "+refs/heads/$branch:refs/sync-pack/head" || fail "#$number's head cannot be fetched"
+    git diff --quiet refs/sync-pack/main refs/sync-pack/head -- conformance/pack || fail "#$number's pack differs from main's: not closed"
     gh pr close "$number" --comment 'main already carries these files: nothing left to sync.'
     ;;
   land)
@@ -111,10 +99,14 @@ case "$action" in
     git -C "$bp" config remote.origin.promisor true
     git -C "$bp" config remote.origin.partialclonefilter blob:none
     git -C "$bp" fetch -q --filter=blob:none origin main
-    git -C "$bp" merge-base --is-ancestor "$at" FETCH_HEAD || fail "Barkpark $at is not on Barkpark's main"
+    bpmain=$(git -C "$bp" rev-parse FETCH_HEAD)
+    git -C "$bp" merge-base --is-ancestor "$at" "$bpmain" || fail "Barkpark $at is not on Barkpark's main"
     if [[ $(git cat-file blob origin/main:conformance/pack/SOURCE.md 2>/dev/null || true) =~ $re_source ]]; then
       was=${BASH_REMATCH[1]}
-      git -C "$bp" merge-base --is-ancestor "$was" "$at" || fail "Barkpark $at is older than $was, which main holds"
+      # Not on Barkpark's main any more: its history was rewritten; only a hand sync moves on from here.
+      git -C "$bp" merge-base --is-ancestor "$was" "$bpmain" 2>/dev/null ||
+        fail "Barkpark $was, which main's SOURCE.md names, is not on Barkpark's main (history rewritten?): sync by hand"
+      git -C "$bp" merge-base --is-ancestor "$was" "$at" || fail "Barkpark $at is not a descendant of main's SOURCE commit $was"
     fi
     while IFS= read -r -d '' entry; do
       oid=${entry%%$'\t'*}
@@ -134,7 +126,7 @@ case "$action" in
     printf '%s\n' "Written by \`scripts/pack-sync.mjs\` from [\`FRIKKern/barkpark\` ${at:0:12}](https://github.com/FRIKKern/barkpark/commit/$at) \`api/priv/portable_doc\`, and checked by \`scripts/sync-act.sh\`: every pack file but \`SOURCE.md\` is Barkpark's own at that commit. Barkpark is the source: fix the pack there, never here." \
       '' "If \`unit\` fails here, conformance rows moved: the studio renderer is behind Barkpark. Fix the renderer, or accept the rows on this branch (\`pnpm --dir app conformance:write\`) and say why. The run summary of the sync job lists the rows." > "$body"
     sync=$(git commit-tree "$new^{tree}" -p "$base" -m "$title")
-    push "$branch:$lease" "$sync:refs/heads/$branch"
+    deploy_push "$sync:refs/heads/$branch" --force-with-lease="$branch:$lease"
     if [ -n "$number" ]; then
       gh pr edit "$number" --title "$title" --body-file "$body"
     else
@@ -142,7 +134,7 @@ case "$action" in
         fail 'The sync PR cannot be opened. Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests" must be on.'
       # A PR the workflow token opens starts no checks; a push by the deploy key does.
       start=$(git commit-tree "$sync^{tree}" -p "$sync" -m 'Start the checks')
-      push "$branch:$sync" "$start:refs/heads/$branch"
+      deploy_push "$start:refs/heads/$branch" --force-with-lease="$branch:$sync"
     fi
     ;;
   *) fail "unknown action $action" ;;

@@ -29,8 +29,9 @@
   rotate, for data the bridge already publishes. The mirror lags the board by
   seconds and only carries open/closed plus a status label. That is all we need.
 - main requires `check`, `unit` and every `studio` shard (ruleset "main:
-  required checks", 2026-10-09). Housekeeping pushes with a deploy key, the
-  ruleset's only bypass (GitHub refuses the Actions app on a user-owned repo).
+  required checks", 2026-10-09). Housekeeping's `push` job pushes the picture
+  with the deploy key ([0010](0010-deploy-key-one-helper.md)), after
+  `scripts/lib/svg-check.py` passes it; the generator's job holds no key.
 - No loop: the commit carries `[skip ci]`, so its push starts no workflow runs.
 
 ## Open

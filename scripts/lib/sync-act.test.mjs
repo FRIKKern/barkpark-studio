@@ -8,6 +8,7 @@ import {join} from 'node:path'
 import test, {after} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
+import {BASH, keyShims} from './key-shims.mjs'
 import {COPIED} from './pack.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
@@ -16,6 +17,8 @@ const REAL_GIT = execFileSync('sh', ['-c', 'command -v git'], {encoding: 'utf8'}
 const BRANCH = 'sync/barkpark-pack'
 const made = []
 const tmp = (prefix) => (made.push(mkdtempSync(join(tmpdir(), prefix))), made.at(-1))
+// PATH holds only these shims and each run's own wrappers: every child act starts is checked for the key.
+const shim = keyShims(join(tmp('shims-'), 'bin'), 'the deploy key')
 after(() => made.forEach((d) => rmSync(d, {recursive: true, force: true})))
 
 const env = {...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1'}
@@ -69,8 +72,8 @@ function plan(w, json, not = [w.main]) {
 }
 
 /**
- * Act's script in a fresh clone of origin (the job's checkout); gh answers `pr list` with `prs` and logs
- * `KEY IN ENV` if the deploy key reaches it. Origin's pre-receive hook logs the key file as a push sees it.
+ * Act's script in a fresh clone of origin (the job's checkout); gh answers `pr list` with `prs`, and every
+ * child is checked for the key (key-shims.mjs). Origin's pre-receive hook logs the key file as a push sees it.
  * `keyWhile`: each git command run while the key file exists; `keyLeft`: key files left in RUNNER_TEMP;
  * `sshCommand`: the checkout's core.sshCommand.
  */
@@ -78,18 +81,19 @@ function act(w, runnerTemp, prs = []) {
   const bin = tmp('gh-')
   const log = join(bin, 'calls.log')
   const pushed = join(bin, 'pushed-key.log')
-  writeFileSync(join(w.origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "$RUNNER_TEMP/sync-deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
+  writeFileSync(join(w.origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "$RUNNER_TEMP/deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
   chmodSync(join(w.origin, 'hooks/pre-receive'), 0o755)
   const keyWhile = join(bin, 'key-while.log')
-  writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ ! -e "$RUNNER_TEMP/sync-deploy-key" ] || echo "$1" >> "${keyWhile}"\nexec "${REAL_GIT}" "$@"\n`)
+  writeFileSync(join(bin, 'git'), `#!/bin/sh\n${shim.check('git')}\n[ ! -e "$RUNNER_TEMP/deploy-key" ] || echo "$1" >> "${keyWhile}"\nexec "${REAL_GIT}" "$@"\n`)
   chmodSync(join(bin, 'git'), 0o755)
-  writeFileSync(join(bin, 'gh'), `#!/bin/sh\n[ -z "$SYNC_DEPLOY_KEY" ] || echo "KEY IN ENV" >> "${log}"\necho "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
+  writeFileSync(join(bin, 'gh'), `#!/bin/sh\n${shim.check('gh')}\necho "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
   writeFileSync(join(bin, 'prs.json'), JSON.stringify(prs))
   chmodSync(join(bin, 'gh'), 0o755)
   const checkout = join(tmp('checkout-'), 'repo')
   git(w.base, 'clone', '-q', w.origin, checkout)
   const out = join(bin, 'out')
-  const r = spawnSync('bash', [ACT], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, SYNC_DEPLOY_KEY: 'the deploy key', SYNC_PUSH_URL: w.origin}})
+  const r = spawnSync(BASH, [ACT], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${shim.dir}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, DEPLOY_KEY: 'the deploy key', DEPLOY_PUSH_URL: w.origin}})
+  assert.deepEqual(shim.seen(), [], `a child process saw the deploy key: ${r.stdout + r.stderr}`)
   const calls = existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []
   const sshCommand = spawnSync('git', ['config', '--get', 'core.sshCommand'], {cwd: checkout, env, encoding: 'utf8'}).stdout.trim()
   return {
@@ -100,7 +104,7 @@ function act(w, runnerTemp, prs = []) {
     pushedWith: existsSync(pushed) ? readFileSync(pushed, 'utf8').trim().split('\n') : [],
     temp: runnerTemp,
     body: existsSync(join(runnerTemp, 'sync-body.md')) ? readFileSync(join(runnerTemp, 'sync-body.md'), 'utf8') : '',
-    keyLeft: readdirSync(runnerTemp).filter((f) => f.startsWith('sync-deploy-key')),
+    keyLeft: readdirSync(runnerTemp).filter((f) => f.startsWith('deploy-key')),
     sshCommand,
   }
 }
@@ -115,6 +119,13 @@ function landed(w, planned) {
 }
 const syncPr = (number = 9, more = {}) => ({number, headRefName: BRANCH, baseRefName: 'main', isCrossRepository: false, ...more})
 const commit = (w, msg) => (git(w.work, 'add', '-A'), git(w.work, 'commit', '-q', '-m', msg), git(w.work, 'rev-parse', 'HEAD'))
+
+test('sync-act.sh handles no key itself: it sources scripts/lib/deploy-push.sh and pushes with deploy_push', () => {
+  const code = readFileSync(ACT, 'utf8').split('\n').filter((l) => !/^\s*#/.test(l))
+  assert.deepEqual(code.filter((l) => /deploy-push\.sh/.test(l)), ['. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"'])
+  assert.deepEqual(code.filter((l) => /deploy_push/.test(l)).map((l) => l.trim()), ['deploy_push "$sync:refs/heads/$branch" --force-with-lease="$branch:$lease"', 'deploy_push "$start:refs/heads/$branch" --force-with-lease="$branch:$sync"'])
+  assert.deepEqual(code.filter((l) => /DEPLOY_|deploy_key|keyfile/.test(l) || /ssh|git push|\btrap\b/i.test(l)), [], 'nothing else touches the key')
+})
 
 test('act pushes a sync commit on main and opens the PR; it refuses to push one that leaves the pack', () => {
   const ok = world()
@@ -159,6 +170,8 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
   refused('a pack file not as Barkpark holds it', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/a.json', '{"v": 666}\n'), commit(w, 'sync')), /the pack differs from Barkpark [0-9a-f]{40}: a\.json/)
   refused('a pack file Barkpark lacks', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/extra.mjs', 'x\n'), commit(w, 'sync')), /the pack differs from Barkpark [0-9a-f]{40}: extra\.mjs/)
   refused('a Barkpark commit off its main', (w) => (bark(w, '{"v": 2}\n', 'side'), commit(w, 'sync')), /is not on Barkpark's main/)
+  // Barkpark's history rewritten, so the commit main's SOURCE.md names leaves its main: every push fails safe.
+  refused('a Barkpark history rewrite', (w) => (git(w.barkpark, 'commit', '-q', '--amend', '-m', 'rewritten'), bark(w, '{"v": 2}\n'), commit(w, 'sync')), /Barkpark [0-9a-f]{40}, which main's SOURCE\.md names, is not on Barkpark's main \(history rewritten\?\): sync by hand/)
   // An older Barkpark pack than main's (main's SOURCE.md names a later commit): refused.
   {
     const w = world()
@@ -171,7 +184,7 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
     commit(w, 'sync')
     const r = act(w, plan(w, {action: 'push', main}, [main]))
     assert.equal(r.status, 1, r.err)
-    assert.match(r.err, new RegExp(`Barkpark ${old} is older than [0-9a-f]{40}, which main holds`))
+    assert.match(r.err, new RegExp(`Barkpark ${old} is not a descendant of main's SOURCE commit [0-9a-f]{40}$`, 'm'))
     assert.equal(branchAt(w), '')
   }
   refused('SOURCE.md naming no commit', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/SOURCE.md', 'hand-written\n'), commit(w, 'sync')), /SOURCE\.md names no Barkpark commit/)
@@ -223,8 +236,19 @@ test('act finds the sync PR itself: a plan naming another PR is refused for clos
     assert.deepEqual(r.writes, [])
     assert.deepEqual([r.keyWhile, r.pushedWith, r.keyLeft, r.sshCommand], [[], [], [], ''])
   }
-  // The sync PR: closed and merged by its own number.
+  // The sync PR: closed by its own number only while its head's pack is main's, byte for byte.
+  write(w.work, 'conformance/pack/a.json', '{"v": "not main"}\n')
+  git(w.work, 'push', '-q', 'origin', `${commit(w, 'pack differs')}:refs/heads/${BRANCH}`)
+  const differs = act(w, plan(w, {action: 'close', number: 9}), [syncPr(9)])
+  assert.equal(differs.status, 1, differs.err)
+  assert.match(differs.err, /#9's pack differs from main's/)
+  assert.deepEqual(differs.writes, [])
+  git(w.work, 'reset', '-q', '--hard', w.main)
+  write(w.work, 'conformance/barkpark-studio.json', '{"rows": "accepted"}\n')
+  git(w.work, 'push', '-q', '-f', 'origin', `${commit(w, 'hand: accept rows')}:refs/heads/${BRANCH}`)
   assert.deepEqual(act(w, plan(w, {action: 'close', number: 9}), [syncPr(9)]).writes, ['pr close 9 --comment main already carries these files: nothing left to sync.'], 'the branch stays')
+  git(w.work, 'reset', '-q', '--hard', w.main)
+  // And merged by its own number.
   assert.match(act(w, plan(w, {action: 'land', number: 9, head: w.main}), [syncPr(9)]).writes[0], /^pr merge 9 --squash --delete-branch --match-head-commit [0-9a-f]{40}$/)
 })
 

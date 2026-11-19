@@ -5,6 +5,8 @@ import fs from 'node:fs';
 import { tasks, journeyPhases, phases, freeformJourneys, nativeJourneys } from './lib/board.mjs';
 
 const OUT = new URL('../docs/images/roadmap.svg', import.meta.url);
+// The picture's one <style>, byte for byte; scripts/lib/svg-check.py lets no other <style> reach main.
+const STYLE = fs.readFileSync(new URL('./lib/roadmap-style.css', import.meta.url), 'utf8');
 const W = 1200, PAD = 40, GAP = 16, TOP = 196, ROW = 30;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -77,16 +79,7 @@ function render(board, jPhase, phaseRows, dIds, bIds) {
   out.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="t d">`);
   out.push(`<title id="t">Barkpark Studio roadmap</title>`);
   out.push(`<desc id="d">${passed} of ${journeys.length} journeys signed off side by side by the quality owner; ${built} more built, awaiting sign-off. ${esc(cols.map((c) => `Phase ${c.key} ${c.name}: ${c.tag}`).join('. '))}. ${lanes.map((l) => `${l.name} track: ${l.done} of ${l.items.length} signed off, ${l.built} built`).join('. ')}.</desc>`);
-  out.push(`<style>
-  svg { --bg:#fbfaf7; --card:#ffffff; --line:#e3e0d6; --ink:#1f1e1b; --muted:#6c6a63; --done:#2c7a4b; --now:#b26b00; --todo:#a3a097; --nowbg:#fff6e5; --built:#3f6fb5; }
-  @media (prefers-color-scheme: dark) {
-    svg { --bg:#14161a; --card:#1c1f24; --line:#30343b; --ink:#ecebe6; --muted:#9a9ca3; --done:#6cc28f; --now:#e8b55a; --todo:#6d7179; --nowbg:#2a2418; --built:#8fb3ea; }
-  }
-  text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; fill: var(--ink); }
-  .muted { fill: var(--muted); } .done { fill: var(--done); } .built { fill: var(--built); } .now { fill: var(--now); } .todo { fill: var(--todo); }
-  .bg { fill: var(--bg); } .track { fill: var(--line); } .bar { fill: var(--done); } .rule { stroke: var(--line); }
-  .card { fill: var(--card); stroke: var(--line); } .card.on { fill: var(--nowbg); stroke: var(--now); stroke-width: 2; }
-</style>`);
+  out.push(`<style>${STYLE}</style>`);
   out.push(`<rect class="bg" width="${W}" height="${H}" rx="16"/>`);
   out.push(`<text x="${PAD}" y="70" font-size="36" font-weight="700" letter-spacing="-0.8">Barkpark Studio</text>`);
   out.push(`<text x="${PAD}" y="102" font-size="19" class="muted">Sanity-quality editing on Barkpark, one journey at a time.</text>`);

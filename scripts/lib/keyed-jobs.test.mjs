@@ -16,8 +16,11 @@ const UNIT_CHECKOUT = '      - uses: actions/checkout@v5\n        with: { persis
 
 test('every job in .github/workflows holds no key or matches its pin, and every keyed job is pinned', () => {
   assert.deepEqual(keyProblems(files, pins, read), [])
-  assert.deepEqual(pins.jobs.map((p) => p.job), ['housekeeping.yml hygiene', 'housekeeping.yml refresh', 'sync-pack.yml act', 'sync-pack.yml checks-on-main'])
-  assert.deepEqual(Object.keys(pins.jobs.find((p) => p.job === 'sync-pack.yml act').runs), ['scripts/sync-act.sh'])
+  assert.deepEqual(pins.jobs.map((p) => p.job), ['housekeeping.yml hygiene', 'housekeeping.yml push', 'sync-pack.yml act', 'sync-pack.yml checks-on-main'])
+  assert.deepEqual(Object.keys(pins.jobs.find((p) => p.job === 'sync-pack.yml act').runs), ['scripts/sync-act.sh', 'scripts/lib/deploy-push.sh'])
+  assert.deepEqual(Object.keys(pins.jobs.find((p) => p.job === 'housekeeping.yml push').runs), ['scripts/housekeeping-push.sh', 'scripts/lib/deploy-push.sh', 'scripts/lib/svg-check.py', 'scripts/lib/roadmap-style.css'])
+  // The jobs that run the roadmap generator and the pack sync hold no key.
+  for (const [file, job] of [['housekeeping.yml', 'refresh'], ['sync-pack.yml', 'plan']]) assert.deepEqual(keyReasons(load(files[file]), load(files[file]).jobs[job]), [], `${file} ${job}`)
   assert.deepEqual(Object.keys(DATA_SECRETS), ['BARKPARK_TOKEN'])
 })
 
@@ -35,9 +38,9 @@ test('a keyed job changed in any way is red until its pin changes too', () => {
     assert.equal(out.length, 1, `${name}: ${out}`)
     assert.match(out[0], changed, name)
   }
-  // Housekeeping's keyed refresh job too.
-  const hk = withEdit('housekeeping.yml', (t) => after(t, "        with: { node-version: 22 }\n", '      - run: pnpm --dir app install\n'))
-  assert.match(hk.join('\n'), /^housekeeping\.yml refresh: changed since its pin/m)
+  // Housekeeping's keyed push job too.
+  const hk = withEdit('housekeeping.yml', (t) => after(t, '        run: bash scripts/housekeeping-push.sh\n', '      - run: pnpm --dir app install\n'))
+  assert.deepEqual(hk.map((v) => v.replace(/ \(now .*/, '')), ['housekeeping.yml push: changed since its pin'])
   // So is a workflow-level default the keyed job inherits.
   assert.match(withEdit('sync-pack.yml', (t) => t.replace('permissions: {}\n', 'permissions: {}\ndefaults:\n  run:\n    shell: node {0}\n')).join('\n'), changed)
 })
@@ -63,9 +66,10 @@ test('the pin reads YAML as GitHub does: dates stay text, and .inf and .nan are 
 })
 
 test('one byte changed in a file a keyed job runs is red', () => {
-  const out = keyProblems(files, pins, (path) => (path === 'scripts/sync-act.sh' ? Buffer.concat([read(path), Buffer.from(' ')]) : read(path)))
-  assert.equal(out.length, 1, String(out))
-  assert.match(out[0], /^sync-pack\.yml act: scripts\/sync-act\.sh changed since its pin/)
+  const byte = (file) => keyProblems(files, pins, (path) => (path === file ? Buffer.concat([read(path), Buffer.from(' ')]) : read(path))).map((v) => v.replace(/ \(now .*/, ''))
+  assert.deepEqual(byte('scripts/sync-act.sh'), ['sync-pack.yml act: scripts/sync-act.sh changed since its pin'])
+  // The deploy-key helper both pushing jobs source: red in both pins.
+  assert.deepEqual(byte('scripts/lib/deploy-push.sh').sort(), ['housekeeping.yml push: scripts/lib/deploy-push.sh changed since its pin', 'sync-pack.yml act: scripts/lib/deploy-push.sh changed since its pin'])
 })
 
 test('a job that does not hold "no key" and is not pinned is named', () => {
