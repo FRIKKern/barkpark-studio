@@ -43,7 +43,8 @@ export default defineConfig({
   maxFailures: process.env.CI ? 3 : 0,
   // QUALITY.md rule 5: the whole suite fits in 60 s; in CI going over fails the run.
   globalTimeout: process.env.CI ? 60_000 : 0,
-  reporter: [['list']],
+  // A measurement (do not merge): every step's time into test-results/step-times.json.
+  reporter: [['list'], ['./rig/step-times.ts']],
   // @baseline specs measure and @evidence specs take side-by-side stills and clips;
   // neither gates: only `pnpm baseline` / `pnpm evidence` run them. @local specs
   // (journeys outside QUALITY.md rule 5) run in `pnpm test`, not in CI's budget.
