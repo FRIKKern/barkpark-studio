@@ -22,7 +22,7 @@ import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, s
 import {spanAnswer, spanRoot, type Typed} from './pt-span'
 import {clientGone} from '../server/client-gone'
 import {gated, putBackKept, writeAllowed} from './doc-lock'
-import {combine, dropPending, judge, keepPlan, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
+import {combine, dropPending, judge, keepPlan, ownedElsewhere, pendingKey, putPending, readDocPending, restoreBlock, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
 import {paceMs, paced} from './write-pace'
 
@@ -1156,8 +1156,10 @@ export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys
   if (!writeAllowed('replay', doc._publishedId)) return null
   const refused = putBackKept(doc._publishedId, fields, (f, v) => {
     const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
-    ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(f)
-    edit(qc, now, f, restoreValue(pending, f, v, now))
+    // A block kept by its key goes back as its field, merged with the field as it is now.
+    const [at, value] = restoreBlock(pending, f, v, now) ?? [f, restoreValue(pending, f, v, now)]
+    ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(at)
+    edit(qc, now, at, value)
   })
   keepRefused(doc._publishedId, keys, pending, refused)
   return refused

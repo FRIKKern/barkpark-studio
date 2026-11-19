@@ -13,6 +13,7 @@ import {QueryClient} from '@tanstack/react-query'
 
 register('./save-flow.hooks.mjs', import.meta.url)
 const {freshItems} = await import('./pt-value.ts')
+const {mergeBlock} = await import('./pt-keep.ts')
 const {applyPaths, getPath, setPath} = await import('./paths.ts')
 const {applyPatches, makePatches, parsePatch} = await import('@sanity/diff-match-patch')
 
@@ -49,6 +50,7 @@ Object.assign(globalThis, {
   IDBKeyRange: {bound: (lower: string, upper: string) => ({lower, upper})},
 })
 
+const retired = new Set<string>()
 /** Barkpark, one document: revisions, the field fence, live frames, faults to order. */
 class Server {
   doc!: Doc
@@ -64,8 +66,8 @@ class Server {
     for (let i = 0; i < 400 && !this.holding; i++) await tick(5)
     assert.ok(this.holding, 'the save came in')
   }
-  /** Pages that are gone (reloaded). */
-  gone = new Set<string>()
+  /** Pages that are gone (reloaded), for every server after too: a test's retry timers write nothing into the next test's. */
+  gone = retired
   onRead?: () => void
   /** Revisions the history lists (Barkpark's may leave some out): all, unless set. */
   listed?: (d: Doc) => boolean
@@ -417,3 +419,44 @@ for (const frameFirst of [false, true])
       assert.equal(server.whole.get('ptBody') ?? 0, 0, 'no whole-field write')
       assert.deepEqual(texts(page.held().ptBody), texts(server.doc.ptBody))
     })
+
+// task-2c01c385ce7b51d0: this page pastes into a block and reloads while that save is out (refused,
+// its answer lost, or still on its way); the other editor pastes into the same block meanwhile.
+// After the reload, the kept edits come back: both pastes are stored once each, and the page shows it.
+for (const mine of ['paragraphs', 'line'] as const)
+for (const fault of ['500', 'lost', 'hold'] as const)
+  test(`a paste kept while this page reloads mid-save (${mine}, ${fault}), the other pasting into the same block: both pastes once`, async () => {
+    server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'Start text'), blk('c', 'Below')]})
+    const name = `pasteReload${mine}${fault}`
+    const page = await open(name)
+    page.E.setKeepScope('s')
+    const drawn = page.held().ptBody as Block[]
+    server.faults.push(fault)
+    // Paragraphs at the block's start (the field goes whole), or a line at its end (the block by its key).
+    if (mine === 'paragraphs') page.save(drawn, paste(drawn))
+    else {
+      const from = drawn[1]!
+      const line = blk('b1', 'Start text one two three')
+      page.E.edit(page.qc, page.held() as never, 'ptBody[_key=="b1"]', (now: unknown) => mergeBlock(from, line, now) ?? line)
+    }
+    await (fault === 'hold' ? server.held() : tick(250)) // kept in this browser (KEEP_GAP_MS)
+    if (fault === 'hold') await tick(250)
+    // The other editor's paste: "QQ¶rr " after "Start ", splitting that block.
+    server.theirs('ptBody', (now) => (now as Block[]).flatMap((b) => (b.children[0]!.text.includes('Start ') ? [blk(b._key, b.children[0]!.text.replace(/Start .*/, 'Start QQ')), blk('r', `rr ${b.children[0]!.text.replace(/.*Start /, '')}`)] : [b])))
+    server.gone.add(`?page=${name}`)
+    if (fault === 'hold') server.release()
+    await tick(20)
+    const next = await open(`${name}2`)
+    next.E.setKeepScope('s')
+    const got = await next.E.recoverPending(next.qc, next.held() as never)
+    if (got && 'ask' in got) next.E.restorePending(next.qc, next.held() as never, got.ask)
+    await next.drain()
+    for (const d of server.history) next.frame(d)
+    await next.drain()
+    const stored = texts(server.doc.ptBody)
+    if (process.env.FLOW_LOG) console.log(name, J({got: got && Object.keys(got), stored, held: texts(next.held().ptBody)}))
+    const all = stored.join('|')
+    for (const w of ['Above', ...(mine === 'paragraphs' ? ['XX', 'yy', 'zz'] : ['one two three']), 'QQ', 'rr', 'Start', 'text', 'Below']) assert.equal(all.split(w).length - 1, 1, `"${w}" once in ${J(stored)}`)
+    assert.deepEqual(texts(next.held().ptBody), stored, 'the page shows what is stored')
+    server.gone.add(`?page=${name}2`)
+  })

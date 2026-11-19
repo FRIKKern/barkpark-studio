@@ -1,6 +1,7 @@
 import type {Doc, Schema} from './data'
 import {merge3, mergeList3} from './merge.ts'
 import {getPath} from './paths.ts'
+import {basedOn, isText, keyOf} from './pt-merge.ts'
 
 // B11 widen, after the canvas's kept words (D21, lib/kept-words.ts): form edits not yet
 // acknowledged by Barkpark are kept in this browser's IndexedDB as they are typed, so a
@@ -167,4 +168,27 @@ export function restoreValue(p: Pending, field: string, mine: unknown, doc: Doc)
   // item by item, their words kept; whole, a restore took them out unseen.
   if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(theirs)) return mergeList3(base, mine, theirs) ?? mine
   return mine
+}
+
+/**
+ * A kept block of a text field (`body[_key=="b"]`, saved by its key) put back over the field as
+ * it is now: as the field, with the block merged into the run it is there (the block and the
+ * pieces another editor's split made of it after it), task-2c01c385ce7b51d0. Put back whole
+ * at its key, it took out their paste and put its own words in again where the split moved
+ * them. Null: not such a block, or not there now (it goes as kept).
+ */
+export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc): [string, unknown[]] | null {
+  const m = /^(\w+)\[_key=="([^"]+)"\]$/.exec(field)
+  if (!m) return null
+  const [, root, key] = m as unknown as [string, string, string]
+  const base = new Map(p.base).get(field)
+  const list = getPath(doc, root)
+  if (!Array.isArray(list) || !isText(base) || !isText(mine)) return null
+  const at = list.findIndex((b) => keyOf(b) === key)
+  if (at < 0) return null
+  const from = basedOn([base], list)
+  let end = at + 1
+  while (end < list.length && from.get(keyOf(list[end]) ?? '')?.has(key)) end++
+  const merged = mergeList3([base], [mine], list.slice(at, end))
+  return merged && [root, [...list.slice(0, at), ...merged, ...list.slice(end)]]
 }
