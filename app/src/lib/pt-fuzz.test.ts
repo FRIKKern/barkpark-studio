@@ -152,53 +152,81 @@ function dmpOnto(field: ReturnType<typeof pt>, key: string, span: string, patch:
   return field.map((b) => (b._key !== key ? b : {...b, children: b.children.map((c) => (c._key !== span ? c : {...c, text: applyPatches(patch, c.text, {allowExceedingIndices: true})[0]}))}))
 }
 
+/** One pair of the span-text fuzz, drawn from `rnd`: what went wrong in it (none: right), and a line saying the case. */
+function spanCase(rnd: () => number, n: number) {
+  const A = typeInSpan(rnd)
+  const Bv = edit(rnd, 'αβγδεζηθικλμνξοπρστυφχψω', 'b')
+  const base = pt(BASE)
+  const b = pt(Bv.blocks)
+  const {key, span, text: from} = BASE[A.i]!
+  const patch = makePatches(from, A.text)
+  const spans: [string, string, string, string][] = [[`[_key=="${key}"].children[_key=="${span}"].text`, from, A.text, A.text]]
+  // A's patch lands first, on the text it was typed on; B's save of the field then merges onto it.
+  const afterA = dmpOnto(base, key, span, patch)
+  const first = texts(freshItems(base, b, afterA))
+  // B's save first; A's patch lands on B's text, and A's answer is put right through the exit.
+  const saved = dmpOnto(b, key, span, patch)
+  const second = texts(spanAnswer(base, spans, b, saved) ?? saved)
+  const why: string[] = []
+  const letters = (t: string[]) => JSON.stringify(t.map((x) => [...x].sort().join('')))
+  if (letters(first) !== letters(second)) why.push('(a) orders differ')
+  const all = [first.join('|'), second.join('|')]
+  const added = [...new Set([...(A.text + Bv.blocks.map((x) => x.text).join('')).replace(/ /g, '')].filter((ch) => !/[a-x]/.test(ch)))]
+  const baseLetters = [...BASE.map((x) => x.text).join('')]
+  const kept = (ch: string) => A.text.includes(ch) || BASE[A.i]!.text.indexOf(ch) < 0
+  const deleted = baseLetters.filter((ch) => !kept(ch) || !Bv.blocks.some((x) => x.text.includes(ch)))
+  const lost = added.filter((ch) => all.some((t) => count(t, ch) === 0))
+  const twice = [...added, ...baseLetters].filter((ch) => all.some((t) => count(t, ch) > 1))
+  const back = deleted.filter((ch) => all.some((t) => count(t, ch) > 0))
+  if (lost.length) why.push(`(b) lost ${lost.join('')}`)
+  if (twice.length) why.push(`(c) twice ${twice.join('')}`)
+  if (back.length) why.push(`deleted back ${back.join('')}`)
+  return {why, line: `#${n} A ${key} ${A.did} ${JSON.stringify(A.text)} B ${Bv.did.join(',')} ${JSON.stringify(texts(b))} -> ${JSON.stringify(first)} / ${JSON.stringify(second)}: ${why.join('; ')}`}
+}
+
 test(`seeded fuzz of the span-text save (seed ${SEED}, ${CASES} pairs): typing sent as a patch while the other edits the field, either order gives each block the same letters (where in its block a patch put them is Barkpark's), every added letter once, no base letter twice, no deleted letter back`, () => {
   const rnd = prng(SEED + 1)
   const fails: string[] = []
   const tally = {a: 0, b: 0, c: 0, back: 0}
+  const tag = {a: '(a)', b: '(b)', c: '(c)', back: 'deleted back'} as const
   for (let n = 0; n < CASES; n++) {
-    const A = typeInSpan(rnd)
-    const Bv = edit(rnd, 'αβγδεζηθικλμνξοπρστυφχψω', 'b')
-    const base = pt(BASE)
-    const b = pt(Bv.blocks)
-    const {key, span, text: from} = BASE[A.i]!
-    const patch = makePatches(from, A.text)
-    const spans: [string, string, string, string][] = [[`[_key=="${key}"].children[_key=="${span}"].text`, from, A.text, A.text]]
-    // A's patch lands first, on the text it was typed on; B's save of the field then merges onto it.
-    const afterA = dmpOnto(base, key, span, patch)
-    const first = texts(freshItems(base, b, afterA))
-    // B's save first; A's patch lands on B's text, and A's answer is put right through the exit.
-    const saved = dmpOnto(b, key, span, patch)
-    const second = texts(spanAnswer(base, spans, b, saved) ?? saved)
-    const why: string[] = []
-    const letters = (t: string[]) => JSON.stringify(t.map((x) => [...x].sort().join('')))
-    if (letters(first) !== letters(second)) tally.a++, why.push('(a) orders differ')
-    const all = [first.join('|'), second.join('|')]
-    const added = [...new Set([...(A.text + Bv.blocks.map((x) => x.text).join('')).replace(/ /g, '')].filter((ch) => !/[a-x]/.test(ch)))]
-    const baseLetters = [...BASE.map((x) => x.text).join('')]
-    const kept = (ch: string) => A.text.includes(ch) || BASE[A.i]!.text.indexOf(ch) < 0
-    const deleted = baseLetters.filter((ch) => !kept(ch) || !Bv.blocks.some((x) => x.text.includes(ch)))
-    const lost = added.filter((ch) => all.some((t) => count(t, ch) === 0))
-    const twice = [...added, ...baseLetters].filter((ch) => all.some((t) => count(t, ch) > 1))
-    const back = deleted.filter((ch) => all.some((t) => count(t, ch) > 0))
-    if (lost.length) tally.b++, why.push(`(b) lost ${lost.join('')}`)
-    if (twice.length) tally.c++, why.push(`(c) twice ${twice.join('')}`)
-    if (back.length) tally.back++, why.push(`deleted back ${back.join('')}`)
-    if (why.length && fails.length < 8) fails.push(`#${n} A ${key} ${A.did} ${JSON.stringify(A.text)} B ${Bv.did.join(',')} ${JSON.stringify(texts(b))} -> ${JSON.stringify(first)} / ${JSON.stringify(second)}: ${why.join('; ')}`)
+    const {why, line} = spanCase(rnd, n)
+    for (const k of Object.keys(tally) as (keyof typeof tally)[]) if (why.some((w) => w.startsWith(tag[k]))) tally[k]++
+    if (why.length && fails.length < 8) fails.push(line)
   }
   const report = `span save: fails ${JSON.stringify(tally)}\n${fails.join('\n')}`
   if (process.env.FUZZ_LOG) console.log(report)
   assert.deepEqual(tally, {a: 0, b: 0, c: 0, back: 0}, report)
 })
 
-// Open, task-39ac4770a54b587a: this editor deletes a letter; the other deletes the block break
-// after it with the next block's text, and pastes a paragraph before it. The deleted letter
-// comes back. The test pins today's wrong result: when it changes (fixed, or worse), it fails.
-test('task-39ac4770a54b587a (open): a deleted letter comes back when the other deletes the break after it and pastes a paragraph before it', () => {
+// task-39ac4770a54b587a: the other deletes a block break with letters around it and pastes or
+// splits there. Letters that stayed in their own base block read as the break moved, so a
+// deletion of them holds. In a new block (seed 8: a paste before "h" moved it to the paste's
+// last paragraph) or with their base block gone (seed 7), the same text is a letter typed again
+// after a paste over it: the merge cannot tell, so the letter is kept (pt-moved-letters.test.ts).
+const spanAt = (seed: number, at: number) => {
+  const rnd = prng(seed + 1)
+  for (let n = 0; n < at; n++) spanCase(rnd, n)
+  return spanCase(rnd, at)
+}
+test('task-39ac4770a54b587a: span fuzz seed 3 case 113 keeps a deleted letter deleted (it stayed in its own base block)', () => {
+  const {why, line} = spanAt(3, 113)
+  assert.deepEqual(why, [], line)
+})
+test('task-39ac4770a54b587a: span fuzz seed 7 case 2631 and seed 8 case 532: where the merge cannot tell a moved letter from a new one, the letter is kept', () => {
+  for (const [seed, at, ch] of [[7, 2631, 'p'], [8, 532, 'h']] as const) {
+    const {why, line} = spanAt(seed, at)
+    assert.deepEqual(why, [`deleted back ${ch}`], `seed ${seed}: ${line}`)
+  }
+})
+
+// task-39ac4770a54b587a: this editor deletes a letter; the other deletes the block break after
+// it with the next block's text, and pastes a paragraph before it. The letter stays deleted.
+test('task-39ac4770a54b587a: a deleted letter stays deleted when the other deletes the break after it and pastes a paragraph before it', () => {
   const blk = (key: string, text: string) => ({_type: 'block', _key: key, style: 'normal', markDefs: [], children: [{_type: 'span', _key: `${key}s`, text, marks: []}]})
   const base = [blk('b1', 'p'), blk('b2', 'q')]
   const mine = [blk('b1', ''), blk('b2', 'q')]
   const theirs = [blk('n1', 'x'), blk('b1', 'p')]
-  // Right would be ["x", ""]: p deleted, q deleted, x pasted.
-  for (const out of [mergeList3(base, mine, theirs), mergeList3(base, theirs, mine), freshItems(base, theirs, mine)]) assert.deepEqual(texts(out), ['x', 'p'])
+  // p deleted, q deleted, x pasted.
+  for (const out of [mergeList3(base, mine, theirs), mergeList3(base, theirs, mine), freshItems(base, theirs, mine)]) assert.deepEqual(texts(out), ['x', ''])
 })

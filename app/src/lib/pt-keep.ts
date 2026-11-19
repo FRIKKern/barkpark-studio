@@ -1,5 +1,5 @@
 import {DIFF_DELETE, DIFF_INSERT, makeDiff} from '@sanity/diff-match-patch'
-import {basedOn, diff, isText, keyOf, newKey, OBJ, SEP, textOf, withTheirWords} from './pt-merge.ts'
+import {basedOn, diff, isText, keyOf, newKey, OBJ, SEP, textOf, withTheirWords, type Keys} from './pt-merge.ts'
 
 // The one way out of a Portable Text merge (a list merge, a whole-field save, a block saved
 // by its key): whatever the path did (a text merge, a split, a join, a block one side
@@ -26,10 +26,10 @@ function field(list: unknown[]) {
 }
 
 /** For each letter of `side`, its place in `base`, or -1 when the side added it. */
-function provenance(base: string, side: string): number[] {
+function provenance(base: string, side: string, keys: Keys): number[] {
   const at: number[] = []
   let p = 0
-  for (const [op, chunk] of diff(base, side)) {
+  for (const [op, chunk] of diff(base, side, keys)) {
     if (op === DIFF_DELETE) p += chunk.length
     else for (let i = 0; i < chunk.length; i++) at.push(op === DIFF_INSERT ? -1 : p++)
   }
@@ -37,10 +37,10 @@ function provenance(base: string, side: string): number[] {
 }
 
 /** Base letters `side` took out. */
-function removed(base: string, side: string): Uint8Array {
+function removed(base: string, side: string, keys: Keys): Uint8Array {
   const del = new Uint8Array(base.length)
   let p = 0
-  for (const [op, chunk] of diff(base, side)) {
+  for (const [op, chunk] of diff(base, side, keys)) {
     if (op === DIFF_DELETE) del.fill(1, p, p + chunk.length)
     if (op !== DIFF_INSERT) p += chunk.length
   }
@@ -55,8 +55,8 @@ function removed(base: string, side: string): Uint8Array {
 function missing(base: unknown[], side: unknown[], other: unknown[], out: unknown[]): {item: number; text: string}[] {
   const b = field(base).text
   const s = field(side)
-  const at = provenance(b, s.text)
-  const gone = removed(b, field(other).text)
+  const at = provenance(b, s.text, [base.map(keyOf), side.map(keyOf)])
+  const gone = removed(b, field(other).text, [base.map(keyOf), other.map(keyOf)])
   // Side's letters as they should read in out (block breaks and blocks that are not text
   // aside): [letter, added, item]. In side's block order, or, when a block moved, out's.
   const letters = (blocks: number[]) => {
