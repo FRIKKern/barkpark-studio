@@ -1,5 +1,5 @@
 import type {Doc, Schema} from './data'
-import {merge3} from './merge.ts'
+import {merge3, mergeList3} from './merge.ts'
 import {getPath} from './paths.ts'
 
 // B11 widen, after the canvas's kept words (D21, lib/kept-words.ts): form edits not yet
@@ -149,5 +149,9 @@ export function restoreValue(p: Pending, field: string, mine: unknown, doc: Doc)
   const theirs = getPath(doc, field)
   // Restore asked for mine: when it cannot merge, mine stands whole.
   // Kept edits may have reached Barkpark (the unload beacon): may have landed.
-  return typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string' ? (merge3(base, mine, theirs, true) ?? mine) : mine
+  if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') return merge3(base, mine, theirs, true) ?? mine
+  // A list (a Portable Text body: a paste kept, someone's words in the block since) merges
+  // item by item, their words kept; whole, a restore took them out unseen.
+  if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(theirs)) return mergeList3(base, mine, theirs) ?? mine
+  return mine
 }

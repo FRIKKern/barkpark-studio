@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import {mergeList3, onto} from './merge.ts'
-import {freshItems, remoteBlockPatches} from './pt-value.ts'
+import {freshItems, keptBase, noteKept, remoteBlockPatches, settledRemovals, withRemote, type KeptFrom} from './pt-value.ts'
 import {keysFrom, withTheirWords} from './pt-merge.ts'
 import {caught, keepWords, mergeBlock, mergeBlocks} from './pt-keep.ts'
 import {rebase, type Spots} from './edit-bases.ts'
@@ -216,4 +216,33 @@ test('a heading set on the block while the other pasted into it stays, either or
     // The link is dropped when the paste saves second (a known gap); no word is.
     for (const out of [mergeList3(doc, paste, link), mergeList3(doc, link, paste)]) assert.deepEqual(texts(out), texts(paste))
   }
+})
+
+// The browser scenes type-during-show and join-line (build-paste2/scenes.mjs), on A's screen.
+const typedOn = [blk('a', ['as', 'Above']), blk('b1', ['b1s', 'Start text one two three']), blk('c', ['cs', 'Below'])]
+const bSplit = [typedOn[0], blk('b1', ['x1', 'XX']), blk('y', ['ys', 'y']), blk('z', ['zs', 'z QWERTY Start text one two three']), typedOn[2]]
+
+test('a block whose span save missed (their paste split it) goes again merged from what it was typed on: every word once', () => {
+  const shown = [typedOn[0], blk('b1', ['b1s', 'Start text one two three asdf']), typedOn[2]]
+  const kept: KeptFrom = new Map()
+  const patches = remoteBlockPatches(typedOn, bSplit, shown, [], new Set(['b1']))
+  noteKept(kept, typedOn, bSplit, shown, patches)
+  const last = withRemote(shown, patches)
+  const words = ['Above', 'XX', 'y', 'QWERTY', 'Start text', 'one two three', 'asdf', 'Below']
+  once(freshItems(keptBase(bSplit, kept), last, bSplit), words)
+  // Sent as the screen has it (before): their paste's first piece lost, their text twice.
+  assert.equal(texts(last).join('|').includes('XX'), false)
+  // Once the screen shows the server's block, nothing is kept for it.
+  noteKept(kept, bSplit, bSplit, bSplit, [])
+  assert.equal(kept.size, 0)
+})
+
+test("a block this screen kept for its own save, removed by the other's join, goes once that save has landed", () => {
+  const joined = [blk('a', ['as', 'Above Sta QQQ rt text']), blk('c', ['cs', 'Below'])]
+  const sent = [blk('a', ['as', 'Above']), blk('b1', ['b1s', 'Sta QQQ rt text']), blk('c', ['cs', 'Below'])]
+  const shown = [...joined.slice(0, 1), sent[1], joined[1]]
+  assert.deepEqual(settledRemovals(joined, shown, [sent], ['b1']), [{type: 'unset', path: [{_key: 'b1'}], origin: 'remote'}])
+  // Typed in since it was sent, or back on the server: it stays.
+  assert.deepEqual(settledRemovals(joined, [joined[0], blk('b1', ['b1s', 'Sta QQQ rt text!']), joined[1]], [sent], ['b1']), [])
+  assert.deepEqual(settledRemovals(sent, shown, [sent], ['b1']), [])
 })

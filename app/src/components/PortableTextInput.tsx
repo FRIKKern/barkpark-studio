@@ -30,7 +30,7 @@ import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
 import {insertItemProps, ptDeprecated} from '../lib/deprecated'
 import {OneLine} from '../lib/pt-one-line'
-import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, dialogFields, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, settledRemovals, noteKept, keptBase, type KeptFrom, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, dialogFields, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
 import {mergeBlock} from '../lib/pt-keep'
@@ -39,7 +39,7 @@ import {CodeCard, codeCardLine} from './CodeCard'
 import type {CodeOptions} from '../lib/code-input'
 import {EditPathContext, ExpandButton, useExpandArea, type OpenRef} from './Fields'
 import {DocIdContext} from './doc-ids'
-import {onKeyedMiss} from '../lib/edits'
+import {onKeyedMiss, whenSaved} from '../lib/edits'
 import {reportSelection, usePresences} from '../lib/presence'
 import {usePersonNamer} from '../lib/person'
 import {MenuPopover} from './FocusScopes'
@@ -656,10 +656,20 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
   useEffect(() => () => clearTimeout(flushTimer.current), [])
   // A block saved by its key that another editor removed meanwhile (the key found no item):
   // the whole field again, as this editor has it, so no keystroke in it is lost.
+  // Merged onto the field as held now, measured from what this screen's blocks were made on
+  // (keptFrom): sent as it was, another editor's paste that split the block meanwhile was
+  // undone, its first piece lost and the rest twice (task-30946f2255a30d93).
   const resend = useRef(() => {})
+  const keptFrom = useRef<KeptFrom>(new Map())
   resend.current = () => {
-    mine.current = [...mine.current.slice(-19), last.current ?? []]
-    onChange(last.current)
+    const next = last.current
+    mine.current = [...mine.current.slice(-19), next ?? []]
+    if (!editPath || !Array.isArray(next)) return onChange(next)
+    const from = keptBase(known.current, keptFrom.current)
+    let sent: unknown = next
+    editPath(id, (now: unknown) => (sent = freshItems(from, next, now, (b) => theirs(b._key as string, b))))
+    // What the merge took in of theirs goes onto this screen at once, as a save's does.
+    show(next, sent)
   }
   useEffect(() => (docId && editPath ? onKeyedMiss(docId, id, () => resend.current()) : undefined), [docId, editPath, id])
   // Another editor's blocks while this one has the focus (without it the input remounts on
@@ -675,6 +685,18 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     const recent = new Set([...sentWhen.current].filter(([, at]) => Date.now() - at < 10_000).map(([k]) => k))
     const echo = (at: string, t: string) => wrote.current.some((w) => w.at === at && w.text === t && Date.now() - w.when < 10_000)
     const patches = remoteBlockPatches(prev ?? [], incoming ?? [], editor.getSnapshot().context.value ?? [], mine.current, recent, text.current, echo)
+    noteKept(keptFrom.current, prev, incoming, editor.getSnapshot().context.value ?? [], patches)
+    // A block it kept for a save that has landed since is asked again then (settledRemovals):
+    // kept for good, a join's words showed twice on this screen and went back with its next save.
+    const inList = (l: unknown, k: string) => Array.isArray(l) && l.some((b) => (b as PtBlock)?._key === k)
+    const kept = [...recent].filter((k) => inList(prev, k) && !inList(incoming, k))
+    if (kept.length && docId)
+      void whenSaved(docId).then(() => {
+        const gone = settledRemovals(getPath(qc.getQueryData(['doc', docId]), id), editor.getSnapshot().context.value ?? [], mine.current, kept)
+        if (!gone.length) return
+        give(gone, known.current)
+        last.current = withRemote(last.current, gone)
+      })
     for (const p of patches) if (typeof p.path.at(-1) === 'object' && (p.type === 'set' || p.type === 'insert')) remember(p.type === 'set' ? [p.value] : p.items, p.path.slice(0, -1))
     if (!patches.length) return
     // Their text alone waits while this editor is typing a word: put in mid-word it splits

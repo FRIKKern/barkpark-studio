@@ -271,6 +271,62 @@ export function asEditorHolds(b: unknown, depth = 0): unknown {
   return {style: 'normal', markDefs: [], ...b, children}
 }
 
+/** A block the server changed or removed while this screen kept its own version: the server's before (`after`: the block before it there). */
+export type KeptFrom = Map<string, {block: unknown; after: string | null}>
+
+/**
+ * Notes which blocks this screen kept as they were when the server changed them (`known` →
+ * `incoming`, not in `patches`, still shown), with the server's version they were made on;
+ * forgets one the screen took in or shows as the server has it. keptBase gives the field
+ * as this screen's own edits are measured from.
+ */
+export function noteKept(kept: KeptFrom, known: unknown, incoming: unknown, shown: unknown, patches: RemotePatch[]) {
+  if (!Array.isArray(known) || !Array.isArray(incoming) || !Array.isArray(shown)) return
+  const now = byKey<PtBlock>(incoming)
+  const here = byKey<PtBlock>(shown)
+  // What the screen takes in: the block a patch is at, or the blocks an insert brings (its path is where).
+  const took = new Set(patches.flatMap((p) => (p.type === 'insert' ? p.items.map((b) => b._key) : [p.path[0]].map((s) => (isObj(s) ? s._key : undefined)))).filter((k): k is string => typeof k === 'string'))
+  known.forEach((b, i) => {
+    const k = isObj(b) ? b._key : undefined
+    if (typeof k !== 'string' || took.has(k) || !here.has(k) || kept.has(k) || (now.has(k) && equal(now.get(k), b))) return
+    const prev = known[i - 1]
+    kept.set(k, {block: b, after: isObj(prev) && typeof prev._key === 'string' ? prev._key : null})
+  })
+  for (const k of [...kept.keys()]) if (took.has(k) || !here.has(k) || (now.has(k) && equal(asEditorHolds(now.get(k)), asEditorHolds(here.get(k))))) kept.delete(k)
+}
+
+/** The server's value `server` with each block this screen kept (noteKept) as the server had it before. */
+export function keptBase(server: unknown, kept: KeptFrom): unknown {
+  if (!Array.isArray(server) || !kept.size) return server
+  const out = server.map((b) => (isObj(b) && typeof b._key === 'string' ? (kept.get(b._key)?.block ?? b) : b))
+  for (const [k, {block, after}] of kept) {
+    if (out.some((b) => isObj(b) && b._key === k)) continue
+    const at = after === null ? -1 : out.findIndex((b) => isObj(b) && b._key === after)
+    out.splice(at + 1, 0, block)
+  }
+  return out
+}
+
+/**
+ * Blocks remoteBlockPatches kept on screen though the server removed them (`keep`: this editor
+ * had just sent them), asked again once this editor's saves have landed: one the server's value
+ * (`server`) still lacks, shown as this editor last sent it (`sent`, oldest first), is gone
+ * (another editor's join took its words in). A keyed save that missed it sends the field again,
+ * so the server has it back. Unset patches; a block typed in since stays.
+ */
+export function settledRemovals(server: unknown, shown: unknown, sent: unknown[], keys: Iterable<string>): RemotePatch[] {
+  if (!Array.isArray(server) || !Array.isArray(shown)) return []
+  const has = (l: unknown, k: string) => (Array.isArray(l) ? (l as PtBlock[]).find((b) => isObj(b) && b._key === k) : undefined)
+  const out: RemotePatch[] = []
+  for (const k of keys) {
+    const here = has(shown, k)
+    const last = [...sent].reverse().find((l) => has(l, k))
+    if (has(server, k) || !here || !last || !equal(asEditorHolds(here), asEditorHolds(has(last, k)))) continue
+    out.push({type: 'unset', path: [{_key: k}], origin: 'remote'})
+  }
+  return out
+}
+
 /**
  * Another editor's changes (`known` → `incoming`, the stored value before and now) as
  * patches onto what this editor shows: a block it changed, came or went, where this editor
