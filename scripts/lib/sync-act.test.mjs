@@ -144,13 +144,15 @@ const pack = (text, at) => ({
   'conformance/pack/SOURCE.md': `Written by \`scripts/pack-sync.mjs\` from \`FRIKKern/barkpark\` commit \`${at}\`, path \`api/priv/portable_doc\`.\n`,
 })
 // The push cases refused: each a sync commit on `from` (main) with `files`, and the error it must give.
+// The `..` row's commit is made by hand (dotDot) and found again by this one name.
+const DOT_DOT = 'a .. entry in the pack'
 const REFUSED = [
   ['a file moved out of app/ into the pack', {'app/x.ts': null, 'conformance/pack/x.ts': 'x\n'}, /D 100644 000000 app\/x\.ts/],
   ['a workflow moved into the pack', {'.github/workflows/unit.yml': null, 'conformance/pack/unit.yml': 'name: unit\n'}, /\.github\/workflows\/unit\.yml/],
   ['a symlink in the pack', {'conformance/pack/link': ['120000', '../../app/x.ts']}, /120000 conformance\/pack\/link/],
   ['an executable in the pack', {'conformance/pack/run.sh': ['100755', 'x\n']}, /100755 conformance\/pack\/run\.sh/],
   // A tree entry named `..`: its commit is made by hand below (dotDot), as git refuses to make one otherwise.
-  ['a .. entry in the pack', {}, /conformance\/pack\/\.\./],
+  [DOT_DOT, {}, /conformance\/pack\/\.\./],
   ['a commit on top of another commit', pack('{"v": 2}\n', B.b2), /not on main/, {from: 'app-y'}],
   ['a pack file name outside [A-Za-z0-9._/-]', {'conformance/pack/a b.json': '{}\n'}, /conformance\/pack\/a b\.json/],
   // The pack's bytes: Barkpark's own at the commit SOURCE.md names, on Barkpark's main.
@@ -181,7 +183,8 @@ const S = importNow(STUDIO, [
   {name: 'main-2', from: 'main', files: {'app/x.ts': 'moved\n'}},
   {name: 'main-3', from: 'main-2', files: {'app/x.ts': 'main again\n', 'README.md': 'r\n'}},
 ])
-S[`refused-${REFUSED.findIndex(([name]) => name === 'a .. entry in the pack')}`] = dotDot(S.main)
+const DOT_DOT_AT = REFUSED.findIndex(([name]) => name === DOT_DOT)
+S[`refused-${DOT_DOT_AT}`] = dotDot(S.main)
 /** A commit on `main` whose conformance/pack holds a tree entry named `..` (and a.json). */
 function dotDot(main) {
   const [a, report, github, app] = git(STUDIO, 'rev-parse', ...['conformance/pack/a.json', 'conformance/barkpark-studio.json', '.github', 'app'].map((p) => `${main}:${p}`)).split('\n')
@@ -266,7 +269,8 @@ async function cases(runs) {
 }
 
 test('the .. fixture holds a tree entry named .. in conformance/pack', () => {
-  const at = S[`refused-${REFUSED.findIndex(([name]) => name === 'a .. entry in the pack')}`]
+  assert.ok(DOT_DOT_AT >= 0, `no REFUSED row is named ${DOT_DOT}`)
+  const at = S[`refused-${DOT_DOT_AT}`]
   assert.deepEqual(git(STUDIO, 'ls-tree', '-z', '--name-only', `${at}:conformance/pack`).split('\0').filter(Boolean), ['..', 'a.json'])
 })
 
@@ -432,10 +436,14 @@ earlyTest('a key leak is named under the run that made it, while another run end
   const marks = tmp('plant-')
   const close = async () => plan({action: 'close'})
   const planted = act(world(), await close(), [], false, marks)
+  // Polled until the leaking run plants or ends, not after: a loop left running keeps node from exiting.
+  let raced = false
   const isPlanted = async () => {
-    while (!existsSync(join(marks, 'planted'))) await new Promise((r) => setTimeout(r, 10))
+    while (!raced && !existsSync(join(marks, 'planted'))) await new Promise((r) => setTimeout(r, 10))
   }
   await Promise.race([isPlanted(), planted.catch(() => {})])
+  raced = true
+  assert.ok(existsSync(join(marks, 'planted')), 'the leaking run ended without planting its leak')
   const clean = act(world(), await close()).finally(() => writeFileSync(join(marks, 'go'), ''))
   await assert.rejects(cases([['the leaking run', planted], ['the clean run', clean]]), (e) => {
     assert.match(e.message, /^the leaking run: a child process saw the deploy key \(cat\)/)
