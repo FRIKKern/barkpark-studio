@@ -45,7 +45,7 @@ export type Op = {op: -1 | 0 | 1; ch: string; t?: number}
  * of the next block onto this one) says it as the break moving: the letters stay the base's,
  * so the other side's deletion of them still holds.
  */
-function breaksMoved(diffs: [number, string][]): [number, string][] {
+function breaksMoved(diffs: [number, string][], base: string, side: string, keys?: Keys): [number, string][] {
   const out = diffs.map((d) => [...d] as [number, string])
   const brk = (t: string) => !!t && [...t].every((c) => c === SEP)
   for (let i = 0; i + 2 < out.length; i++) {
@@ -63,18 +63,44 @@ function breaksMoved(diffs: [number, string][]): [number, string][] {
       : null
     if (fix) out.splice(i, 3, ...fix.filter(([, t]) => t))
   }
-  return farMoves(out)
+  return testOnly.farMoves ? farMoves(out, base, side, keys) : out
 }
+
+/** Tests only (pt-moved-letters.test.ts holds that no product file uses it): with `farMoves` false the diff reads as before task-39ac4770a54b587a. */
+export const testOnly = {farMoves: true}
+
+/** Each text's blocks' keys, in order (one per SEP-cut piece): the base's, then the side's. */
+export type Keys = [base: (string | undefined)[], side: (string | undefined)[]]
 
 /**
  * The same, with more changed around the break (task-39ac4770a54b587a): the other deleted the
  * break and pasted paragraphs or split there. Letters taken out before the break and put in
  * again in what is typed after it (`p|q` → `x|p`: p out, x in; q out, p in), or typed before it
- * and taken out after it, are the base's letters with the break moved past them.
+ * and taken out after it, are the base's letters with the break moved past them, but only when
+ * the block keys say so: each letter is in its own base block on that side. Anywhere else (a new
+ * block, its base block there or gone; no keys) the merge cannot tell a moved letter from a new
+ * one, and the letter is kept: read as typed. `a|` → `|bb|a` is "a" typed after a paste over it,
+ * and the same as a paste before "a" that moved it (a split); both read as typed.
  */
-function farMoves(diffs: [number, string][]): [number, string][] {
+function farMoves(diffs: [number, string][], base: string, to: string, keys?: Keys): [number, string][] {
   const out = diffs.map((d) => [...d] as [number, string])
   const brk = (t: string) => !!t && [...t].every((c) => c === SEP)
+  // Where entry `j` starts: [in base, in side].
+  const at = (j: number) => {
+    let p = 0
+    let s = 0
+    for (let x = 0; x < j; x++) (out[x]![0] !== DIFF_INSERT && (p += out[x]![1].length), out[x]![0] !== DIFF_DELETE && (s += out[x]![1].length))
+    return [p, s] as const
+  }
+  const piece = (t: string, pos: number) => [...t.slice(0, pos)].filter((c) => c === SEP).length
+  // The n letters at `p` in the base and `s` in the side: the same letters, moved.
+  const moved = (p: number, s: number, n: number) =>
+    !!keys &&
+    Array.from({length: n}, (_, j) => j).every((j) => {
+      if (base[p + j] === SEP) return true
+      const was = keys[0][piece(base, p + j)]
+      return !!was && keys[1][piece(to, s + j)] === was
+    })
   // The changes next to index `at` on one side (up to a deletion and an insertion), and where they span.
   const side = (from: number, step: 1 | -1) => {
     let del = ''
@@ -97,23 +123,23 @@ function farMoves(diffs: [number, string][]): [number, string][] {
     let fix: [number, string][] | null = null
     // Taken out before the break, in what is typed after it.
     const k = pre.del ? post.ins.indexOf(pre.del) : -1
-    if (k >= 0) fix = [[DIFF_INSERT, pre.ins + gap + post.ins.slice(0, k)], [DIFF_EQUAL, pre.del], [DIFF_DELETE, gap + post.del], [DIFF_INSERT, post.ins.slice(k + pre.del.length)]]
+    if (k >= 0 && moved(at(i - pre.n)[0], at(i + 1)[1] + k, pre.del.length)) fix = [[DIFF_INSERT, pre.ins + gap + post.ins.slice(0, k)], [DIFF_EQUAL, pre.del], [DIFF_DELETE, gap + post.del], [DIFF_INSERT, post.ins.slice(k + pre.del.length)]]
     // Typed before the break, in what is taken out after it.
     const h = pre.ins ? post.del.indexOf(pre.ins) : -1
-    if (!fix && h >= 0) fix = [[DIFF_DELETE, pre.del + gap + post.del.slice(0, h)], [DIFF_EQUAL, pre.ins], [DIFF_DELETE, post.del.slice(h + pre.ins.length)], [DIFF_INSERT, gap + post.ins]]
+    if (!fix && h >= 0 && moved(at(i + 1)[0] + h, at(i - pre.n)[1], pre.ins.length)) fix = [[DIFF_DELETE, pre.del + gap + post.del.slice(0, h)], [DIFF_EQUAL, pre.ins], [DIFF_DELETE, post.del.slice(h + pre.ins.length)], [DIFF_INSERT, gap + post.ins]]
     if (fix) out.splice(i - pre.n, pre.n + 1 + post.n, ...fix.filter(([, t]) => t))
   }
   return out
 }
 /** `base` → `side` letter by letter (a raw diff: no semantic clean-up), a moved block break read as one. */
-export const diff = (base: string, side: string) => breaksMoved(makeDiff(base, side))
+export const diff = (base: string, side: string, keys?: Keys) => breaksMoved(makeDiff(base, side), base, side, keys)
 
-function edits(base: string, side: string) {
+function edits(base: string, side: string, keys?: Keys) {
   const ins = new Map<number, {text: string; at: number}>()
   const del = new Uint8Array(base.length)
   let p = 0
   let s = 0
-  for (const [op, chunk] of diff(base, side)) {
+  for (const [op, chunk] of diff(base, side, keys)) {
     if (op === DIFF_INSERT) {
       const was = ins.get(p)
       ins.set(p, {text: (was?.text ?? '') + chunk, at: was?.at ?? s})
@@ -134,9 +160,9 @@ function edits(base: string, side: string) {
  * last, then one that replaced the letter before it, then by their letters. The same text
  * added at the same place by both counts once.
  */
-export function textMerge3(base: string, mine: string, theirs: string): {text: string; ops: Op[]} {
-  const m = edits(base, mine)
-  const t = edits(base, theirs)
+export function textMerge3(base: string, mine: string, theirs: string, keys?: {base: Keys[0]; mine: Keys[1]; theirs: Keys[1]}): {text: string; ops: Op[]} {
+  const m = edits(base, mine, keys && [keys.base, keys.mine])
+  const t = edits(base, theirs, keys && [keys.base, keys.theirs])
   const ops: Op[] = []
   const put = (op: Op['op'], s: string, at?: number) => {
     for (let i = 0; i < s.length; i++) ops.push(at === undefined ? {op, ch: s[i]!} : {op, ch: s[i]!, t: at + i})
@@ -290,7 +316,7 @@ export function basedOn(base: unknown[], side: unknown[]): Map<string, Set<strin
   const of = new Map<string, Set<string>>()
   let p = 0
   let s = 0
-  for (const [op, chunk] of diff(b, field(side))) {
+  for (const [op, chunk] of diff(b, field(side), [base.map(keyOf), side.map(keyOf)])) {
     if (op === DIFF_INSERT) s += chunk.length
     else if (op === DIFF_DELETE) p += chunk.length
     else for (let k = 0; k < chunk.length; k++, p++, s++) if (b[p] !== SEP) of.set(at[s]!, (of.get(at[s]!) ?? new Set()).add(owner[p]!))
@@ -319,7 +345,7 @@ export function withTheirWords(base: unknown[], mine: unknown[], theirs: unknown
   // The block breaks of the base each side took out, read off the whole list's text (a join of
   // a block whose key went to another piece of a split shows only there).
   const breaks = (side: unknown[]) => {
-    const del = edits(field(base), field(side)).del
+    const del = edits(field(base), field(side), [base.map(keyOf), side.map(keyOf)]).del
     const out = new Set<number>()
     for (let i = 1, p = 0; i < base.length; i++) (p += field([base[i - 1]]).length), del[p] && out.add(i), p++
     return out
@@ -349,7 +375,7 @@ export function withTheirWords(base: unknown[], mine: unknown[], theirs: unknown
     if (same(ours, was) || same(their, was) || same(ours, their) || [...ours, ...their, ...was].some((x) => textOf(x).includes(SEP))) continue
     const text = ours.map(textOf).join(SEP)
     const now = their.map(textOf).join(SEP)
-    const merged = textMerge3(was.map(textOf).join(SEP), text, now)
+    const merged = textMerge3(was.map(textOf).join(SEP), text, now, {base: group, mine: ours.map(keyOf), theirs: their.map(keyOf)})
     for (const x of their) if (!inBase.has(keyOf(x)!)) consumed.add(keyOf(x)!)
     for (const x of [...ours, ...their]) taken.add(keyOf(x)!)
     // A base block they removed, or one out of the base's order here, keeps no key of its own: the
