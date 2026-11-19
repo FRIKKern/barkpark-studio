@@ -16,25 +16,31 @@ export const BASH = REAL.bash
 
 /**
  * Shims for COMMANDS in `dir`, each checking its own env for `key`. Returns the shim folder, `check(name)`
- * (the same check as a shell line, for a test's own wrapper or stub) and `seen()`, which returns (and
- * clears) the commands that saw the key. Runs that overlap each need their own (own folder, own log): a
- * shared log names one run's leak under whichever run reads it first, or loses it between a read and a clear.
+ * (the same check as a shell line, for a test's own wrapper or stub) and `seen(log)`, which returns (and
+ * clears) the commands that saw the key. Runs that overlap each need their own log: a shared log names one
+ * run's leak under whichever run reads it first, or loses it between a read and a clear.
+ * By default the log is the folder's own, so each run needs its own folder. With `logFrom` (an env name)
+ * one folder serves every run: a shim logs to the file that env var names, each run setting its own, and
+ * `seen(that file)` reads it. A child whose env lost the name logs to the folder's own log, `fallback`,
+ * which a test reads too: a leak is never lost. (A new executable is slow to start the first time on macOS,
+ * so a test with many runs writes its shims once.)
  */
-export function keyShims(dir, key) {
+export function keyShims(dir, key, {logFrom} = {}) {
   mkdirSync(dir, {recursive: true})
-  const log = join(dir, '..', `${dir.split('/').pop()}-seen.log`)
+  const fallback = join(dir, '..', `${dir.split('/').pop()}-seen.log`)
+  const log = logFrom ? `\${${logFrom}:-${fallback}}` : fallback
   // `export -p` is the shell's own list of its env (a builtin, in a subshell: the check runs no other program).
   const check = (name) => `case "$(export -p)" in *'${key}'*) echo "${name}" >> "${log}" ;; esac`
   for (const name of COMMANDS) {
     writeFileSync(join(dir, name), `#!/bin/sh\n${check(name)}\nexec "${REAL[name]}" "$@"\n`)
     chmodSync(join(dir, name), 0o755)
   }
-  const seen = () => {
-    const out = existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []
-    rmSync(log, {force: true})
+  const seen = (file = fallback) => {
+    const out = existsSync(file) ? readFileSync(file, 'utf8').trim().split('\n') : []
+    rmSync(file, {force: true})
     return out
   }
-  return {dir, check, seen}
+  return {dir, check, seen, fallback}
 }
 
 /**
