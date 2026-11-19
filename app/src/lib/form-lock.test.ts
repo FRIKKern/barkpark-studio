@@ -25,10 +25,11 @@ test('form lock: an edit while locked writes nothing, read when it is called, no
 })
 
 test('form lock: the Freeform canvas is not drawn over Published or a revision, and is read-only where the form is locked', () => {
-  assert.equal(freeformCanvas(open), 'editable')
-  for (const k of ['published', 'revision'] as const) assert.equal(freeformCanvas({...open, [k]: true}), 'hidden', k)
-  for (const k of ['gone', 'scheduled'] as const) assert.equal(freeformCanvas({...open, [k]: true}), 'readOnly', k)
-  assert.equal(freeformCanvas({...open, canWrite: false}), 'readOnly')
+  const plain = {schema: {name: 'note', title: 'Note', fields: []} as Schema, doc: {}, user: null, rules: undefined}
+  assert.equal(freeformCanvas(open, plain), 'editable')
+  for (const k of ['published', 'revision'] as const) assert.equal(freeformCanvas({...open, [k]: true}, plain), 'hidden', k)
+  for (const k of ['gone', 'scheduled'] as const) assert.equal(freeformCanvas({...open, [k]: true}, plain), 'readOnly', k)
+  assert.equal(freeformCanvas({...open, canWrite: false}, plain), 'readOnly')
 })
 
 // task-f37f60d972f6f5ab: "Edit the body in Freeform" opens the canvas, which writes the type's body

@@ -73,7 +73,7 @@ export default function CodeInput({id, field, value, onChange, readOnly}: {id: s
         <span className="label" id={`${id}.code-label`}>
           {t('Code')}
         </span>
-        <FieldClashCard path={`${id}.code`} />
+        <FieldClashCard path={`${id}.code`} readOnly={shut} />
         <div className="code-box" data-readonly={shut || undefined}>
           {/* Another document, or the form shut or opened: a new editor, its own undo with it. */}
           <CodeEditor

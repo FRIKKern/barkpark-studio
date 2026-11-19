@@ -1,5 +1,6 @@
 import type {Field, Schema} from './data'
 import type {QueryRefFilter} from './ref-filter'
+import {alwaysHidden} from './conditions.ts'
 
 // J38, Sanity's search filters (sanity 6.17 `defineSearchFilter` + operators):
 // every filterable field of the types in play, each with Sanity's operators and
@@ -112,7 +113,7 @@ export function schemaFields(s: Schema): FilterField[] {
   const out: FilterField[] = []
   const walk = (fields: Field[], prefix: string, parent?: string) => {
     for (const f of fields) {
-      if (f.hidden === true) continue // never in the form (a manual order's rank): not a filter either
+      if (alwaysHidden(f)) continue // never in the form (a manual order's rank): not a filter either
       if ((f.type === 'composite' || f.type === 'object') && f.fields) {
         walk(f.fields, `${prefix}${f.name}.`, titleOf(f))
         continue
