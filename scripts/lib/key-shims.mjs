@@ -9,14 +9,16 @@ import {join} from 'node:path'
 export const COMMANDS = ['awk', 'basename', 'bash', 'cat', 'chmod', 'cut', 'dirname', 'env', 'grep', 'head', 'jq', 'ls', 'mkdir', 'python3', 'rm', 'sed', 'sh', 'sleep', 'ssh', 'touch', 'tr', 'wc']
 
 const real = (name) => execFileSync('sh', ['-c', `command -v ${name}`], {encoding: 'utf8'}).trim()
+const REAL = Object.fromEntries(COMMANDS.map((name) => [name, real(name)]))
 
 /** The real bash, to start a script with: a shim would rightly see the key in the script's own env. */
-export const BASH = real('bash')
+export const BASH = REAL.bash
 
 /**
  * Shims for COMMANDS in `dir`, each checking its own env for `key`. Returns the shim folder, `check(name)`
  * (the same check as a shell line, for a test's own wrapper or stub) and `seen()`, which returns (and
- * clears) the commands that saw the key.
+ * clears) the commands that saw the key. Runs that overlap each need their own (own folder, own log): a
+ * shared log names one run's leak under whichever run reads it first, or loses it between a read and a clear.
  */
 export function keyShims(dir, key) {
   mkdirSync(dir, {recursive: true})
@@ -24,7 +26,7 @@ export function keyShims(dir, key) {
   // `export -p` is the shell's own list of its env (a builtin, in a subshell: the check runs no other program).
   const check = (name) => `case "$(export -p)" in *'${key}'*) echo "${name}" >> "${log}" ;; esac`
   for (const name of COMMANDS) {
-    writeFileSync(join(dir, name), `#!/bin/sh\n${check(name)}\nexec "${real(name)}" "$@"\n`)
+    writeFileSync(join(dir, name), `#!/bin/sh\n${check(name)}\nexec "${REAL[name]}" "$@"\n`)
     chmodSync(join(dir, name), 0o755)
   }
   const seen = () => {
