@@ -31,7 +31,11 @@ const code = (text: string) => {
   return c
 }
 /** The code on one line, as a formatter may lay it out any way: what a surface's `asks` are read against. */
-const flat = (text: string) => code(text).replace(/\s+/g, ' ').replace(/([([{]) /g, '$1').replace(/ ([)\]}])/g, '$1').replace(/,([)\]}])/g, '$1')
+const flats = new Map<string, string>()
+const flat = (text: string) => {
+  if (!flats.has(text)) flats.set(text, code(text).replace(/\s+/g, ' ').replace(/([([{]) /g, '$1').replace(/ ([)\]}])/g, '$1').replace(/,([)\]}])/g, '$1'))
+  return flats.get(text)!
+}
 
 /** The writers below the save, by the module that defines them: they store a field unjudged. */
 const WRITERS: Record<string, string[]> = {
@@ -199,6 +203,23 @@ const COPIES = /\.(hidden|readOnly)\s*[!=]==?\s*(true|false)\b|\.visibleWhen\b|\
 /** A save's result not read before the success is said: a bare save call, then a toast. */
 const UNREAD = /^\s*(edit|setByAction|onEdit)\([^\n]*\)\s*;?\s*\n\s*toast\(/m
 
+/** What a file's own text breaks, whatever else the tree holds: kept per text, as judge reads every file again. */
+const own = new Map<string, string[]>()
+function ownProblems(file: string, text: string, listed: boolean): string[] {
+  const key = `${listed}\0${file}\0${text}`
+  if (own.has(key)) return own.get(key)!
+  const problems: string[] = []
+  const c = code(text)
+  if (ENDPOINTS.test(c) && !ALLOWED[file]) problems.push(`${file} calls a Barkpark write endpoint itself: write through the save`)
+  if (/<(FieldView|FieldBody|FieldInput|PortableDocEditor)\b/.test(c) && !listed) problems.push(`${file} draws a field and is no listed surface`)
+  if (/\bpaste(Field|Document)\(/.test(c) && !listed) problems.push(`${file} pastes into a field and is no listed surface`)
+  if (file !== 'components/Fields.tsx' && /<(FieldBody|FieldInput)\b/.test(c)) problems.push(`${file} draws a field input past FieldView, which asks the rule`)
+  if (file !== 'lib/conditions.ts' && COPIES.test(c)) problems.push(`${file} decides a field's hidden or read-only itself: ask lib/conditions.ts`)
+  if (UNREAD.test(c)) problems.push(`${file} says a save was made without reading its result`)
+  own.set(key, problems)
+  return problems
+}
+
 function judge(src: Record<string, string>, surfaces = SURFACES) {
   const problems: string[] = []
   const listed = new Set(surfaces.map((s) => s.file))
@@ -215,13 +236,7 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
       const saves = takes(names, SAVES[to] ?? [])
       if (saves.length && !listed.has(file)) problems.push(`${file} imports ${saves.join(', ')} (the save) and is no listed surface: list it in SURFACES with how it asks the rule`)
     }
-    if (ENDPOINTS.test(code(text)) && !ALLOWED[file]) problems.push(`${file} calls a Barkpark write endpoint itself: write through the save`)
-    const c = code(text)
-    if (/<(FieldView|FieldBody|FieldInput|PortableDocEditor)\b/.test(c) && !listed.has(file)) problems.push(`${file} draws a field and is no listed surface`)
-    if (/\bpaste(Field|Document)\(/.test(c) && !listed.has(file)) problems.push(`${file} pastes into a field and is no listed surface`)
-    if (file !== 'components/Fields.tsx' && /<(FieldBody|FieldInput)\b/.test(c)) problems.push(`${file} draws a field input past FieldView, which asks the rule`)
-    if (file !== 'lib/conditions.ts' && COPIES.test(c)) problems.push(`${file} decides a field's hidden or read-only itself: ask lib/conditions.ts`)
-    if (UNREAD.test(c)) problems.push(`${file} says a save was made without reading its result`)
+    problems.push(...ownProblems(file, text, listed.has(file)))
   }
   for (const {file, asks} of surfaces) {
     if (!(file in src)) problems.push(`${file} is listed and gone: take it off`)
