@@ -83,6 +83,10 @@ for (const [name, base, mine, now, keys, want] of [
   ['K14: their Enter, and their typing in the second piece', 'Start text', 'Start text one', [blk('b', 'Start'), blk('r', 'XX text')], ['b'], SERVER],
   ['K16: they emptied it, mine appends', 'Start text', 'Start text!', [blk('b', '')], ['b'], SERVER],
   ['K11 with the NEW quote holding only part of its text ("Quote: Start")', 'Start text', 'Start text one', [blk('b', 'Hi'), blk('nq', 'Quote: Start')], ['b'], SERVER],
+  // The copy floor (kept-stands.ts COPY_RUN = 3): the kept block holding 2 letters of its base in a
+  // row is chance, the NEW block with the whole text is a target (as K11); 3 in a row is a copy.
+  ['the kept block holds 2 base letters in a row ("St"), a NEW block the whole text: applied there', 'Start text', 'Start text one', [blk('b', 'St'), blk('nq', 'Quote: Start text')], ['b'], ['St', 'Quote: Start text one']],
+  ['the kept block holds 3 base letters in a row ("Sta"), a NEW block the whole text: a copy, cannot tell', 'Start text', 'Start text one', [blk('b', 'Sta'), blk('nq', 'Quote: Start text')], ['b'], SERVER],
 ] as [string, string, string, unknown[], string[] | undefined | null, string[] | string][])
   test(`restore of a kept block, ${name}`, () => assert.deepEqual(restored(base, mine, now, keys === null ? undefined : (keys ?? all(now))), want === SERVER ? texts(now) : want))
 

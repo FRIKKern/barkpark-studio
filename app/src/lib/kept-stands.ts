@@ -107,9 +107,16 @@ function splitTexts({before}: Where, base: string, done: Edit[]): string[] {
   return out.split('\n')
 }
 
-/** Some three letters of the base in a row are in `text` (all of it, for a shorter base). */
+/**
+ * How many letters of the base in a row the kept block must still hold for a new block holding
+ * the whole base to be read as a copy of it (not a target). One or two shared letters are chance
+ * ("Hi" and "the" share an "h"); three in a row are part of the block's own text.
+ */
+export const COPY_RUN = 3
+
+/** Some COPY_RUN letters of the base in a row are in `text` (all of it, for a shorter base). */
 function shares(base: string, text: string): boolean {
-  const n = Math.min(3, base.length)
+  const n = Math.min(COPY_RUN, base.length)
   for (let i = 0; i + n <= base.length; i++) if (text.includes(base.slice(i, i + n))) return true
   return false
 }
