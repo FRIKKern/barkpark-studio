@@ -10,8 +10,8 @@ import {plan, PLAN_LINE_S} from './shard-plan.mjs'
 const yaml = createRequire(new URL('../../app/package.json', import.meta.url))('js-yaml')
 const groups = yaml.load(readFileSync(new URL('../../.github/workflows/e2e.yml', import.meta.url), 'utf8'), {schema: yaml.CORE_SCHEMA}).jobs.studio.strategy.matrix.include.length
 
-/** Each group over the line, by name and its planned seconds. */
-const over = (p, line = PLAN_LINE_S) => p.groups.flatMap((g, i) => (g.secs > line ? [`group ${i + 1} plans ${g.secs.toFixed(1)} s`] : []))
+/** Each group over the line, by name and its planned seconds. Sums of tenths carry float dust (49 reads 49.00000000000001): not over. */
+const over = (p, line = PLAN_LINE_S) => p.groups.flatMap((g, i) => (g.secs - line > 1e-6 ? [`group ${i + 1} plans ${g.secs.toFixed(1)} s`] : []))
 
 test(`no e2e group plans above ${PLAN_LINE_S} s by e2e/durations.json`, () => {
   assert.equal(groups, 7)
