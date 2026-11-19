@@ -30,6 +30,7 @@ import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
 import {insertItemProps, ptDeprecated} from '../lib/deprecated'
 import {OneLine, oneLineEditable} from '../lib/pt-one-line'
+import {MINE_WAIT_MS, startsHold, waitsForMine as waitsForMineSince} from '../lib/pt-hold'
 import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, settledRemovals, noteKept, keptBase, type KeptFrom, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, dialogFields, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
@@ -378,9 +379,6 @@ function SanityPlugins({field, stored}: {field: Field; stored: PtBlock[]}) {
 
 /** How long after this editor's last keystroke another editor's text waits (a word's letters come faster). */
 const WORD_PAUSE_MS = 500
-// The longest another editor's patches wait for this editor's own change to be emitted
-// (the editor emits a paste's within a second): past it they go regardless.
-const MINE_WAIT_MS = 3000
 /** A text patch's span, as `block/span` (lib/pt-value.ts spanTexts). */
 const spanKeys = (p: RemotePatch) => p.path.flatMap((s) => (typeof s === 'string' ? [] : [(s as {_key: string})._key])).join('/')
 
@@ -546,11 +544,9 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     if (event.type === 'invalid value') return onInvalid()
     // The editor's own reading of the stored value, before any edit: what an untouched block looks like.
     if (event.type === 'ready') (seen.current = (editor.getSnapshot().context.value ?? []) as PtBlock[]), onReady()
-    // Each keystroke as it lands; `mutation` comes batched. A change other than typing (a paste,
-    // a split: its mutation comes up to a second late) holds their frames until it is emitted;
-    // typing does not: held while a word is typed, their frames came as one, this editor's own
-    // words (echoed back) in it, and those went onto the screen again.
-    if (event.type === 'patch') (typing.current = Date.now()), event.patch.type !== 'diffMatchPatch' && (unsent.current ||= Date.now())
+    // Each keystroke as it lands; `mutation` comes batched. A paste or split holds their frames
+    // until it is emitted; typing does not (lib/pt-hold.ts).
+    if (event.type === 'patch') (typing.current = Date.now()), startsHold(event.patch) && (unsent.current ||= Date.now())
     if (event.type !== 'mutation') return
     unsent.current = 0
     seen.current ??= stored
@@ -669,7 +665,7 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
   const unsent = useRef(0)
   const waitFrom = useRef<{value: unknown} | null>(null)
   const bring = useRef((_from: unknown, _to: unknown) => {})
-  const waitsForMine = () => unsent.current > 0 && Date.now() - unsent.current < MINE_WAIT_MS
+  const waitsForMine = () => waitsForMineSince(unsent.current)
   const releaseTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const release = useRef(() => {})
   release.current = () => {

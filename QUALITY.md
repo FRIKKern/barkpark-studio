@@ -46,6 +46,7 @@ mutation batching.
    journeys (J21 J08 J22 J23) and live edit (J05 J06). One spec covering several
    journeys beats many small ones. A spec that blows the budget is merged or cut.
    Specs for other journeys are tagged `@local`: `pnpm test` runs them, CI doesn't.
+   Under `CI=1`, `--grep-invert` cannot bring `@local` back ("No tests found" is no pass): set `BASELINE=1` with `--grep-invert '@baseline|@evidence'`.
 6. **Gaps become tasks immediately.** "Feels off" is a valid bug. File it, with a clip.
 
 ## Anti-slop rules for docs
