@@ -20,6 +20,11 @@ export type Pending = {
   fields: [string, unknown][]
   /** Field path → the server value it was made from (for a text merge on restore). */
   base: [string, unknown][]
+  /**
+   * List field → its block keys where a block of it kept by its key was made: a restore's run
+   * goes on only over blocks new since (restoreBlock). Absent in entries kept before it was.
+   */
+  keys?: [string, string[]][]
   /** The page that wrote it: a page still open owns it (its Web Lock is held). */
   tab: string
 }
@@ -108,13 +113,17 @@ export function combine(entries: Pending[]): Pending | null {
   if (!entries.length) return null
   const fields = new Map<string, unknown>()
   const base = new Map<string, unknown>()
+  // A key any entry knew is not new to the run (restoreBlock).
+  const keys = new Map<string, Set<string>>()
   for (const p of entries) {
     const from = new Map(p.base)
     for (const [f, v] of p.fields) fields.set(f, v), base.set(f, from.get(f))
+    for (const [root, ks] of p.keys ?? []) for (const k of ks) (keys.get(root) ?? keys.set(root, new Set()).get(root)!).add(k)
   }
   const last = entries[entries.length - 1]!
   const rev = entries.every((p) => p.rev === last.rev) ? last.rev : undefined
-  return {at: last.at, type: last.type, rev, fields: [...fields], base: [...base], tab: last.tab}
+  const known = keys.size ? {keys: [...keys].map(([root, ks]) => [root, [...ks]] as [string, string[]])} : {}
+  return {at: last.at, type: last.type, rev, fields: [...fields], base: [...base], ...known, tab: last.tab}
 }
 
 const KIND: Record<string, string> = {string: 'string', text: 'string', url: 'string', email: 'string', slug: 'object', number: 'number', boolean: 'boolean'}
@@ -175,7 +184,9 @@ export function restoreValue(p: Pending, field: string, mine: unknown, doc: Doc)
  * it is now: as the field, with the block merged into the run it is there (the block and the
  * pieces another editor's split made of it after it, and the new blocks between), task-2c01c385ce7b51d0. Put back whole
  * at its key, it took out their paste and put its own words in again where the split moved
- * them. Null: not such a block, or not there now (it goes as kept).
+ * them. The run goes on only over blocks whose key is new since the edit was made (`p.keys`): a
+ * paragraph that was there then is never part of it, whatever letters it shares with the block.
+ * Null: not such a block, or not there now (it goes as kept).
  */
 export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc): [string, unknown[]] | null {
   const m = /^(\w+)\[_key=="([^"]+)"\]$/.exec(field)
@@ -187,10 +198,14 @@ export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc)
   const at = list.findIndex((b) => keyOf(b) === key)
   if (at < 0) return null
   const from = basedOn([base], list)
-  // The run goes on to the last text block holding the block's letters, the new blocks between
-  // with it (a paragraph pasted at its start keeps the key on its first piece: "x", "y", "zStart text").
+  // The run goes on to the last new text block holding the block's letters, the new blocks
+  // between with it (a paragraph pasted at its start keeps the key on its first piece: "x", "y",
+  // "zStart text"). It stops at a block that was there when the edit was made; with no keys kept
+  // (an older entry), the block alone.
+  const old = new Map(p.keys ?? []).get(root)
+  const isNew = (b: unknown) => !!old && !old.includes(keyOf(b) ?? '')
   let end = at + 1
-  for (let i = at + 1; i < list.length && isText(list[i]); i++) if (from.get(keyOf(list[i]) ?? '')?.has(key)) end = i + 1
+  for (let i = at + 1; i < list.length && isText(list[i]) && isNew(list[i]); i++) if (from.get(keyOf(list[i]) ?? '')?.has(key)) end = i + 1
   const merged = mergeList3([base], [mine], list.slice(at, end))
   return merged && [root, [...list.slice(0, at), ...merged, ...list.slice(end)]]
 }

@@ -151,6 +151,8 @@ type DocEdits = Spots & {
   forks?: boolean
   /** For each field with edits in dirty or inflight: the server value they were made from. */
   base: Map<string, unknown>
+  /** For each list field with a block edited by its key: the field's block keys then (Pending `keys`). */
+  keys?: Map<string, string[]>
   /** Rebases in a row (a guard against a write that never gets through). */
   conflicts: number
   /** Text of ours someone rewrote meanwhile (clash): held, unsent, until the editor types on. */
@@ -317,7 +319,8 @@ function keepUnsaved(id: string, e: DocEdits) {
   if (e.pendingCreate || (!e.dirty.size && !e.inflight)) return void dropPending(key)
   e.keepTimer = setTimeout(() => {
     const fields = [...(e.inflight ?? []), ...e.dirty]
-    if (fields.length) void putPending(key, {at: Date.now(), type: e.type, rev: e.rev, fields, base: [...e.base], tab: TAB})
+    const keys = [...(e.keys ?? [])].filter(([root]) => fields.some(([f]) => within(f, root)))
+    if (fields.length) void putPending(key, {at: Date.now(), type: e.type, rev: e.rev, fields, base: [...e.base], ...(keys.length && {keys}), tab: TAB})
   }, KEEP_GAP_MS)
 }
 
@@ -459,6 +462,13 @@ function write(qc: QueryClient, doc: Doc, field: string, value: unknown, record 
   }
   // What this edit is made against: the server's value (and rev) as this browser has it.
   if (!e.dirty.size && !e.inflight) (e.rev = held._rev || undefined), (e.forks = held._draft === false && !e.pendingCreate)
+  // A block edited by its key: the field's block keys as this browser has them, when nothing
+  // in the field is pending yet (a restore's run stops at these, lib/pending-edits.ts restoreBlock).
+  const block = /^(\w+)\[_key=="[^"]+"\]$/.exec(field)?.[1]
+  if (block && ![...e.base.keys()].some((k) => within(k, block))) {
+    const list = getPath(held, block)
+    if (Array.isArray(list)) (e.keys ??= new Map()).set(block, list.map((b) => (b as {_key?: string})?._key ?? '').filter(Boolean))
+  }
   // What this spot is made from (lib/edit-bases.ts).
   takeBase(e, field, held, value)
   // One pending write per spot: a path inside an object already pending whole goes

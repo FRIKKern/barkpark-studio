@@ -492,3 +492,35 @@ for (const fault of ['500', 'lost', 'hold'] as const)
     assert.deepEqual(texts(next.held().ptBody), texts(server.doc.ptBody), 'the page shows what is stored')
     server.gone.add(`?page=${name}2`)
   })
+
+// A paragraph that was there when the line was kept is never part of its run (task-2c01c385ce7b51d0
+// review, C12): they rewrite the block, this page's deletion of "cat " goes back into the block
+// only, and "my cat is here", which nobody edited, keeps its "cat".
+for (const fault of ['500', 'lost'] as const)
+  test(`a deletion kept while this page reloads mid-save (${fault}), the other rewriting the block: a later paragraph sharing the word keeps it`, async () => {
+    server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'the cat sat'), blk('c', 'my cat is here')]})
+    const name = `keptDeletion${fault}`
+    const page = await open(name)
+    page.E.setKeepScope('s')
+    const drawn = page.held().ptBody as Block[]
+    server.faults.push(fault)
+    const line = blk('b1', 'the sat')
+    page.E.edit(page.qc, page.held() as never, 'ptBody[_key=="b1"]', (now: unknown) => mergeBlock(drawn[1]!, line, now) ?? line)
+    await tick(250)
+    server.theirs('ptBody', (now) => (now as Block[]).map((b) => (b._key === 'b1' ? blk('b1', 'A dog') : b)))
+    server.gone.add(`?page=${name}`)
+    await tick(20)
+    const next = await open(`${name}2`)
+    next.E.setKeepScope('s')
+    const got = await next.E.recoverPending(next.qc, next.held() as never)
+    assert.ok(got && 'ask' in got, 'asked')
+    next.E.restorePending(next.qc, next.held() as never, got.ask)
+    await next.drain()
+    for (const d of server.history) next.frame(d)
+    await next.drain()
+    const stored = texts(server.doc.ptBody)
+    assert.equal(stored.length, 3, J(stored))
+    assert.deepEqual([stored[0], stored[2]], ['Above', 'my cat is here'])
+    assert.deepEqual(texts(next.held().ptBody), stored, 'the page shows what is stored')
+    server.gone.add(`?page=${name}2`)
+  })
