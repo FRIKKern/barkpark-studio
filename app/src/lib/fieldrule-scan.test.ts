@@ -5,7 +5,9 @@
 //   with why; everything else reaches only the checked save;
 // - a file that imports the checked save (edit, setByAction), draws a field or pastes into
 //   one is a listed SURFACE, and says how it asks the rule;
-// - nothing outside conditions.ts decides a field's hidden or read-only itself.
+// - nothing outside conditions.ts decides a field's hidden or read-only itself;
+// - the pastes that take the workspace's roles (PASTES) are imported only by lib/paste-reads.ts,
+//   which reads them from Barkpark: no menu hands a paste roles of its own.
 import assert from 'node:assert/strict'
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import {dirname, join, normalize, relative} from 'node:path'
@@ -29,6 +31,9 @@ const WRITERS: Record<string, string[]> = {
 }
 /** The checked save: a file that imports it is a listed surface. */
 const SAVES: Record<string, string[]> = {'lib/edits.ts': ['edit', 'setByAction']}
+/** The pastes that are handed the roles read, or the roles (task-fcedb95f343c738b): only paste-reads.ts takes them, with Barkpark's. */
+const PASTES: Record<string, string[]> = {'lib/paste-locked.ts': ['pasteDocument', 'pasteField', 'pasteDocumentReading', 'pasteFieldReading', 'keepLocked', 'holdsLocked']}
+const PASTE_READS = 'lib/paste-reads.ts'
 /** Barkpark's write endpoints, called straight: only where ALLOWED says. */
 const ENDPOINTS = /\/v1\/data\/mutate\b|\/api\/mutate\b|\/ops\b|\}\/actions`/
 
@@ -94,10 +99,10 @@ const takes = (names: string[] | '*', of: string[]) => (names === '*' ? of : nam
 /** The listed surfaces, what each is, the rule it follows, and how it asks: each pattern must be in the file. */
 type Surface = {file: string; what: string; rule: 'the field rule' | 'code: document lock only'; asks: RegExp[]}
 const SURFACES: Surface[] = [
-  {file: 'components/Fields.tsx', what: 'the form, every field at any depth; Paste field; a richText field’s canvas; a clash card', rule: 'the field rule', asks: [/dependsOnDoc\(/, /fieldState\(type, props\.field, doc, user/, /<FieldBody \{\.\.\.props\} readOnly=\{props\.readOnly \|\| readOnly\} \/>/, /pasteFieldReading\(/, /<PortableDocEditor [^>]*editable=\{!readOnly\}/, /<FieldClashCard path=\{props\.path\} readOnly=\{!!props\.readOnly\} \/>/]},
+  {file: 'components/Fields.tsx', what: 'the form, every field at any depth; Paste field; a richText field’s canvas; a clash card', rule: 'the field rule', asks: [/dependsOnDoc\(/, /fieldState\(type, props\.field, doc, user/, /<FieldBody \{\.\.\.props\} readOnly=\{props\.readOnly \|\| readOnly\} \/>/, /pasteFieldWith\(/, /<PortableDocEditor [^>]*editable=\{!readOnly\}/, /<FieldClashCard path=\{props\.path\} readOnly=\{!!props\.readOnly\} \/>/]},
   {file: 'components/DocumentPane.tsx', what: 'the group tabs; the Freeform canvas with or without a layout, its bound field blocks; the pane’s word to the save; kept edits put back', rule: 'the field rule', asks: [/fieldState\(schema\.name, f, doc, user/, /freeformCanvas\(lockState, \{schema, doc, user/, /editable=\{canvasMode === 'editable'\}/, /paneFieldLock\(/, /showDoc\(pane\.id, lockHolder, locked, fieldLock\)/, /<FieldView /, /notPutBack\(r\.refused/]},
   {file: 'components/DocumentPane.tsx', what: 'a document action’s set', rule: 'code: document lock only', asks: [/const set = \(field: string, value: unknown\) => setByAction\(qc, doc, field, value\) !== false/]},
-  {file: 'components/DocHeaderMenu.tsx', what: 'Paste document', rule: 'the field rule', asks: [/pasteDocumentReading\(/]},
+  {file: 'components/DocHeaderMenu.tsx', what: 'Paste document', rule: 'the field rule', asks: [/pasteDocumentWith\(/]},
   {file: 'lib/paste-locked.ts', what: 'what Paste field and Paste document keep, at any depth', rule: 'the field rule', asks: [/fieldLock\(c\.type, sub, c\.doc, c\.user/, /pasteSkips\(c\.type, fields, c\.doc, c\.user/]},
   {file: 'components/ObjectArrayInput.tsx', what: 'an array item’s fields', rule: 'the field rule', asks: [/<FieldView /]},
   {file: 'components/BlockObjectDialog.tsx', what: 'a rich-text object’s dialog', rule: 'the field rule', asks: [/<FieldView /]},
@@ -124,6 +129,10 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
       // A writer passed on (re-exported) by a file that does not define it would reach its importers unseen.
       if (low.length && file !== to && (reexport || locals.some((l) => passesOn(code(text), l)))) problems.push(`${file} passes on ${low.join(', ')} (below the save) from ${to}: only ${to} exports it`)
       if (low.length && !ALLOWED[file]) problems.push(`${file} imports ${low.join(', ')} (below the save) from ${to}: write through the save, or allow it in fieldrule-scan.test.ts with why`)
+      const pastes = takes(names, PASTES[to] ?? [])
+      if (pastes.length && file !== PASTE_READS && file !== to) problems.push(`${file} imports ${pastes.join(', ')} from ${to}: paste through ${PASTE_READS}, which reads the roles from Barkpark`)
+      // paste-reads.ts too: passing them on would let its importers hand in a read of their own.
+      if (pastes.length && file !== to && (reexport || locals.some((l) => passesOn(code(text), l)))) problems.push(`${file} passes on ${pastes.join(', ')} from ${to}: only ${to} exports it`)
       const saves = takes(names, SAVES[to] ?? [])
       if (saves.length && !listed.has(file)) problems.push(`${file} imports ${saves.join(', ')} (the save) and is no listed surface: list it in SURFACES with how it asks the rule`)
     }
@@ -183,6 +192,12 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
   fails(src, 'lib/carry.ts', "import {mutate as m} from './edits'\nexport {m}\n", /lib\/carry\.ts passes on mutate/)
   fails(src, 'lib/carry2.ts', "import * as E from './edits'\nexport const m = E.mutate\n", /lib\/carry2\.ts passes on mutate, applyServer, reapply, createDoc, draftNew/)
   fails(src, 'lib/carry3.ts', "export * from './blocks'\n", /lib\/carry3\.ts passes on applyBlockOps/)
+  // A paste menu that reads the roles itself (one that skips Barkpark, or another session's): only paste-reads.ts may.
+  fails(src, 'components/MyPaste.tsx', "import {pasteDocumentReading} from '../lib/paste-locked'\nexport const p = (f: never, v: never, c: never) => pasteDocumentReading({schemas: async () => [], roles: async () => null}, f, v, c)\n", /MyPaste\.tsx imports pasteDocumentReading from lib\/paste-locked\.ts: paste through lib\/paste-reads\.ts/)
+  // paste-reads.ts passing a raw paste on, re-exported or as a value of its own.
+  fails(src, PASTE_READS, `${src[PASTE_READS]}\nexport {pasteDocumentReading} from './paste-locked'\n`, /lib\/paste-reads\.ts passes on pasteDocumentReading from lib\/paste-locked\.ts/)
+  fails(src, PASTE_READS, `${src[PASTE_READS]}\nexport const raw = pasteDocumentReading\n`, /lib\/paste-reads\.ts passes on pasteDocumentReading/)
+  fails(src, 'components/Later2.tsx', "export const p = async () => (await import('../lib/paste-locked.ts')).pasteField\n", /Later2\.tsx imports pasteDocument, pasteField, .* from lib\/paste-locked\.ts/)
   // A paper's linked masters (insert, pin, detach) write its body.
   fails(src, 'components/Masters.tsx', "import {pinMaster} from '../lib/paper-masters'\nexport const pin = pinMaster\n", /components\/Masters\.tsx imports pinMaster \(below the save\)/)
   // A listed surface that stops asking.
