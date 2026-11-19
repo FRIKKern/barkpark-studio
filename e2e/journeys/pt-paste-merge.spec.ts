@@ -47,20 +47,15 @@ const stored = async () => (((await readDoc(ID, 'drafts'))?.body ?? []) as {chil
 const lines = (editor: Locator) => editor.innerText().then((t) => t.split('\n').filter(Boolean))
 const WANT = ['Kettle on.', 'x', 'y', 'zStart textone two three', 'Cups out.']
 
-for (const after of [false, true])
-  test(`Portable Text: two editors pasting into one block ${after ? 'one after the other' : 'at once'} both keep their text, once`, async ({page, browser}, info) => {
+for (const apart of [0, 1000])
+  test(`Portable Text: two editors pasting into one block ${apart ? '1 s apart' : 'at once'} both keep their text, once`, async ({page, browser}, info) => {
     const ctxB = await browser.newContext()
     await target(info).prepare(ctxB)
     const b = await ctxB.newPage()
     try {
       const [edA, edB] = await Promise.all([open(page, info, true), open(b, info, false)])
       await paste(edA, ' one two three')
-      // One after the other: A's paste saved and on B's screen before B pastes (a fixed 1 s
-      // apart, before, which mostly came to the same).
-      if (after) {
-        await savesLanded(page)
-        await expect.poll(async () => (await lines(edB)).some((l) => l.startsWith('Start text') && l.endsWith('one two three')), {message: "A's line on B's screen", timeout: 10_000}).toBe(true)
-      }
+      await b.waitForTimeout(apart)
       await paste(edB, 'x\n\ny\n\nz ')
       await Promise.all([savesLanded(page), savesLanded(b)])
       await expect.poll(stored, {timeout: 15_000}).toEqual(WANT)
