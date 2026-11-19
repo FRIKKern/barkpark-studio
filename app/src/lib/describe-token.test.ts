@@ -4,8 +4,8 @@
 import assert from 'node:assert/strict'
 import {register} from 'node:module'
 import {test} from 'node:test'
-import {currentUserOf, UNKNOWN} from './conditions.ts'
 import {TOKEN_READ_MS} from './token-self.ts'
+import {mint, unknown} from './persons.fixture.ts'
 
 register('./describe-token.hooks.mjs', import.meta.url)
 process.env.BARKPARK_URL = 'http://barkpark.test'
@@ -18,7 +18,7 @@ let asked = 0
 globalThis.fetch = (async (_url: unknown, init?: {signal?: AbortSignal}) => (asked++, answer(init!.signal!))) as typeof fetch
 
 /** whoAmI's person for a signed-in editor whose token Barkpark described as `self`. */
-const personOf = (self: {role?: string; unknown?: boolean; permissions: string[]}) => currentUserOf({email: 'e@example.com', name: 'E', userId: '7', role: self.role ?? null, canWrite: self.permissions.includes('write'), unchecked: !!self.unknown})
+const personOf = (self: {role?: string; unknown?: boolean; permissions: string[]}) => mint({email: 'e@example.com', name: 'E', userId: '7', role: self.role ?? null, canWrite: self.permissions.includes('write'), unchecked: !!self.unknown})
 
 test('a check Barkpark does not answer is unknown, and is asked again, whichever way it fails', async (t) => {
   const ways: [string, (signal: AbortSignal) => Promise<Response>][] = [
@@ -36,7 +36,7 @@ test('a check Barkpark does not answer is unknown, and is asked again, whichever
     answer = fails
     const self = await describeToken(token)
     assert.equal(self.unknown, true, way)
-    assert.equal(personOf(self), UNKNOWN, `${way}: the person is unknown, not someone with no role`)
+    assert.equal(personOf(self), unknown, `${way}: the person is unknown, not someone with no role`)
     // Not kept: the next read asks Barkpark again, and its answer counts.
     answer = json(200, JSON.stringify(session))
     const before = asked
@@ -52,7 +52,7 @@ test('a check Barkpark does not answer is unknown, and is asked again, whichever
   t.mock.timers.tick(TOKEN_READ_MS)
   const self = await late
   assert.equal(self.unknown, true, 'no answer in time')
-  assert.equal(personOf(self), UNKNOWN)
+  assert.equal(personOf(self), unknown)
   t.mock.timers.reset()
   answer = json(200, JSON.stringify(session))
   assert.equal((await describeToken('t-late')).role, 'admin', 'asked again after a late answer')

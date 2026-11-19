@@ -1,10 +1,10 @@
 // J30 + barkpark#22554: a condition reads the document, or (scope "parent") its object.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {currentUserOf, fieldState, groupShows, isHidden, pasteSkips, UNKNOWN, type CurrentUser, type FieldConditions, type Person} from './conditions.ts'
+import {fieldState, groupShows, isHidden, pasteSkips, type CurrentUser, type FieldConditions, type Person} from './conditions.ts'
 import type {Field} from './data.ts'
 import {roleConditions} from './conditions.fixture.ts'
-import {known, nobody} from './persons.fixture.ts'
+import {known, mint, nobody, unknown} from './persons.fixture.ts'
 import {pasteDocument} from './paste-locked.ts'
 
 test('scope "parent" reads the enclosing object, the default reads the document', () => {
@@ -35,19 +35,19 @@ test('readOnly ({currentUser}) locks the field for an editor and leaves it open 
   const stage = {name: 'stage', type: 'select'} as unknown as Field
   const rules = roleConditions
   const doc = {stage: 'draft'}
-  assert.equal(fieldState('post', stage, doc, currentUserOf(me('member')), rules).readOnly, true)
-  assert.equal(fieldState('post', stage, doc, currentUserOf(me('owner')), rules).readOnly, false)
-  assert.equal(fieldState('post', stage, doc, currentUserOf(me('admin')), rules).readOnly, false)
+  assert.equal(fieldState('post', stage, doc, mint(me('member')), rules).readOnly, true)
+  assert.equal(fieldState('post', stage, doc, mint(me('owner')), rules).readOnly, false)
+  assert.equal(fieldState('post', stage, doc, mint(me('admin')), rules).readOnly, false)
   // A seat that may not write is Sanity's viewer; another type's field is not this rule's.
-  assert.deepEqual((currentUserOf(me('member', false)) as CurrentUser).roles, [{name: 'viewer', title: 'Viewer'}])
-  assert.equal(fieldState('author', stage, doc, currentUserOf(me('member')), rules).readOnly, false)
+  assert.deepEqual((mint(me('member', false)) as CurrentUser).roles, [{name: 'viewer', title: 'Viewer'}])
+  assert.equal(fieldState('author', stage, doc, mint(me('member')), rules).readOnly, false)
   // Nobody signed in (shared sign-in): currentUser is null, and this config leaves the field open.
   assert.equal(fieldState('post', stage, doc, nobody, rules).readOnly, false)
-  assert.equal(String(currentUserOf({...me('owner'), email: null})), 'Symbol(nobody)')
+  assert.equal(String(mint({...me('owner'), email: null})), 'Symbol(nobody)')
   // Barkpark not answered yet (no answer, or the server render's provisional stand-in): not known, so the rule locks it (fieldrule.test.ts).
-  assert.equal(currentUserOf({...me('owner'), provisional: true}), UNKNOWN)
-  assert.equal(currentUserOf(undefined), UNKNOWN)
-  assert.equal(fieldState('post', stage, doc, UNKNOWN, rules).readOnly, true)
+  assert.equal(mint({...me('owner'), provisional: true}), unknown)
+  assert.equal(mint(undefined), unknown)
+  assert.equal(fieldState('post', stage, doc, unknown, rules).readOnly, true)
 })
 
 test('a callback gets Sanity\'s context; one that throws, or answers anything but true, leaves the field open', () => {
@@ -55,7 +55,7 @@ test('a callback gets Sanity\'s context; one that throws, or answers anything bu
   const doc = {links: [{_key: 'l1', title: 'x'}]}
   let seen: unknown
   const rules: Record<string, FieldConditions> = {'post.links.title': {hidden: (c) => ((seen = c), true)}}
-  const user = currentUserOf(me('member'))
+  const user = mint(me('member'))
   assert.equal(fieldState('post', title, doc, user, rules, {path: 'links[_key=="l1"].title', value: 'x', parent: doc.links[0]}).hidden, true)
   assert.deepEqual(seen, {currentUser: user, document: doc, parent: doc.links[0], value: 'x', path: ['links', {_key: 'l1'}, 'title']})
   const errors: unknown[] = []
@@ -82,21 +82,21 @@ test('hidden by role: its group tab goes when nothing in it shows, and Paste doc
   ] as unknown as Field[]
   const rules: Record<string, FieldConditions> = {'post.internal': {hidden: (c) => !isAdmin(c)}, 'post.stage': {readOnly: (c) => !isAdmin(c)}}
   const doc = {title: 'T', internal: 'kept', stage: 'review'}
-  const editor = currentUserOf(me('member'))
+  const editor = mint(me('member'))
   const hiddenFor = (u: typeof editor) => (f: Field) => fieldState('post', f, doc, u, rules).hidden
   assert.equal(groupShows(fields, 'admin', doc, hiddenFor(editor)), false)
-  assert.equal(groupShows(fields, 'admin', doc, hiddenFor(currentUserOf(me('admin')))), true)
+  assert.equal(groupShows(fields, 'admin', doc, hiddenFor(mint(me('admin')))), true)
   // Paste document: the read-only field is skipped and named, the hidden one never named.
   const editorPaste = pasteDocument(fields, {title: 'P', internal: 'pasted', stage: 'idea'}, {type: 'post', doc, user: editor, rules})
   assert.deepEqual(editorPaste.writes, [['title', 'P']])
   assert.deepEqual(editorPaste.named, ['Stage'])
   assert.deepEqual([...pasteSkips('post', fields, doc, editor, rules).skip], ['internal', 'stage'])
-  assert.equal(pasteDocument(fields, {title: 'P', internal: 'pasted', stage: 'idea'}, {type: 'post', doc, user: currentUserOf(me('owner')), rules}).writes.length, 3)
+  assert.equal(pasteDocument(fields, {title: 'P', internal: 'pasted', stage: 'idea'}, {type: 'post', doc, user: mint(me('owner')), rules}).writes.length, 3)
 })
 
 test('the test people (persons.fixture.ts) are as a role rule sees them: currentUser with the role, null, and unknown', () => {
   const seen: unknown[] = []
   const f = {name: 'title', type: 'string'} as Field
-  for (const p of [known('editor'), nobody, UNKNOWN] as Person[]) fieldState('post', f, {}, p, {'post.title': {hidden: ({currentUser}) => (seen.push(currentUser), false)}})
+  for (const p of [known('editor'), nobody, unknown] as Person[]) fieldState('post', f, {}, p, {'post.title': {hidden: ({currentUser}) => (seen.push(currentUser), false)}})
   assert.deepEqual(seen, [{id: 'u1', name: 'A', email: 'a@example.com', roles: [{name: 'editor', title: 'Editor'}]}, null])
 })

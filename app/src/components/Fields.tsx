@@ -12,7 +12,7 @@ import {alwaysHidden, alwaysReadOnly, dependsOnDoc, fieldState} from '../lib/con
 import {SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
 import {pasteFieldWith} from '../lib/paste-reads'
 import {setPath} from '../lib/paths'
-import {useCurrentUser} from '../lib/session'
+import {useCurrentUser} from '../lib/person-source'
 import {mapCaret} from '../lib/merge'
 import {textDiff} from '../lib/changes'
 import {FieldClashCard} from './FieldClash'

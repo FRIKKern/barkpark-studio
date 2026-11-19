@@ -2,10 +2,11 @@
 // judge role rules against a person with no role: it waits, says so, and offers a retry.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {currentUserOf, fieldState, roleRuled, UNKNOWN, type FieldConditions} from './conditions.ts'
+import {fieldState, roleRuled, type FieldConditions} from './conditions.ts'
 import {docKeyOfEntry, pendingKey} from './pending-edits.ts'
 import {bannerShows, personCheck, SLOW_CHECK_MS} from './person-check.ts'
 import {UNKNOWN_SELF} from './token-self.ts'
+import {mint, unknown} from './persons.fixture.ts'
 
 const me = {email: 'ada@example.com', name: 'Ada', userId: 'u1', role: 'owner', canWrite: true}
 const adminsOnly: Record<string, FieldConditions> = {'post.stage': {readOnly: ({currentUser}) => !currentUser?.roles.some((r) => r.name === 'administrator')}}
@@ -17,10 +18,10 @@ test('a check Barkpark did not answer leaves the person unknown, so a role-ruled
   assert.deepEqual(UNKNOWN_SELF.permissions, ['read', 'write'])
   // whoAmI then says so (role null, unchecked): not a person with no role, whom the rule would judge.
   const unchecked = {...me, role: null, unchecked: true}
-  assert.equal(currentUserOf(unchecked), UNKNOWN)
-  assert.equal(fieldState('post', stage, {}, currentUserOf(unchecked), adminsOnly).readOnly, true, 'locked while unknown')
+  assert.equal(mint(unchecked), unknown)
+  assert.equal(fieldState('post', stage, {}, mint(unchecked), adminsOnly).readOnly, true, 'locked while unknown')
   // The retry answers: the owner may edit it.
-  assert.equal(fieldState('post', stage, {}, currentUserOf(me), adminsOnly).readOnly, false)
+  assert.equal(fieldState('post', stage, {}, mint(me), adminsOnly).readOnly, false)
 })
 
 test('the page says the check failed: an unchecked answer, a failed read, or none in time', () => {

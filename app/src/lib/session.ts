@@ -1,4 +1,4 @@
-import {queryOptions, useQuery, type QueryClient} from '@tanstack/react-query'
+import {queryOptions, useQuery} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {accountRequestReset, accountSignIn, cloudSignIn, currentEditor, describeToken, displayName, editorKey, knownTokenSelf, presenceName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {bpFetch, requestToken} from '../server/barkpark'
@@ -7,8 +7,6 @@ import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
 import {meOf, sessionEnded} from './me-of'
 import {headStartAllowed} from './gate-head-start'
-import {currentUserOf} from './conditions'
-import {useMemo} from 'react'
 
 // Who is editing (server/auth.ts). Server functions: the session cookie is
 // httpOnly and the token never leaves the server.
@@ -155,14 +153,3 @@ export function useBoundElsewhere(): {bound: string; here: {workspace: string; p
 /** The studio's own Barkpark token is refused: the reason every read and save fails. */
 export const useStudioTokenRefused = () => !!useQuery(meQuery).data?.studioTokenRefused
 
-/**
- * Sanity's useCurrentUser: the person a field is judged for (lib/conditions.ts Person): known,
- * nobody, or unknown. With personOf, the only source of a person (person-scan.test.ts): a lock
- * site takes it whole and hands it to the rule.
- */
-export function useCurrentUser() {
-  const me = useQuery(meQuery).data
-  return useMemo(() => currentUserOf(me), [me])
-}
-/** The same outside a component: the person as the cached whoAmI says. */
-export const personOf = (qc: QueryClient) => currentUserOf(qc.getQueryData(meQuery.queryKey) ?? undefined)

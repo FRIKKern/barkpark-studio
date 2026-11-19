@@ -1,8 +1,8 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {formLocked, freeformCanvas, unlessLocked} from './form-lock.ts'
-import {currentUserOf, type FieldConditions} from './conditions.ts'
-import {nobody} from './persons.fixture.ts'
+import {type FieldConditions} from './conditions.ts'
+import {mint, nobody} from './persons.fixture.ts'
 import type {Schema} from './data.ts'
 
 const open = {published: false, revision: false, gone: false, scheduled: false, canWrite: true}
@@ -40,8 +40,8 @@ test('form lock: the Freeform canvas is read-only while its body region is read-
   const article = (body: Record<string, unknown> = {}) =>
     ({name: 'article', title: 'Article', layout: [{kind: 'field', name: 'title'}, {kind: 'region', name: 'body'}], fields: [{name: 'title', type: 'string'}, {name: 'stage', type: 'string'}, {name: 'body', type: 'richText', ...body}]}) as unknown as Schema
   const doc = {title: 'T', stage: 'draft', body: {blocks: []}}
-  const editor = currentUserOf({email: 'e@example.com', name: 'E', userId: 'u1', role: 'member', canWrite: true})
-  const admin = currentUserOf({email: 'a@example.com', name: 'A', userId: 'u2', role: 'admin', canWrite: true})
+  const editor = mint({email: 'e@example.com', name: 'E', userId: 'u1', role: 'member', canWrite: true})
+  const admin = mint({email: 'a@example.com', name: 'A', userId: 'u2', role: 'admin', canWrite: true})
   const canvas = (schema: Schema, user = editor, rules?: Record<string, FieldConditions>, d: Record<string, unknown> = doc) => freeformCanvas(open, user, {schema, doc: d, rules})
   assert.equal(canvas(article()), 'editable')
   // The schema's readOnly, always or on a condition (Barkpark's shape).

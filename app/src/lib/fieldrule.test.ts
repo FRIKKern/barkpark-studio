@@ -6,14 +6,14 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Field, Schema} from './data.ts'
-import {currentUserOf, fieldState, pasteSkips, pathReadOnly, UNKNOWN, type FieldConditions, type Person} from './conditions.ts'
-import {nobody} from './persons.fixture.ts'
+import {fieldState, pasteSkips, pathReadOnly, type FieldConditions, type Person} from './conditions.ts'
+import {mint, nobody, unknown} from './persons.fixture.ts'
 import {canvasAccess, freeformCanvas, paneFieldLock} from './form-lock.ts'
 import {canvasLocked, docLocked, fieldLocked, gated, hideDoc, showDoc} from './doc-lock.ts'
 import {pasteDocument} from './paste-locked.ts'
 
-const editor = currentUserOf({email: 'e@example.com', name: 'E', userId: 'u1', role: 'member', canWrite: true})
-const admin = currentUserOf({email: 'a@example.com', name: 'A', userId: 'u2', role: 'admin', canWrite: true})
+const editor = mint({email: 'e@example.com', name: 'E', userId: 'u1', role: 'member', canWrite: true})
+const admin = mint({email: 'a@example.com', name: 'A', userId: 'u2', role: 'admin', canWrite: true})
 const notAdmin = ({currentUser}: {currentUser: {roles: {name: string}[]} | null}) => !currentUser?.roles.some((r) => r.name === 'administrator')
 const open = {published: false, revision: false, gone: false, scheduled: false, canWrite: true}
 
@@ -59,8 +59,8 @@ test('the Freeform canvas without a layout: its body counts as a region does', (
 test('before the person is known, a field with a role rule is locked on every surface, and opens once they are', () => {
   const rules: Record<string, FieldConditions> = {'note.body': {readOnly: notAdmin}, 'note.label': {hidden: notAdmin}, 'note.stage': {readOnly: true}}
   const F = (name: string) => note.fields.find((f) => f.name === name)!
-  for (const person of [UNKNOWN, currentUserOf(undefined), currentUserOf({email: 'a@example.com', name: 'A', userId: 'u2', role: 'admin', canWrite: true, provisional: true}), currentUserOf({email: 'a@example.com', name: 'A', userId: 'u2', role: null, canWrite: true, unchecked: true})]) {
-    assert.equal(person, UNKNOWN)
+  for (const person of [unknown, mint(undefined), mint({email: 'a@example.com', name: 'A', userId: 'u2', role: 'admin', canWrite: true, provisional: true}), mint({email: 'a@example.com', name: 'A', userId: 'u2', role: null, canWrite: true, unchecked: true})]) {
+    assert.equal(person, unknown)
     // The form (ConditionalField draws by fieldState).
     assert.deepEqual(fieldState('note', F('body'), doc, person, rules), {hidden: false, readOnly: true})
     assert.deepEqual(fieldState('note', F('label'), doc, person, rules), {hidden: true, readOnly: true})

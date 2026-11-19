@@ -7,7 +7,7 @@ import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Trans
 import studio from '../studio.config'
 import {SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
 import {pasteDocumentWith} from '../lib/paste-reads'
-import {useCurrentUser} from '../lib/session'
+import {useCurrentUser} from '../lib/person-source'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
 import {t as tt, useT} from '../lib/i18n'

@@ -75,17 +75,20 @@ export const groupShows = (fields: Field[], group: string, doc: Record<string, u
 /** Sanity's CurrentUser: who is signed in, their role here under Sanity's role names. */
 export type CurrentUser = {id: string; name: string; email: string; roles: {name: string; title: string}[]}
 /** Who the person is not known yet: whoAmI not read, a provisional stand-in, or a check Barkpark did not answer. Never nobody. */
-export const UNKNOWN: unique symbol = Symbol('unknown')
-/** Nobody signed in (shared sign-in): a role rule's callbacks get `currentUser: null`. Not exported: only currentUserOf says nobody. */
+const UNKNOWN: unique symbol = Symbol('unknown')
+/** Nobody signed in (shared sign-in): a role rule's callbacks get `currentUser: null`. */
 const NOBODY: unique symbol = Symbol('nobody')
 /** The seal on a known person: not exported, so no other file can make one. */
 declare const sealed: unique symbol
-type Known = CurrentUser & {readonly [sealed]: true}
+type Known = Readonly<CurrentUser> & {readonly [sealed]: true}
 /**
  * The person a field is judged for, one of three: known (a CurrentUser), nobody signed in, or
- * UNKNOWN. Only currentUserOf makes one (and only lib/session.ts calls it): a lock site cannot
- * write a nobody, a person, or a compare-and-replace that tsc takes. A field with a role rule
- * waits while UNKNOWN (awaitsPerson); only this file reads UNKNOWN (person-scan.test.ts).
+ * unknown. Only `mint` makes one, and only its one taker has it (takeMint: lib/session.ts). The
+ * rule believes only what it minted (checked): anything else, a look-alike, a copy, a clone,
+ * null, any `any`, is unknown, so the field locks. A field with a role rule waits while the
+ * person is unknown (awaitsPerson); the markers for nobody and unknown never leave this file.
+ * Not held: a known person minted before a check failed is still believed if a component keeps
+ * one (task-17875b8357355194; person-scan.test.ts refuses keeping one in a ref or a `let`).
  */
 export type Person = Known | typeof NOBODY | typeof UNKNOWN
 /** Sanity's Path: field names and array items by `_key`. */
@@ -111,13 +114,33 @@ export function sanityRole(role: string | null | undefined, canWrite = true): st
 }
 
 type Me = {email: string | null; name: string | null; userId: string | null; role: string | null; canWrite: boolean; provisional?: boolean; unchecked?: boolean}
-/** whoAmI as Sanity's currentUser: null with nobody signed in (shared sign-in); UNKNOWN while Barkpark has not said who (not read yet, a provisional stand-in, or a check it did not answer). */
-export function currentUserOf(me: Me | undefined): Person {
+/** Each known person `mint` made: the rule believes these, NOBODY and UNKNOWN, and nothing else. */
+const minted = new WeakSet<object>()
+/**
+ * whoAmI as Sanity's currentUser: nobody signed in (shared sign-in); unknown while Barkpark has
+ * not said who (not read yet, a provisional stand-in, or a check it did not answer); else who it
+ * is, frozen all the way down, so no role can be added to it.
+ */
+function mint(me: Me | undefined): Person {
   if (!me || me.provisional || me.unchecked) return UNKNOWN
   if (!me.email) return NOBODY
   const role = sanityRole(me.role, me.canWrite)
-  return {id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles: role ? [{name: role, title: roleTitle(role)}] : []} as Known
+  const roles = Object.freeze(role ? [Object.freeze({name: role, title: roleTitle(role)})] : [])
+  const known = Object.freeze({id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles}) as unknown as Known
+  minted.add(known)
+  return known
 }
+let taken: typeof mint | null = null
+/**
+ * The maker of a person, handed out once: lib/session.ts takes it as it loads (the tests'
+ * people, lib/persons.fixture.ts, in a test run); a second taker throws, so nothing else ever
+ * makes a person. giveMintBack lets the one who has it hand it back (a dev reload of that module).
+ */
+export function takeMint() {
+  if (taken) throw new Error('The person maker is taken: a person comes only from lib/session.ts (useCurrentUser, personOf).')
+  return (taken = mint)
+}
+export const giveMintBack = (m: unknown) => void (m === taken && m !== null && (taken = null))
 
 /** The config key of a field path: its type, then field names with array items left out (`post.links.title`). */
 export const conditionKey = (type: string, path: string) => `${type}.${segments(path).flatMap((s) => ('name' in s ? [s.name] : [])).join('.')}`
@@ -158,10 +181,14 @@ type Where = {path: string; value: unknown; parent?: Record<string, unknown>}
 const awaitsPerson = (p: ConditionalProperty, person: Person): person is typeof UNKNOWN => person === UNKNOWN && typeof p === 'function'
 /** Whether the person is known (or known to be nobody). Only this file asks (person-scan.test.ts). */
 const personKnown = (person: Person): person is Known | typeof NOBODY => person !== UNKNOWN
-/** A known person (or nobody) as Sanity's callbacks take it: `currentUser`, or null. */
-const sanityUser = (person: Known | typeof NOBODY): CurrentUser | null => (person === NOBODY ? null : person)
+/** Whether `mint` made this: a person any other way (a copy, a clone, an object made on one, null, any `any`) is not. */
+const isMinted = (p: unknown): p is Person => p === NOBODY || p === UNKNOWN || (typeof p === 'object' && p !== null && minted.has(p))
+/** The person as the rule takes it, first thing at each way in: what `mint` made, or else unknown. */
+const checked = (p: unknown): Person => (isMinted(p) ? p : UNKNOWN)
+/** A known person (or nobody) as Sanity's callbacks take it: a copy as `currentUser`, or null. Never the person itself. */
+const sanityUser = (person: Known | typeof NOBODY): CurrentUser | null => (person === NOBODY ? null : {...person, roles: person.roles.map((r) => ({...r}))})
 /** Whether kept edits wait to be put back: until the person is known, a role rule may lock a field they hold. */
-export const keptEditsWait = (person: Person) => !personKnown(person)
+export const keptEditsWait = (person: Person) => !personKnown(checked(person))
 /** Whether a type has a role rule: a `form.conditions` callback under `type.`, which waits while the person is unknown. */
 export const roleRuled = (type: string, rules: Record<string, FieldConditions> | undefined) =>
   Object.entries(rules ?? {}).some(([key, c]) => key.startsWith(`${type}.`) && (typeof c.hidden === 'function' || typeof c.readOnly === 'function'))
@@ -193,7 +220,8 @@ export function mayWrite(by: WriteBy, now: {docLocked: boolean; fieldReadOnly: b
  * it opens once Barkpark has said who, never the other way round. `at` defaults to a top-level
  * field (its parent the document), what the group tabs and Paste document ask about.
  */
-export function fieldState(type: string, f: Field, doc: Record<string, unknown>, person: Person, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}) {
+export function fieldState(type: string, f: Field, doc: Record<string, unknown>, who: Person, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}) {
+  const person = checked(who)
   const key = conditionKey(type, at.path)
   const rule = rules?.[key]
   // A callback is asked only of a known person (awaitsPerson first); a plain true or false asks nobody.
@@ -213,7 +241,8 @@ const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 
  * step on the way (a read-only object keeps all it holds). Steps the schema does not name are
  * judged by the nearest one it does, as the form draws them.
  */
-export function pathReadOnly(type: string, fields: Field[], doc: Record<string, unknown>, person: Person, rules: Record<string, FieldConditions> | undefined, path: string): boolean {
+export function pathReadOnly(type: string, fields: Field[], doc: Record<string, unknown>, who: Person, rules: Record<string, FieldConditions> | undefined, path: string): boolean {
+  const person = checked(who)
   let here: Field[] | undefined = fields
   let value: unknown = doc
   let at = ''
@@ -245,14 +274,15 @@ const KNOWN_ROLES = Object.keys(ROLE_TITLES)
  * field shown only by email is no lock either. Only the person's own answer logs a callback's
  * error; a probe's never does.
  */
-export function roleHidden(type: string, doc: Record<string, unknown>, currentUser: Person, rules: Record<string, FieldConditions> | undefined, at: Where, roles: readonly string[] = []): boolean {
+export function roleHidden(type: string, doc: Record<string, unknown>, who: Person, rules: Record<string, FieldConditions> | undefined, at: Where, roles: readonly string[] = []): boolean {
+  const currentUser = checked(who)
   const key = conditionKey(type, at.path)
   const hidden = rules?.[key]?.hidden
   // Until the person is known, a hidden callback hides the field as fieldState does.
   if (awaitsPerson(hidden, currentUser)) return true
   if (!personKnown(currentUser) || currentUser === NOBODY || hidden === undefined) return false
   const ask = (user: CurrentUser, log = false) => resolveConditional(hidden, {currentUser: user, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)}, `form.conditions['${key}'].hidden`, log)
-  if (!ask(currentUser, true)) return false
+  if (!ask(sanityUser(currentUser)!, true)) return false
   const probes = new Set([...KNOWN_ROLES, ...currentUser.roles.map((r) => r.name), ...roles.flatMap((r) => sanityRole(r) ?? [])])
   return [...probes].some((name) => !ask({...currentUser, roles: [{name, title: roleTitle(name)}]}))
 }
@@ -264,7 +294,8 @@ export function roleHidden(type: string, doc: Record<string, unknown>, currentUs
  * the data (`visibleWhen`, the schema's `hidden`, a rule hiding the field from every role) is
  * no lock: such a field pastes as on main. `roles`: the workspace's roles (roleHidden).
  */
-export function fieldLock(type: string, f: Field, doc: Record<string, unknown>, currentUser: Person, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}, after?: {doc: Record<string, unknown>; at: Where}, roles: readonly string[] = []) {
+export function fieldLock(type: string, f: Field, doc: Record<string, unknown>, who: Person, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}, after?: {doc: Record<string, unknown>; at: Where}, roles: readonly string[] = []) {
+  const currentUser = checked(who)
   const readOnly = fieldState(type, f, doc, currentUser, rules, at).readOnly
   const hidden = roleHidden(type, doc, currentUser, rules, at, roles) || (!!after && roleHidden(type, after.doc, currentUser, rules, after.at, roles))
   return {readOnly, roleHidden: hidden}
@@ -275,7 +306,8 @@ export function fieldLock(type: string, f: Field, doc: Record<string, unknown>, 
  * does, and a field a role rule hides as it is, unnamed (fieldLock). `after` is the document
  * as the paste leaves it; `roles`, the workspace's roles (roleHidden).
  */
-export function pasteSkips(type: string, fields: Field[], doc: Record<string, unknown>, currentUser: Person, rules: Record<string, FieldConditions> | undefined, after?: Record<string, unknown>, roles: readonly string[] = []) {
+export function pasteSkips(type: string, fields: Field[], doc: Record<string, unknown>, who: Person, rules: Record<string, FieldConditions> | undefined, after?: Record<string, unknown>, roles: readonly string[] = []) {
+  const currentUser = checked(who)
   const skip = new Set<string>()
   const named: string[] = []
   for (const f of fields) {
