@@ -20,6 +20,7 @@ export const Route = createFileRoute('/api/media/upload')({
         // Pinned now, inside the request: a drop after the browser left runs outside it.
         const token = requestToken()
         const at = scope()
+        // Every send to Barkpark goes through `sending` (server/upload-relays.ts): upload-cancel.spec waits on that count.
         const sent = await relayUpload(
           bytes,
           clientGone(request),

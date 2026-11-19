@@ -1,7 +1,12 @@
 # Keeps conformance/pack/ the same as Barkpark main's api/priv/portable_doc, once a day and on demand.
 # `plan` (no key, read-only token) compares, builds the sync commit and decides; `act` writes: it pushes
 # that one commit to sync/barkpark-pack with the deploy key, opens or updates the PR, merges a green one
-# or closes a leftover one. `act` installs and runs no project code (scripts/lib/workflow-keys.test.mjs).
+# or closes a leftover one.
+# `act` trusts nothing from `plan` except which of the three actions to take (each re-checked against
+# GitHub's own state), the studio's report file and SOURCE.md's prose: `plan` ran install scripts, the
+# renderer and Barkpark's conformance.mjs. scripts/sync-act.sh says what it checks.
+# Every job here and in the other workflows either holds no key or is pinned, whole, with the files it
+# runs, in scripts/lib/keyed-jobs.json (scripts/lib/workflow-keys.mjs; scripts/lib/keyed-jobs.test.mjs).
 # Why and how: docs/decisions/0009-pack-syncs-itself.md. To hold the sync back, disable this workflow.
 name: sync-pack
 on:
@@ -54,7 +59,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with: { name: plan, path: '${{ runner.temp }}/plan', retention-days: 7 }
 
-  # Installs and runs nothing from the repo: git, gh and jq on the plan's files.
+  # Runs main's own scripts/sync-act.sh on the plan's files: git, gh and jq. Pinned with that file in
+  # scripts/lib/keyed-jobs.json.
   act:
     needs: plan
     if: needs.plan.outputs.action != 'none'
@@ -65,69 +71,15 @@ jobs:
     outputs:
       merged: ${{ steps.write.outputs.merged }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with: { name: plan, path: '${{ runner.temp }}/plan' }
-      # The deploy key, for the push: a push by the workflow token starts no checks on the PR.
-      - if: needs.plan.outputs.action == 'push'
-        uses: actions/checkout@v5
-        with: { fetch-depth: 0, ssh-key: '${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}' }
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with: { fetch-depth: 0, persist-credentials: false }
+      # The deploy key, for the push alone: a push by the workflow token starts no checks on the PR.
       - name: Push, open or update, merge, or close
         id: write
-        run: |
-          set -euo pipefail
-          plan="$RUNNER_TEMP/plan"
-          action=$(jq -r .action "$plan/plan.json")
-          number=$(jq -r '.number // empty' "$plan/plan.json")
-          branch=sync/barkpark-pack
-          case "$action" in
-            close)
-              gh pr close "$number" --delete-branch --comment 'main already carries these files: nothing left to sync.'
-              ;;
-            land)
-              head=$(jq -r .head "$plan/plan.json")
-              for try in 1 2 3 4 5; do
-                gh pr merge "$number" --squash --delete-branch --match-head-commit "$head" || true
-                if [ "$(gh pr view "$number" --json state --jq .state)" = MERGED ]; then echo "merged=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-                sleep $((try * 5))
-              done
-              echo "::error::#$number is not merged after 5 tries"; exit 1
-              ;;
-            push)
-              git config user.name 'github-actions[bot]'
-              git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-              lease=$(jq -r '.lease // ""' "$plan/plan.json")
-              main=$(jq -r .main "$plan/plan.json")
-              git fetch -q origin main
-              [ -z "$lease" ] || git fetch -q origin "$branch"
-              git fetch -q "$plan/sync.bundle" HEAD:refs/heads/sync
-              # One commit touching the pack and its report only, on main as the plan read it, or on the
-              # PR's head with that main merged in (the merge git's own, checked by redoing it).
-              read -r _ base extra <<<"$(git rev-list --parents -n 1 sync)"
-              [ -n "$base" ] && [ -z "$extra" ] || { echo "::error::the sync commit is a merge"; exit 1; }
-              stray=$(git diff --name-only "$base" sync | grep -Ev '^(conformance/pack/|conformance/barkpark-studio\.json$)' || true)
-              [ -z "$stray" ] || { echo "::error::the sync commit touches $stray"; exit 1; }
-              git merge-base --is-ancestor "$main" origin/main || { echo "::error::$main is not on main"; exit 1; }
-              if [ "$base" != "$main" ]; then
-                read -r _ ours theirs more <<<"$(git rev-list --parents -n 1 "$base")"
-                [ -n "$number" ] && [ "$ours" = "$lease" ] && [ "$theirs" = "$main" ] && [ -z "$more" ] &&
-                  [ "$(git merge-tree --write-tree "$lease" "$main")" = "$(git rev-parse "$base^{tree}")" ] ||
-                  { echo "::error::the sync commit is on neither main nor the PR's head merged with main"; exit 1; }
-              fi
-              git push -q --force-with-lease="$branch:$lease" origin "sync:refs/heads/$branch"
-              title=$(cat "$plan/title.txt")
-              if [ -n "$number" ]; then
-                gh pr edit "$number" --title "$title" --body-file "$plan/body.md"
-              else
-                gh pr create --head "$branch" --base main --title "$title" --body-file "$plan/body.md" || {
-                  echo "::error::The sync PR cannot be opened. Settings > Actions > General > \"Allow GitHub Actions to create and approve pull requests\" must be on."; exit 1; }
-                # A PR the workflow token opens starts no checks; a push by the deploy key does.
-                git switch -q sync
-                git commit -q --allow-empty -m 'Start the checks'
-                git push -q --force-with-lease="$branch:$(git rev-parse sync^)" origin "sync:refs/heads/$branch"
-              fi
-              ;;
-            *) echo "::error::unknown action $action"; exit 1 ;;
-          esac
+        env: { SYNC_DEPLOY_KEY: '${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}' }
+        run: bash scripts/sync-act.sh
 
   # A merge by the workflow token starts no push runs on main: ask for them.
   checks-on-main:

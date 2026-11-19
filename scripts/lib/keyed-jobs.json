@@ -1,0 +1,32 @@
+{
+  "jobs": [
+    {
+      "job": "housekeeping.yml hygiene",
+      "sha256": "07c1baef72d561fdf7e24acc5005e9c220c98a4d98749631b6996345fc791ee6",
+      "runs": {
+        "scripts/check-docs.mjs": "37a8c5f09926e2badf5273be3e298fdc540a123a502042347dba5c6236448f6a"
+      }
+    },
+    {
+      "job": "housekeeping.yml refresh",
+      "sha256": "62711304acc99e4694a1800d5d4506bc13c45bd312589b3c548c7b0fac7b6f6d",
+      "runs": {
+        "scripts/check-docs.mjs": "37a8c5f09926e2badf5273be3e298fdc540a123a502042347dba5c6236448f6a",
+        "scripts/generate-roadmap.mjs": "861a2fb57fbb8a60fefc9f313d6002e43bfa1842b014b2104db4b49741c01bf7",
+        "scripts/lib/board.mjs": "f98139879f676a8a543650ee0612f3f5684983b9d8c0ae5dbd62db9d83cae731"
+      }
+    },
+    {
+      "job": "sync-pack.yml act",
+      "sha256": "6f8cef43e2e8266ea065d070aff1f626029c4e9cdd221f1a67a5c7457f6c51fc",
+      "runs": {
+        "scripts/sync-act.sh": "a2f704c4f28869b329d95c8780edd6ea498babdfc67221c6ef5e4592d543b738"
+      }
+    },
+    {
+      "job": "sync-pack.yml checks-on-main",
+      "sha256": "3808c932b93e053483eff2837ef48e0c5d11979e64d54725d743eecd3f309044",
+      "runs": {}
+    }
+  ]
+}

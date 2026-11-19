@@ -1,6 +1,6 @@
 // The daily sync's plan (.github/workflows/sync-pack.yml, job `plan`; docs/decisions/0009-pack-syncs-itself.md).
 // It reads GitHub and git and writes nothing to either: every write (push, PR, merge, close) is printed
-// as `would:` and left to the workflow's `act` job, which runs no project code.
+// as `would:` and left to the workflow's `act` job (scripts/sync-act.sh), which checks it all again.
 //
 //   a file other than the stamp differs from Barkpark main? ── no ─► an open sync PR is closed; done
 //        │ yes                                                       (a stamp-only difference rides along)
@@ -11,10 +11,10 @@
 //        ─► the act job pushes it to sync/barkpark-pack, opens or updates the PR
 //
 //   node scripts/pack-sync-pr.mjs <barkpark checkout> --out <dir> [--commit <sha>] [--summary <file>]
-// <dir>/plan.json: {action: 'none' | 'close' | 'land' | 'push', number?, head?, lease?, main?, title?}; for a
-// push, also sync.bundle (ref HEAD: the sync commit), title.txt and body.md. --commit: as pack-sync.mjs.
+// <dir>/plan.json: {action: 'none' | 'close' | 'land' | 'push', number?, head?, lease?, main?}; for a push,
+// also sync.bundle (ref HEAD: the sync commit). The rows that moved go to --summary. --commit: as pack-sync.mjs.
 import {execFileSync, spawnSync} from 'node:child_process'
-import {appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync} from 'node:fs'
+import {appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -70,7 +70,7 @@ if (here.lines.some((l) => l.startsWith('source '))) fail(`Barkpark's pack is no
 if (!here.real) {
   say(here.lines.length ? `${PACK_DIR}: only the stamp differs from Barkpark; it rides along with the next real change` : `${PACK_DIR}: same as Barkpark`)
   if (!number) plan({action: 'none'})
-  say(`would: gh pr close ${number} --delete-branch (main already carries these files)`)
+  say(`would: gh pr close ${number} (main already carries these files; the branch stays)`)
   plan({action: 'close', number})
 }
 
@@ -110,9 +110,10 @@ try {
     spawnSync('git', ['merge', '--abort'], {cwd: work})
     refused = `#${number}: ${BRANCH} does not merge with ${BASE}; close the PR and the next run opens a fresh one`
   }
-  const sync = refused ? {status: 1} : spawnSync(process.execPath, ['scripts/pack-sync.mjs', checkout, '--pr-body', join(out, 'body.md'), ...(values.commit ? ['--commit', values.commit] : [])], {cwd: work, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']})
+  const sync = refused ? {status: 1} : spawnSync(process.execPath, ['scripts/pack-sync.mjs', checkout, '--pr-body', join(work, '..', 'notes.md'), ...(values.commit ? ['--commit', values.commit] : [])], {cwd: work, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']})
   if (sync.status === 0) {
     title = sync.stdout.trim().split('\n').at(-1)
+    if (values.summary) appendFileSync(values.summary, `\n${readFileSync(join(work, '..', 'notes.md'), 'utf8')}\n`)
     w('add', '-A', '--', PACK_DIR, 'conformance/barkpark-studio.json')
     w('commit', '-q', '-m', title)
     // The commits the branch lacks, as ref HEAD; the act job checks them and pushes HEAD.
@@ -123,7 +124,6 @@ try {
   rmSync(join(work, '..'), {recursive: true, force: true})
 }
 if (!title) fail(refused ?? 'pack-sync failed (see above); nothing to push')
-writeFileSync(join(out, 'title.txt'), `${title}\n`)
 say(`would: git push --force-with-lease=${BRANCH}:${lease} origin sync:refs/heads/${BRANCH}`)
-say(number ? `would: gh pr edit ${number} --title "${title}"` : `would: gh pr create --head ${BRANCH} --base ${BASE} --title "${title}"`)
-plan({action: 'push', number, lease, main, title})
+say(number ? `would: gh pr edit ${number} (act writes the title and body)` : `would: gh pr create --head ${BRANCH} --base ${BASE} (act writes the title and body)`)
+plan({action: 'push', number, lease, main})

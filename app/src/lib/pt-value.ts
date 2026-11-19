@@ -697,8 +697,17 @@ export function objectTitle(field: Pick<Field, 'blocks'>, kind: PtKind, name: st
 }
 
 /** What Insert offers: the declared custom block and inline object types. An image or file block needs its own input: not yet. */
-export function insertable(field: Pick<Field, 'blocks'>, tables = false): {blocks: Named[]; inline: Named[]} {
+/**
+ * Sanity's `options.oneLine` (on its block type; on the field here, where Barkpark keeps a field's
+ * options as written): the text stays one block, as a heading or a caption does
+ * (lib/pt-one-line.ts).
+ */
+export const isOneLine = (field: Pick<Field, 'options'>) => !Array.isArray(field.options) && Boolean(field.options?.oneLine)
+
+export function insertable(field: Pick<Field, 'blocks' | 'options'>, tables = false): {blocks: Named[]; inline: Named[]} {
   const d = declaredVocabulary(field)
+  // One line takes no block: Sanity's toolbar offers them and its one-line plugin drops each insert; none is offered here.
+  if (isOneLine(field)) return {blocks: [], inline: d.inlineObjects}
   const blocks = d.blockObjects.filter((b) => b.name !== 'file')
   // A text that holds a table already offers one, declared or not (lib/pt-table.ts tablesIn), as it offers the annotations it uses.
   return {blocks: tables && !blocks.some((b) => b.name === 'table') ? [...blocks, {name: 'table'}] : blocks, inline: d.inlineObjects}
