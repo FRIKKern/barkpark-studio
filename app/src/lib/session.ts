@@ -173,7 +173,6 @@ export function useBoundElsewhere(): {bound: string; here: {workspace: string; p
 /** The studio's own Barkpark token is refused: the reason every read and save fails. */
 export const useStudioTokenRefused = () => !!useQuery(meQuery).data?.studioTokenRefused
 
-
 /** Sanity's useCurrentUser: the signed-in editor with their role under Sanity's name (lib/conditions.ts), or null. */
 export function useCurrentUser() {
   const me = useQuery(meQuery).data

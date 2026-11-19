@@ -73,3 +73,17 @@ test('a field locked for the person’s own custom role is kept, whichever way t
       assert.deepEqual(out, {value: {title: 'B', review: 'kept'}}, `Paste field, ${kind} for reviewers, roles read ${way}`)
     }
 })
+
+test('with nobody signed in, Barkpark is not asked, and a field locked for the person’s own role is still kept', async () => {
+  let asked = 0
+  ;(globalThis as {pasteReads?: unknown}).pasteReads = {editor: null, fetch: async () => (asked++, new Response('{"roles":[]}', {status: 200}))}
+  const reviewer = {...editor, roles: [{name: 'reviewer', title: 'reviewer'}]}
+  const isReviewer = ({currentUser}: {currentUser: {roles: {name: string}[]} | null}) => !!currentUser?.roles.some((r) => r.name === 'reviewer')
+  const qc = new QueryClient()
+  for (const rule of [{readOnly: isReviewer}, {hidden: isReviewer}]) {
+    assert.deepEqual((await pasteDocumentWith(qc, fields, {title: 'B', review: 'pasted'}, {type: 'post', doc, user: reviewer, rules: {'post.review': rule}})).writes, [['title', 'B']])
+    const box = {name: 'box', type: 'composite', fields} as unknown as Field
+    assert.deepEqual(await pasteFieldWith(qc, box, 'box', {title: 'B', review: 'pasted'}, doc, {type: 'post', doc: {box: doc}, user: reviewer, rules: {'post.box.review': rule}}), {value: {title: 'B', review: 'kept'}})
+  }
+  assert.equal(asked, 0, 'no other session reads the roles in its place')
+})

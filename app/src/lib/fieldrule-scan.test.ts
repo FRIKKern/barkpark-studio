@@ -131,6 +131,8 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
       if (low.length && !ALLOWED[file]) problems.push(`${file} imports ${low.join(', ')} (below the save) from ${to}: write through the save, or allow it in fieldrule-scan.test.ts with why`)
       const pastes = takes(names, PASTES[to] ?? [])
       if (pastes.length && file !== PASTE_READS && file !== to) problems.push(`${file} imports ${pastes.join(', ')} from ${to}: paste through ${PASTE_READS}, which reads the roles from Barkpark`)
+      // paste-reads.ts too: passing them on would let its importers hand in a read of their own.
+      if (pastes.length && file !== to && (reexport || locals.some((l) => passesOn(code(text), l)))) problems.push(`${file} passes on ${pastes.join(', ')} from ${to}: only ${to} exports it`)
       const saves = takes(names, SAVES[to] ?? [])
       if (saves.length && !listed.has(file)) problems.push(`${file} imports ${saves.join(', ')} (the save) and is no listed surface: list it in SURFACES with how it asks the rule`)
     }
@@ -192,6 +194,9 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
   fails(src, 'lib/carry3.ts', "export * from './blocks'\n", /lib\/carry3\.ts passes on applyBlockOps/)
   // A paste menu that reads the roles itself (one that skips Barkpark, or another session's): only paste-reads.ts may.
   fails(src, 'components/MyPaste.tsx', "import {pasteDocumentReading} from '../lib/paste-locked'\nexport const p = (f: never, v: never, c: never) => pasteDocumentReading({schemas: async () => [], roles: async () => null}, f, v, c)\n", /MyPaste\.tsx imports pasteDocumentReading from lib\/paste-locked\.ts: paste through lib\/paste-reads\.ts/)
+  // paste-reads.ts passing a raw paste on, re-exported or as a value of its own.
+  fails(src, PASTE_READS, `${src[PASTE_READS]}\nexport {pasteDocumentReading} from './paste-locked'\n`, /lib\/paste-reads\.ts passes on pasteDocumentReading from lib\/paste-locked\.ts/)
+  fails(src, PASTE_READS, `${src[PASTE_READS]}\nexport const raw = pasteDocumentReading\n`, /lib\/paste-reads\.ts passes on pasteDocumentReading/)
   fails(src, 'components/Later2.tsx', "export const p = async () => (await import('../lib/paste-locked.ts')).pasteField\n", /Later2\.tsx imports pasteDocument, pasteField, .* from lib\/paste-locked\.ts/)
   // A paper's linked masters (insert, pin, detach) write its body.
   fails(src, 'components/Masters.tsx', "import {pinMaster} from '../lib/paper-masters'\nexport const pin = pinMaster\n", /components\/Masters\.tsx imports pinMaster \(below the save\)/)
