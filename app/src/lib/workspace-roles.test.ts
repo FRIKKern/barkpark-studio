@@ -62,7 +62,7 @@ test("no roles from Barkpark: today's roles, never no lock", async () => {
 test("the roles are read with the signed-in person's own token, never the studio's, and every paste asks them", () => {
   const session = readFileSync(new URL('./session.ts', import.meta.url), 'utf8')
   const read = session.slice(session.indexOf('const fetchWorkspaceRoles'), session.indexOf('export const workspaceRolesQuery'))
-  assert.match(read, /const editor = currentEditor\(\)\n\s+return editor \? readWorkspaceRoles\(\(path\) => bpFetch\(path, \{\}, editor\.token, \{retry: false\}\)\) : null/)
+  assert.match(read, /const editor = currentEditor\(\)\n\s+return editor \? readWorkspaceRoles\(\(path\) => bpFetch\(path, \{\}, editor\.token\)\) : null/)
   assert.doesNotMatch(read, /serviceToken|studioToken|contentModelToken|requestToken/)
   for (const file of ['../components/DocHeaderMenu.tsx', '../components/Fields.tsx']) {
     const src = readFileSync(new URL(file, import.meta.url), 'utf8')

@@ -180,7 +180,7 @@ export const useStudioTokenRefused = () => !!useQuery(meQuery).data?.studioToken
  */
 const fetchWorkspaceRoles = createServerFn({method: 'GET'}).handler(async () => {
   const editor = currentEditor()
-  return editor ? readWorkspaceRoles((path) => bpFetch(path, {}, editor.token, {retry: false})) : null
+  return editor ? readWorkspaceRoles((path) => bpFetch(path, {}, editor.token)) : null
 })
 /** Once per page load, which is one workspace (a scope switch loads the page again). Null: today's roles. */
 export const workspaceRolesQuery = queryOptions({queryKey: ['workspace-roles'], queryFn: async () => (await fetchWorkspaceRoles()) as string[] | null, staleTime: Infinity, retry: false})
