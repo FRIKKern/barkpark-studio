@@ -20,7 +20,13 @@ const SRC = fileURLToPath(new URL('..', import.meta.url))
 const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? files(join(dir, n)) : /\.tsx?$/.test(n) && !/\.test\.tsx?$/.test(n) ? [join(dir, n)] : []))
 const tree = (): Record<string, string> => Object.fromEntries(files(SRC).map((f) => [relative(SRC, f), readFileSync(f, 'utf8')]))
 /** The code without its comments (a comment may name a writer or an endpoint); `image/*` in a string is no comment. */
-const code = (text: string) => text.replace(/(^|[\s{(;,])\/\*[\s\S]*?\*\//gm, '$1').replace(/^\s*\/\/.*$/gm, '')
+const stripped = new Map<string, string>()
+const code = (text: string) => {
+  // Kept by text: each judge reads every file again, and most are the same.
+  let c = stripped.get(text)
+  if (c === undefined) stripped.set(text, (c = text.replace(/(^|[\s{(;,])\/\*[\s\S]*?\*\//gm, '$1').replace(/^\s*\/\/.*$/gm, '')))
+  return c
+}
 /** The code on one line, as a formatter may lay it out any way: what a surface's `asks` are read against. */
 const flat = (text: string) => code(text).replace(/\s+/g, ' ').replace(/([([{]) /g, '$1').replace(/ ([)\]}])/g, '$1').replace(/,([)\]}])/g, '$1')
 
