@@ -435,11 +435,12 @@ const studio: Target = {
   // The whole seed document, as scripts/seed-barkpark.mjs writes it, replaces the draft
   // and is published: whatever a journey changed (a pasted document, J29) is gone.
   resetDoc: async (id, type) => {
-    // A draft the run left would otherwise survive the replace and be what gets published.
-    // The seed's files come from the worker's cache (seed-asset-cache.ts), looked up meanwhile.
+    // One write: Barkpark's direct publish (`createOrReplace` + `publish: true`) lands the seed on
+    // the published row and deletes a draft the run left (api mutations.ex "Direct publish"),
+    // so no discardDraft first. The seed's files come from the worker's cache (seed-asset-cache.ts).
     const doc = seedDoc(id)
-    const [asset] = await Promise.all([seedRefs([doc], {base: bpBase(), dataset: bpDataset(), token: need('BARKPARK_TOKEN')}), bpMutate([{discardDraft: {id, type}}]).catch(() => {})]) // none: nothing to discard
-    await bpMutate([{createOrReplace: {_id: id, _type: type, ...toBarkpark(doc, asset)}}, {publish: {id, type}}])
+    const asset = await seedRefs([doc], {base: bpBase(), dataset: bpDataset(), token: need('BARKPARK_TOKEN')})
+    await bpMutate([{createOrReplace: {_id: id, _type: type, ...toBarkpark(doc, asset)}, publish: true}])
   },
   publishedTitle: async (id) => {
     const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/post/${id}?perspective=published`, {
