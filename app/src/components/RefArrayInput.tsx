@@ -9,6 +9,7 @@ import {DocPreview} from './Preview'
 import {RefInput, Unavailable} from './RefInput'
 import {RefStrength} from './RefStrength'
 import {SortableRows} from './SortableRows'
+import {maxItems} from '../lib/array-max'
 import {LaunchIcon, SyncIcon} from './icons'
 import {useT} from '../lib/i18n'
 
@@ -42,6 +43,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
       items={items}
       onChange={set}
       options={field.options}
+      max={maxItems(field.validation)}
       readOnly={readOnly}
       keyOf={(it, i) => it._key ?? i}
       blank={() => ({_key: newKey(), _type: 'reference'})}

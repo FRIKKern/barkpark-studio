@@ -5,6 +5,7 @@ import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
 import {refFilterOf} from '../lib/ref-filter'
 import {objectKinds} from '../lib/object-block'
 import {actions} from '../lib/array-options'
+import {MAX_REACHED, maxItems, pasteAllowed} from '../lib/array-max'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
 import {isHidden, isReadOnly} from '../lib/conditions'
@@ -412,6 +413,8 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
     if (!item || isEmpty(item.value)) return toast({title: tBrowser('Nothing to paste')})
     const pasted = transfer(item, field, value)
     if ('why' in pasted) return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: pasted.why})
+    // A paste that would leave an array past its max and longer than it was is refused (lib/array-max.ts).
+    if (!pasteAllowed(field, value, pasted.value)) return toast({tone: 'caution', title: tBrowser(MAX_REACHED)})
     onChange(pasted.value)
   }
   // An array's disableActions (Sanity's): 'copy' takes Copy field, 'add' Paste field, from the menu and the keys alike.
@@ -601,7 +604,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
         return (field.options as {layout?: string} | undefined)?.layout === 'tags' ? (
           <TagsInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
         ) : (
-          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} options={field.options} />
+          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} options={field.options} max={maxItems(field.validation)} />
         )
       if (field.of?.type === 'composite' || field.of?.type === 'image') return <ObjectArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
       return (
