@@ -266,6 +266,27 @@ test("another e2e-* dataset's desk answers by its full path, its links and socke
   assert.deepEqual(seen.upgrades, [`/live/websocket?_live_referer=${encodeURIComponent(up)}&vsn=2.0.0`])
 })
 
+// a11y.spec.ts, vision-saved.spec.ts and footer-hydration.spec.ts open /vision: the desk's Vision
+// is its tool page …/studio/_desk/_tools/vision (FRIKKern/barkpark#27621).
+test('/vision is the desk\'s Vision, both ways: the page, its links, a join, a patch and the socket; /visions is not', async () => {
+  const vision = `${BASE}/_tools/vision`
+  const r = await bytes('/vision')
+  assert.equal(r.status, 200)
+  assert.equal(r.body.toString(), page('/vision'), 'its links read /vision, not /structure/_tools/vision')
+  assert.equal(await get('/vision?perspective=drafts'), 200)
+  assert.equal(await get('/visions'), 200)
+  assert.deepEqual(seen.requests, [vision, `${vision}?perspective=drafts`, '/visions'])
+  const up = `http://127.0.0.1:${desk.address().port}${vision}`
+  const got = await send('2.0.0', ['4', '4', 'lv:phx-1', 'phx_join', {url: at('http://localhost:PORT/vision'), params: {}}])
+  assert.deepEqual(got.map((m) => JSON.parse(m)[4].url), [up], 'the join reached the desk as Vision\'s URL')
+  const patch = await send('2.0.0', ['4', '5', 'lv:phx-1', 'live_patch', {url: at('http://localhost:PORT/vision')}])
+  assert.deepEqual(patch.map((m) => JSON.parse(m)[4].url), [up], 'a patch from Structure to Vision')
+  seen.upgrades.length = 0
+  assert.equal(await upgrade(`/live/websocket?_live_referer=${encodeURIComponent(at('http://localhost:PORT/vision'))}&vsn=2.0.0`), 101)
+  await settle()
+  assert.deepEqual(seen.upgrades, [`/live/websocket?_live_referer=${encodeURIComponent(up)}&vsn=2.0.0`])
+})
+
 // Chrome's throttling (the TanStack side of J51) shares its throughput among every request; so
 // does the proxy's link. Two 40 kB answers at once at 200 kB/s: 0.4 s, not 0.2 s each in parallel.
 test('the slow link is one link: two answers at once take as long as both in a row', async () => {
