@@ -280,6 +280,11 @@ export function withTheirWords(base: unknown[], mine: unknown[], theirs: unknown
       if (at > last && inTheirs.has(keyOf(b)!)) return (last = at), b
       return {...b, _key: fresh()}
     })
+    // A block's style or list place they changed and I did not: theirs (a heading set while I pasted).
+    for (const [i, b] of blocks.entries()) {
+      const [was, m, t] = [baseBy.get(keyOf(b)), ours.find((x) => keyOf(x) === keyOf(b)), their.find((x) => keyOf(x) === keyOf(b))]
+      if (isObj(was) && m && t) for (const f of ['style', 'listItem', 'level']) if (same(m[f], was[f]) && !same(t[f], was[f])) blocks[i] = {...(blocks[i] as Obj), [f]: t[f]}
+    }
     for (const b of blocks) taken.add(keyOf(b)!), own.add(keyOf(b)!)
     out = [...out.slice(0, ms[0]), ...blocks, ...out.slice(ms[1] + 1)]
   }

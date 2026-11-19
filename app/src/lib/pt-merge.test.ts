@@ -203,3 +203,17 @@ test('the net: words a list merge dropped go at the end of their block run, once
   assert.deepEqual(keepWords(doc, mine, theirs, mergeList3(doc, mine, theirs)!), mergeList3(doc, mine, theirs))
   assert.equal(caught.count, was + 1)
 })
+
+test('a heading set on the block while the other pasted into it stays, either order; a link there keeps every word', () => {
+  const doc = [blk('a', ['as', 'Above']), blk('b1', ['b1s', 'Start text']), blk('c', ['cs', 'Below'])]
+  const h2 = [doc[0], {...doc[1]!, style: 'h2'}, doc[2]]
+  const link = [doc[0], {...blk('b1', ['b1s', 'St'], ['L', 'art te', ['l1']], ['b1t', 'xt']), markDefs: [{_key: 'l1', _type: 'link', href: 'https://x.test'}]}, doc[2]]
+  for (const paste of [[doc[0], blk('b1', ['b1s', 'Sta one two rt text']), doc[2]], [doc[0], blk('b1', ['b1s', 'Stax']), blk('y', ['ys', 'y']), blk('z', ['zs', 'zrt text']), doc[2]]]) {
+    for (const out of [mergeList3(doc, paste, h2), mergeList3(doc, h2, paste), freshItems(doc, paste, h2)]) {
+      assert.deepEqual(texts(out), texts(paste))
+      assert.equal((out as {_key: string; style: string}[]).find((b) => b._key === 'b1')!.style, 'h2')
+    }
+    // The link is dropped when the paste saves second (a known gap); no word is.
+    for (const out of [mergeList3(doc, paste, link), mergeList3(doc, link, paste)]) assert.deepEqual(texts(out), texts(paste))
+  }
+})
