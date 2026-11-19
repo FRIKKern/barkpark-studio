@@ -32,6 +32,10 @@ test('e2e-all runs whatever the jobs it needs ended as: if: always()', () => {
 test('e2e-all passes only when every job it needs ended exactly success', () => {
   const [step, ...rest] = gate.steps
   assert.equal(rest.length, 0, 'e2e-all has one step')
+  // Either turns the check green while the verdict fails; a step `if` can skip the verdict.
+  assert.equal(gate['continue-on-error'], undefined, 'e2e-all has no continue-on-error')
+  assert.equal(step['continue-on-error'], undefined, 'the verdict step has no continue-on-error')
+  assert.equal(step.if, undefined, 'the verdict step always runs')
   assert.equal(step.env?.NEEDS, '${{ toJSON(needs) }}', 'the step reads needs as GitHub gives it')
   // gh down: the shard listing is information only, the verdict must not lean on it.
   writeFileSync(join(bin, 'gh'), '#!/bin/sh\nexit 1\n')
