@@ -37,3 +37,39 @@ test('the paste menus read the roles from Barkpark, with the signed-in person’
   // Asked of Barkpark once (a page load's), with this person's token.
   assert.deepEqual(asked, [{path: '/v1/workspace/roles', token: 'person-token'}])
 })
+
+test('a field locked for the person’s own custom role is kept, whichever way the roles read fails', async () => {
+  // The person's role comes from who-am-I (their user), not from the workspace's role list.
+  const reviewer = {...editor, roles: [{name: 'reviewer', title: 'reviewer'}]}
+  const isReviewer = ({currentUser}: {currentUser: {roles: {name: string}[]} | null}) => !!currentUser?.roles.some((r) => r.name === 'reviewer')
+  const answer = (status: number, body: string) => async () => new Response(body, {status, headers: {'content-type': 'application/json'}})
+  const fails: [string, (...a: unknown[]) => Promise<Response>][] = [
+    ['404', answer(404, '{"error":"not_found"}')],
+    ['403 dataset_not_bound', answer(403, '{"error":{"code":"forbidden","reason":"dataset_not_bound"}}')],
+    ['403 not_a_member', answer(403, '{"error":{"code":"not_a_member"}}')],
+    ['429', answer(429, '{"error":"rate_limited"}')],
+    ['500', answer(500, '{"roles":["reviewer"]}')],
+    ['502', answer(502, '')],
+    ['503', answer(503, '{"error":"unavailable"}')],
+    ['roles not a list', answer(200, '{"roles":"reviewer"}')],
+    ['a role not a name', answer(200, '{"roles":["owner",7]}')],
+    ['roles empty', answer(200, '{"roles":[]}')],
+    ['body null', answer(200, 'null')],
+    ['not JSON', answer(200, '<html>')],
+    ['fetch throws', () => {
+      throw new Error('offline')
+    }],
+    ['fetch rejects', () => Promise.reject(new Error('reset'))],
+  ]
+  assert.equal(fails.length, 14)
+  for (const [way, fetch] of fails)
+    for (const [kind, rule] of [['readOnly', {readOnly: isReviewer}], ['hidden', {hidden: isReviewer}]] as const) {
+      ;(globalThis as {pasteReads?: unknown}).pasteReads = {editor: {email: 'r@example.com', token: 'person-token'}, fetch}
+      const qc = new QueryClient()
+      const paste = await pasteDocumentWith(qc, fields, {title: 'B', review: 'pasted'}, {type: 'post', doc, user: reviewer, rules: {'post.review': rule}})
+      assert.deepEqual(paste.writes, [['title', 'B']], `Paste document, ${kind} for reviewers, roles read ${way}`)
+      const box = {name: 'box', type: 'composite', fields} as unknown as Field
+      const out = await pasteFieldWith(qc, box, 'box', {title: 'B', review: 'pasted'}, doc, {type: 'post', doc: {box: doc}, user: reviewer, rules: {'post.box.review': rule}})
+      assert.deepEqual(out, {value: {title: 'B', review: 'kept'}}, `Paste field, ${kind} for reviewers, roles read ${way}`)
+    }
+})
