@@ -114,3 +114,25 @@ jobs:
       - name: Free the dataset
         if: always()
         run: node scripts/ci-lease.mjs release
+  # One check whose name never changes, for the ruleset to require in place of each shard's
+  # name (task-1c5694beb2930596). It passes only when every job it needs ended `success`:
+  # a failed, skipped or cancelled one fails it. A new e2e job goes in `needs`.
+  e2e-all:
+    needs: [studio]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read # to list the shards' own results; the verdict reads only `needs`
+    steps:
+      - name: Every e2e job ended success
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.run_id }}/attempts/${{ github.run_attempt }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/jobs?per_page=100" \
+            --jq '.jobs[] | select(.name | startswith("studio (")) | "\(.name): \(.conclusion // .status)"' \
+            || echo 'could not list the shards (the verdict below does not need them)'
+          echo "$NEEDS" | jq -r 'to_entries[] | "needs.\(.key).result: \(.value.result)"'
+          echo "$NEEDS" | jq -e 'length > 0 and all(.[]; .result == "success")' > /dev/null
