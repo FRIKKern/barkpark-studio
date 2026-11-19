@@ -22,6 +22,7 @@ import {bpFetch, forgetReads, forgetReadsOf, READ_DEDUPE_MS, scope} from './bark
 import type {Scope} from '../lib/scope'
 import {withoutDeleted} from '../lib/replay'
 import {afterAttempt, initialBackoff, type Attempt} from '../lib/listen-backoff'
+import {resumeAt} from '../lib/listen-resume'
 
 type Subscriber = {ids: Set<string>; types: Set<string>; send: (frame: string) => void}
 
@@ -333,7 +334,8 @@ function dispatch(hub: Hub, frame: string) {
       for (const sub of subscribers) sub.send('event: live\ndata: {}\n\n')
     }
   }
-  if (id) hub.lastEventId = id
+  // Not to the welcome's id on a resume: it comes before the replay (lib/listen-resume).
+  hub.lastEventId = resumeAt(hub.lastEventId, event, id)
   if (event !== 'mutation' || data.length === 0) return
   const payload = JSON.parse(data.join('\n')) as {documentId?: string; type?: string; mutation?: string}
   if (!payload.documentId || !id) return

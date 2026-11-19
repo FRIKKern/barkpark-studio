@@ -29,7 +29,7 @@ import {toast} from './Toasts'
 import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
 import {insertItemProps, ptDeprecated} from '../lib/deprecated'
-import {OneLine} from '../lib/pt-one-line'
+import {OneLine, oneLineEditable} from '../lib/pt-one-line'
 import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, settledRemovals, noteKept, keptBase, type KeptFrom, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, dialogFields, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
@@ -327,7 +327,7 @@ function Editor({id, field, value, stored, schemas, onChange, readOnly, openRef,
         <EditObject.Provider value={locked ? null : setObjectEdit}>
           <AnnotationOpeners.Provider value={openers}>
             {!locked && <Toolbar id={id} field={field} stored={stored} schemas={schemas} openRef={openRef} ready={ready} tables={tables} />}
-            <Editable id={id} />
+            <Editable id={id} oneLine={isOneLine(field)} />
             {!locked && <AnnotationPopover field={field} />}
             {!locked && <ImagePaste field={field} />}
           </AnnotationOpeners.Provider>
@@ -386,7 +386,7 @@ const WORD_PAUSE_MS = 500
  * over the text, never in it (task-5318637e9d1cfc7e): as range decorations they split the text
  * a caret sat in, and this editor's own selection there fell to the block's start.
  */
-function Editable({id}: {id: string}) {
+function Editable({id, oneLine}: {id: string; oneLine: boolean}) {
   const docId = useContext(DocIdContext)
   const nameOf = usePersonNamer()
   const here = usePresences()
@@ -424,7 +424,7 @@ function Editable({id}: {id: string}) {
   }, [id, key, value, anyone])
   return (
     <>
-      <Text id={id} />
+      <Text id={id} oneLine={oneLine} />
       <div ref={layer} className="pt-remote-layer" aria-hidden>
         {marks.map((m) => (
           <Fragment key={m.id}>
@@ -482,11 +482,11 @@ function caretMarks(text: HTMLElement, carets: ReturnType<typeof remoteCarets<{s
   return [...out.values()]
 }
 
-const Text = memo(function Text({id}: {id: string}) {
+const Text = memo(function Text({id, oneLine}: {id: string; oneLine: boolean}) {
   const t = useT()
   // Empty: Sanity's grey "Empty" on the first line (task-fdcba3b9c695bf15).
   const placeholder = useCallback(() => <span className="pt-placeholder">{t('Empty')}</span>, [t])
-  return <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} renderPlaceholder={placeholder} />
+  return <PortableTextEditable id={id} className="pt-editable" aria-labelledby={`${id}-label`} renderPlaceholder={placeholder} {...oneLineEditable(oneLine)} />
 })
 
 /** Saves an edit as the merged value; nothing at all when the merge equals what is stored. */

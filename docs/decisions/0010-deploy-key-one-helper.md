@@ -27,8 +27,8 @@ step env DEPLOY_KEY ─► scripts/lib/deploy-push.sh: taken, unset ─► every
   jobs are pinned, with the helper among their files, so one changed byte in it reds both pins; every
   action in a pinned job is named by a full commit SHA.
 - `scripts/lib/deploy-push.test.mjs` holds the guarantees, once. Each script's own test shows it touches
-  the key nowhere but `deploy_push`, and its runs, with every external command shimmed
-  (`scripts/lib/key-shims.mjs`), show no child process with the key in its env.
+  the key nowhere but `deploy_push`, and its runs, each with every external command shimmed and its own
+  key-leak log (`scripts/lib/key-shims.mjs`), show no child process with the key in its env.
 
 ## Considered
 

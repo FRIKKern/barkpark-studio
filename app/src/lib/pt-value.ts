@@ -814,7 +814,6 @@ export function objectTitle(field: Pick<Field, 'blocks'>, kind: PtKind, name: st
   return named || startCase(name)
 }
 
-/** What Insert offers: the declared custom block and inline object types. An image or file block needs its own input: not yet. */
 /**
  * Sanity's `options.oneLine` (on its block type; on the field here, where Barkpark keeps a field's
  * options as written): the text stays one block, as a heading or a caption does
@@ -822,6 +821,7 @@ export function objectTitle(field: Pick<Field, 'blocks'>, kind: PtKind, name: st
  */
 export const isOneLine = (field: Pick<Field, 'options'>) => !Array.isArray(field.options) && Boolean(field.options?.oneLine)
 
+/** What Insert offers: the declared custom block and inline object types. A file block needs its own input: not yet. */
 export function insertable(field: Pick<Field, 'blocks' | 'options'>, tables = false): {blocks: Named[]; inline: Named[]} {
   const d = declaredVocabulary(field)
   // One line takes no block: Sanity's toolbar offers them and its one-line plugin drops each insert; none is offered here.

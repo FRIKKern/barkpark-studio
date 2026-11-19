@@ -6,13 +6,13 @@
 # main moved meanwhile is made again on the new main at once, at most 3 times; the work tree is never touched.
 # docs/decisions/0003-tracking-and-hygiene.md
 set -euo pipefail
-svg="$RUNNER_TEMP/roadmap/roadmap.svg"
 path=docs/images/roadmap.svg
 # fail, and deploy_push: the one place the deploy key is handled (a file only while the push runs, after
 # every check on the picture).
 # shellcheck source=scripts/lib/deploy-push.sh
 # (Its path by parameter expansion, a builtin: nothing forks while DEPLOY_KEY is still in the env.)
 . "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"
+svg="$RUNNER_TEMP/roadmap/roadmap.svg"
 
 # The picture: a plain file (no link), under 1 MB, that scripts/lib/svg-check.py passes (an SVG that holds
 # nothing that runs or loads; Python's standard library only, isolated from the env).

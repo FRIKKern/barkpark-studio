@@ -1,12 +1,24 @@
 import {createElement, Fragment} from 'react'
-import {defineBehavior} from '@portabletext/editor/behaviors'
+import {defineBehavior, raise} from '@portabletext/editor/behaviors'
 import {BehaviorPlugin} from '@portabletext/editor/plugins'
 import {OneLinePlugin} from '@portabletext/plugin-one-line'
 import type {Field} from './data'
 import {isOneLine} from './pt-value.ts'
 
-// Shift+Enter breaks no line either, as Sanity's (core/form/inputs/PortableText/object/Plugins.tsx).
-const noSoftBreak = [defineBehavior({on: 'insert.soft break', actions: []})]
+const LINE_BREAKS = /(?:\r\n|\r|\n)+/g
+
+const behaviors = [
+  // Shift+Enter breaks no line either, as Sanity's (core/form/inputs/PortableText/object/Plugins.tsx).
+  defineBehavior({on: 'insert.soft break', actions: []}),
+  // Text put in with a line break in it (dictation, a text service, an autocorrect replacement: the
+  // browser's insertText or insertReplacementText) would hold the break inside the span. Each run of
+  // breaks becomes one space, in the same span.
+  defineBehavior({
+    on: 'insert.text',
+    guard: ({event}) => /[\r\n]/.test(event.text),
+    actions: [({event}) => [raise({type: 'insert.text', text: event.text.replace(LINE_BREAKS, ' ')})]],
+  }),
+]
 
 /**
  * A Portable Text field with `options.oneLine`, as Sanity's: its OneLinePlugin, the version
@@ -17,5 +29,8 @@ const noSoftBreak = [defineBehavior({on: 'insert.soft break', actions: []})]
  * the first claims an `insert.*` event. Plain createElement, so the unit tests run it in Node.
  */
 export function OneLine({field}: {field: Pick<Field, 'options'>}) {
-  return isOneLine(field) ? createElement(Fragment, null, createElement(OneLinePlugin), createElement(BehaviorPlugin, {behaviors: noSoftBreak})) : null
+  return isOneLine(field) ? createElement(Fragment, null, createElement(OneLinePlugin), createElement(BehaviorPlugin, {behaviors})) : null
 }
+
+/** The editable's own props, one line (isOneLine) or not: a screen reader hears a one-line text box. */
+export const oneLineEditable = (oneLine: boolean): {'aria-multiline'?: false} => (oneLine ? {'aria-multiline': false} : {})
