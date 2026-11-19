@@ -171,7 +171,7 @@ const count = (text: string, re: RegExp) => text.match(new RegExp(re.source, 'g'
 test('server/auth.ts notes refusals and signs out through the helpers above', () => {
   const auth = code('../server/auth.ts')
   assert.equal(count(auth, /\.note\(/), 0, 'no refusal noted beside heardRefused')
-  assert.equal(count(auth, /heardRefused\(refused, res\?\.status, token, workspace\)/), 1, "describeToken's answer goes through heardRefused")
+  assert.equal(count(auth, /heardRefused\(refused, status, token, workspace\)/), 1, "describeToken's answer goes through heardRefused")
   assert.match(auth, /export async function signOut\(\) \{\s*if \(!firstSignOut\(thisRequest\(\)\)\) return\n/, 'signOut asks first, before anything else')
   assert.match(auth, /const firstSignOut = oncePerRequest<Request>\(\)/)
 })

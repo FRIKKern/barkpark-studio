@@ -1,7 +1,7 @@
 import type {QueryClient} from '@tanstack/react-query'
 import type {ChannelInstance} from '@sanity/comlink'
 import type {VisualEditingControllerMsg, VisualEditingNodeMsg} from '@sanity/presentation-comlink'
-import {currentUserOf, pathReadOnly} from './conditions'
+import {pathReadOnly} from './conditions'
 import {anyDocQuery, deskQuery, docQuery, previewTitle, schemaOf, schemasQuery, type Doc} from './data'
 import type {DeskNode} from './desk'
 import {edit, saveStateOf} from './edits'
@@ -12,6 +12,7 @@ import {applyArrayOp, arrayField, fits, holds, MUTATES_A_MINUTE, pageEdit, putBa
 import {previewSchema, unionTypes} from './presentation-schema'
 import {scheduleQuery} from './schedules'
 import {meQuery} from './session'
+import {personOf} from './person-source'
 import studio from '../studio.config'
 import {iconBody} from '../components/DeskIcon'
 import {toast} from '../components/Toasts'
@@ -210,7 +211,7 @@ export function overlayEditing({visual, qc, perspective, pageDocs, read, panelDo
     const field = arrayField(schema, path, doc)
     if (!field) return notSaved('not an array of this document type a page may change'), false
     // No pane may show this doc, so the save's own field check (lib/doc-lock.ts) may not judge it: the one rule is asked here.
-    const person = currentUserOf(qc.getQueryData(meQuery.queryKey) ?? undefined)
+    const person = personOf()
     if (!schema || pathReadOnly(type, schema.fields, doc, person, studio.form?.conditions, path)) return notSaved('the field is read-only for this person'), false
     const result = applyArrayOp(getPath(doc, path), op, field)
     if ('refused' in result) return notSaved(result.refused), false

@@ -4,12 +4,15 @@ import {setupRouterSsrQueryIntegration} from '@tanstack/react-router-ssr-query'
 import {routeTree} from './routeTree.gen'
 import {StudioError} from './components/PaneError'
 import {parseScope, scopedPath, type Scope} from './lib/scope'
+import {holdAppClient} from './lib/person-source'
 
 /** B02: the workspace / project / dataset this page is in (undefined: the studio's default). */
 export type ScopeRef = {current?: Scope}
 
 export function getRouter() {
   const queryClient = new QueryClient({defaultOptions: {queries: {refetchOnWindowFocus: false}}})
+  // The person outside a component (personOf) is read from this client only.
+  holdAppClient(queryClient)
   // B02: a URL may name its scope in front of the studio path (/w/<ws>/p/<project>/d/<dataset>/…,
   // lib/scope.ts). The router reads the studio path behind it and writes it back in front of
   // every URL it builds, so routes and links stay as they are. One router per page (and per

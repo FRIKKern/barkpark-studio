@@ -27,7 +27,9 @@ import {serverNowQuery} from '../lib/now'
 import {LocaleProvider, localeQuery} from '../lib/i18n'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {withinBudget} from '../lib/ssr-budget'
-import {meQuery} from '../lib/session'
+import {madeBySession, meQuery} from '../lib/session'
+import {asksAgain} from '../lib/me-query'
+import studio from '../studio.config'
 import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url'
 
 export const Route = createRootRouteWithContext<{queryClient: QueryClient; scope: ScopeRef}>()({
@@ -94,7 +96,9 @@ function RootDocument({children}: {children: ReactNode}) {
   const qc = useQueryClient()
   useEffect(() => {
     if (localeData.provisional) void qc.invalidateQueries({queryKey: localeQuery.queryKey})
-    if (qc.getQueryData<{provisional?: boolean}>(meQuery.queryKey)?.provisional) void qc.invalidateQueries({queryKey: meQuery.queryKey})
+    // Or a role rule waits on the person, and the answer came with the server render, not from this
+    // browser's own ask (lib/me-query.ts): one ask, right away. With no role rule, nothing more.
+    if (asksAgain(qc.getQueryData(meQuery.queryKey), madeBySession, studio.form?.conditions)) void qc.invalidateQueries({queryKey: meQuery.queryKey})
   }, [])
   return (
     // data-theme is set by THEME_BOOT before hydration; React must not fight it.

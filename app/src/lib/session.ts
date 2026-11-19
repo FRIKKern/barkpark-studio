@@ -1,14 +1,13 @@
 import {queryOptions, useQuery} from '@tanstack/react-query'
+import {meQueryOf} from './me-query'
 import {createServerFn} from '@tanstack/react-start'
 import {accountRequestReset, accountSignIn, cloudSignIn, currentEditor, describeToken, displayName, editorKey, knownTokenSelf, presenceName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {bpFetch, requestToken} from '../server/barkpark'
 import {stubPerson} from '../server/access-stub'
 import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
-import {serviceAccess} from './token-self'
+import {meOf, sessionEnded} from './me-of'
 import {headStartAllowed} from './gate-head-start'
-import {currentUserOf} from './conditions'
-import {useMemo} from 'react'
 
 // Who is editing (server/auth.ts). Server functions: the session cookie is
 // httpOnly and the token never leaves the server.
@@ -23,36 +22,17 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
   const self = signInRequired() && !editor ? undefined : await describeToken(editor?.token ?? requestToken())
   // The signed-in editor's own token is dead (revoked or expired, 401): their session
   // ends here, and signing in again mints a new one (J48), not a refused-studio card.
-  const ended = !!editor && !!self?.refused
+  const ended = sessionEnded(editor, self)
   if (ended) void signOut()
-  const mode = signInMode()
-  const me = {
-    /** How editors sign in: their Barkpark account, dev (an email), or nobody (shared). */
-    signIn: mode,
-    devLogin: mode === 'dev',
-    /** Sign in with Barkpark Cloud is offered (BARKPARK_CLOUD_URL and BARKPARK_CLOUD_INSTANCE). */
+  const me = meOf({
+    mode: signInMode(),
     cloud: !!cloudSignIn(),
-    email: ended ? null : editor?.email ?? null,
-    /** task-701f8a5fdb6b4d52, the user menu as Sanity's: their name (Barkpark display name) and role here. */
+    editor,
+    self,
     name: ended || !named ? null : await Promise.race([named, new Promise<null>((r) => setTimeout(r, 400, null))]),
-    role: ended || !editor ? null : self?.role ?? null,
-    /** Help > Diagnostics: the Barkpark user behind a login session. */
-    userId: ended || !editor ? null : self?.userId ?? null,
-    /** J07: the name this editor's presence goes by, so their own tabs can be left out (Sanity's). Shared sign-in: none. */
-    presenceName: ended || !editor ? null : presenceName(editor.email),
-    /** The editor in browser storage keys: a digest, never the email. */
-    editorKey: ended || !editor ? null : editorKey(editor.email),
-    canWrite: self && !ended ? self.permissions.includes('write') : true,
-    canPublish: self && !ended ? self.canPublish !== false : true,
-    /** A token held to one dataset (Barkpark #22393): the only one it can open. */
-    boundDataset: self?.boundDataset ?? null,
-    /** The studio's own token is refused (revoked, or out of the workspace): nothing will load. */
-    studioTokenRefused: !editor && !!self?.refused,
-    /** Signed in, but with no seat in this workspace (or it doesn't exist): Sanity's no-access screen. */
-    noSeat: !!editor && !ended && !!self && serviceAccess(self) === 'no_seat',
-    /** Barkpark's answer (false), or provisionalMe's stand-in while it is late (true). */
-    provisional: false as boolean,
-  }
+    presenceName: editor ? presenceName(editor.email) : null,
+    editorKey: editor ? editorKey(editor.email) : null,
+  })
   // e2e only (server/access-stub.ts): a signed-in person with no seat here, until one is given.
   const stand = stubPerson()
   return stand && !stand.seated ? {...me, email: stand.email, noSeat: true} : me
@@ -86,6 +66,7 @@ export const provisionalMe = createServerFn({method: 'GET'}).handler(async () =>
     studioTokenRefused: false,
     noSeat: false,
     provisional: true as boolean,
+    unchecked: false,
   }
 })
 
@@ -127,9 +108,11 @@ export const requestPasswordReset = createServerFn({method: 'POST'})
 
 export const endSession = createServerFn({method: 'POST'}).handler(async () => (await signOut(), {ok: true}))
 
-// Re-asked when the window regains focus (J48): a session lost to a studio restart or
-// an expired cookie shows up before the next edit, not only after it.
-export const meQuery = queryOptions({queryKey: ['me'], queryFn: () => whoAmI(), staleTime: 30_000, refetchOnWindowFocus: true})
+// who-am-I's query (lib/me-query.ts), and which answer the session made: only the one whoAmI's
+// latest completed ask returned in the browser. lib/person-source.ts believes no other.
+const asked = meQueryOf(() => whoAmI())
+export const meQuery = asked.query
+export const madeBySession = asked.isMade
 
 /**
  * J49: can this editor change things, and if not, the reason to show on what is
@@ -173,8 +156,3 @@ export function useBoundElsewhere(): {bound: string; here: {workspace: string; p
 /** The studio's own Barkpark token is refused: the reason every read and save fails. */
 export const useStudioTokenRefused = () => !!useQuery(meQuery).data?.studioTokenRefused
 
-/** Sanity's useCurrentUser: the signed-in editor with their role under Sanity's name (lib/conditions.ts), or null. */
-export function useCurrentUser() {
-  const me = useQuery(meQuery).data
-  return useMemo(() => currentUserOf(me), [me])
-}

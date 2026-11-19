@@ -18,13 +18,15 @@ import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withPara
 import {choiceById} from '../lib/templates'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
-import {fieldState, groupShows} from '../lib/conditions'
+import {fieldState, groupShows, keptEditsWait, roleRuled} from '../lib/conditions'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
 import {copyRank} from './OrderableRows'
 import {copyFields} from '../lib/bulk'
-import {meQuery, useBoundElsewhere, useCanWrite, useCurrentUser, useStudioTokenRefused} from '../lib/session'
+import {PersonCheckBanner} from './PersonCheckBanner'
+import {meQuery, useBoundElsewhere, useCanWrite, useStudioTokenRefused} from '../lib/session'
+import {useCurrentUser} from '../lib/person-source'
 import {currentScopeQuery} from '../lib/scope-switch'
 import {editorMode, viewOf, viewParam, type View} from '../lib/editor-mode'
 import {InPresentationContext, PaneLink, usePaneNavigate, useStructureNavigate} from './PaneLink'
@@ -354,23 +356,24 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
   // Published and a revision are read in Classic: the canvas holds the draft. Locked, or a field
   // of it read-only for this person, it is read-only; a field of it hidden from them, not drawn.
-  const canvasMode = freeformCanvas(lockState, {schema, doc, user, rules: studio.form?.conditions})
+  const canvasMode = freeformCanvas(lockState, user, {schema, doc, rules: studio.form?.conditions})
   // The same lock where edits are written (lib/doc-lock.ts): edit() and the canvas's batches,
-  // field by field as the form judges them (the one rule), on the doc and person at the write.
+  // field by field as the form judges them (the one rule), on the doc at the write, for this person.
   const lockHolder = useRef({}).current
-  const judged = useRef({schema, doc, user, rules: studio.form?.conditions, canvas: canvasMode})
-  judged.current = {schema, doc, user, rules: studio.form?.conditions, canvas: canvasMode}
+  const judged = useRef({schema, doc, rules: studio.form?.conditions, canvas: canvasMode})
+  judged.current = {schema, doc, rules: studio.form?.conditions, canvas: canvasMode}
   const fieldLock = useMemo(
     () =>
       paneFieldLock(
         () => judged.current,
+        user,
         (path) => {
           const names = segments(path).flatMap((x) => ('name' in x ? [x.name] : [])).join('.')
           const field = fieldTitle(judged.current.schema?.fields ?? [], names) ?? path
           toast({key: `read-only-${pane.id}-${path}`, tone: 'caution', title: tt('“{field}” is read-only for you: the change was not saved.', {field})})
         },
       ),
-    [pane.id],
+    [pane.id, user],
   )
   useLayoutEffect(() => showDoc(pane.id, lockHolder, locked, fieldLock), [pane.id, locked, fieldLock])
   // Kept edits to fields read-only for this person now: not put back, named, and still kept in this browser.
@@ -447,11 +450,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // scheduled draft (once its schedule is known), a deleted doc or a seat that can't write.
   // While locked they stay kept, and are offered again once it is editable (Pause to edit).
   const editable = !!draftQ.data && !locked && schedule !== undefined
+  // Only a type with a role rule waits on the person: elsewhere who it is decides nothing.
+  const keptWait = !!schema && roleRuled(schema.name, studio.form?.conditions) && keptEditsWait(user)
   useEffect(() => {
     setRecovered(null)
     // Judged against the schema as it is now (a field it dropped or retyped is not sent).
     // And once the person is known: a field a rule may lock for them refuses its kept edits until then.
-    if (!keepScope || !editable || !draftQ.data || !schema || user === undefined) return
+    if (!keepScope || !editable || !draftQ.data || !schema || keptWait) return
     let live = true
     void recoverPending(qc, draftQ.data, schema).then((r) => {
       if (!live || !r) return
@@ -461,7 +466,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       notPutBack(r.refused, date, r.put > 0)
     })
     return () => void (live = false)
-  }, [keepScope, pane.id, editable, !!schema, user === undefined])
+  }, [keepScope, pane.id, editable, !!schema, keptWait])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   // Sanity's Inspect is in the URL (`inspect=on`): Back closes and reopens it, a link or a
   // reload opens it, and it takes the inspector's place (History closes), as there.
@@ -823,6 +828,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <SignInAgain />
           </div>
         )}
+        {doc && <PersonCheckBanner docId={pane.id} ruled={roleRuled(doc._type, studio.form?.conditions)} dateOf={(at) => longDate(new Date(at).toISOString(), locale)} />}
         {recovered && doc && (
           <div className="pane-banner" role="alert" data-testid="kept-edits">
             <span>

@@ -1,0 +1,64 @@
+import {useEffect, useState} from 'react'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {keepKeyOf} from '../lib/edits'
+import {useT} from '../lib/i18n'
+import {combine, docKeyOfEntry, readDocPending} from '../lib/pending-edits'
+import {bannerShows, personCheck, SLOW_CHECK_MS} from '../lib/person-check'
+import {madeBySession, meQuery} from '../lib/session'
+import {useHydrated} from '../lib/use-hydrated'
+
+/**
+ * task-4ffed14fbf52dc47: the studio could not learn who the person is (whoAmI failed, Barkpark
+ * did not answer it, or not in time). Fields a role rule may lock stay locked and kept edits
+ * wait meanwhile (DocumentPane): said here, with the kept edits named, and a retry. A retry
+ * that answers unlocks what the person may edit, and DocumentPane puts the kept edits back.
+ * Only where something is closed meanwhile: `ruled` (the doc's type has a role rule) or kept edits.
+ */
+export function PersonCheckBanner({docId, ruled, dateOf}: {docId: string; ruled: boolean; dateOf: (at: number) => string}) {
+  const t = useT()
+  const qc = useQueryClient()
+  const me = useQuery(meQuery)
+  // Drawn as the server drew it until the page has hydrated: unknown, and nothing said yet.
+  const hydrated = useHydrated()
+  const unknown = !hydrated || !me.data || !!me.data.provisional || !!me.data.unchecked || !madeBySession(me.data)
+  // Since when the person has been unknown (again from a retry), to say when it is late.
+  const [since, setSince] = useState(() => Date.now())
+  const [, wake] = useState(0)
+  useEffect(() => {
+    if (!unknown) return
+    const left = since + SLOW_CHECK_MS - Date.now()
+    const timer = left > 0 ? setTimeout(() => wake((n) => n + 1), left) : undefined
+    return () => clearTimeout(timer)
+  }, [unknown, since])
+  const check = personCheck({data: me.data, made: madeBySession(me.data), isError: me.isError, isFetching: me.isFetching, waitedMs: Date.now() - since})
+  // Said once the check failed, and through a retry until it answers (no flicker while it asks).
+  const [retried, setRetried] = useState(false)
+  useEffect(() => void (!unknown && setRetried(false)), [unknown])
+  const failed = hydrated && (check === 'failed' || (retried && unknown))
+  // Kept edits from an earlier page for this doc: named, so they are not left unsaid while they wait.
+  const [keptAt, setKeptAt] = useState<number | null>(null)
+  const own = keepKeyOf(docId)
+  useEffect(() => {
+    setKeptAt(null)
+    const doc = own && docKeyOfEntry(own)
+    if (!failed || !doc) return
+    let live = true
+    void readDocPending(doc).then((all) => live && setKeptAt(combine(all.filter(([k]) => k !== own).map(([, p]) => p))?.at ?? null))
+    return () => void (live = false)
+  }, [failed, own])
+  // Kept edits wait only on a type with a role rule (DocumentPane).
+  if (!bannerShows({failed, ruled, kept: ruled && keptAt !== null})) return null
+  return (
+    <div className="pane-banner" role="alert" data-testid="person-check">
+      <span>
+        {ruled ? t('Could not check who you are, so fields that depend on your role stay locked.') : t('Could not check who you are.')}
+        {keptAt !== null && ` ${t('Unsaved changes from {date} are kept in this browser and put back once that is known.', {date: dateOf(keptAt)})}`}
+      </span>
+      <span className="pane-banner-actions">
+        <button type="button" className="btn-text" disabled={me.isFetching} onClick={() => (setSince(Date.now()), setRetried(true), void qc.refetchQueries({queryKey: meQuery.queryKey}))}>
+          {t('Retry')}
+        </button>
+      </span>
+    </div>
+  )
+}
