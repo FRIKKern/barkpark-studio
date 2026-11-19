@@ -19,7 +19,8 @@
 // The limit: an allowed file can still hand a writer on without exporting it (put into an object
 // another module holds), or hang it on an export through a binding this scan does not follow: a
 // `this` inside the export, a function's parameter, a let assigned after its declaration, a comma,
-// a ternary or an array pattern; a setter reached through .call, an alias of Object itself, a
+// a ternary or an array pattern; a setter reached through .call or .bind, an alias of Object
+// itself or of a pulled-out setter, a cast, parens or `!` around Object or a pulled-out setter, a
 // computed name, globalThis, Object(x), spread arguments or Reflect.apply (each a known-limit case
 // below, green until it is caught).
 import assert from 'node:assert/strict'
@@ -507,6 +508,14 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
     'Object.assign.call(Object, runBulkRow, {raw: mutate})',
     'const O = Object\nO.assign(runBulkRow, {raw: mutate})',
     'const {assign} = globalThis.Object\nassign(runBulkRow, {raw: mutate})',
+    // .bind (H3); a cast around Object (H6); an alias of a pulled-out setter (H7); a cast, parens
+    // or `!` around a pulled-out setter (H4, H8, H12).
+    'Object.assign.bind(Object)(runBulkRow, {raw: mutate})',
+    'const {assign} = Object as any\nassign(runBulkRow, {raw: mutate})',
+    'const assign = Object.assign\nconst a2 = assign\na2(runBulkRow, {raw: mutate})',
+    'const assign = Object.assign as any\nassign(runBulkRow, {raw: mutate})',
+    'const assign = (Object.assign)\nassign(runBulkRow, {raw: mutate})',
+    'const assign = Object.assign!\nassign(runBulkRow, {raw: mutate})',
   ])
     assert.deepEqual(judge(plant(src, 'lib/bulk-run.ts', `${src['lib/bulk-run.ts']}\n${added}\n`)), [], `a known limit is caught now: ${added}`)
   // In paste-reads.ts too; and `namespace A.B` is A.
