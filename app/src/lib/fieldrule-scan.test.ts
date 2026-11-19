@@ -10,12 +10,17 @@
 //   which reads them from Barkpark: no menu hands a paste roles of its own;
 // - paste-reads.ts, and each ALLOWED file that defines no writer (or defines one and imports
 //   another file's), exports only the values listed here, whatever the form of any other export.
-//   A value hung onto a listed export fails too: a namespace merged with it, or an assignment
-//   or a setter (Object.assign, defineProperty, setPrototypeOf, Reflect.set) on the export, a
-//   property of it, or a `const` alias of it.
+//   A value hung onto a listed export fails too: a namespace merged with it (a type-only one
+//   too), or an assignment or a setter (Object.assign, defineProperty, setPrototypeOf,
+//   Reflect.set, also destructured from Object or Reflect) on the export, a property of it, or a
+//   `const` alias of either, `?.` included. It goes by name, not scope: a local or a parameter
+//   that shadows an export's name, and `X.displayName =` on an export, are refused too (it fails
+//   closed).
 // The limit: an allowed file can still hand a writer on without exporting it (put into an object
-// another module holds), or hang it on an export through a binding this scan does not follow (a
-// `this` inside the export, an alias made in a function or reached through another object).
+// another module holds), or hang it on an export through a binding this scan does not follow: a
+// `this` inside the export, a function's parameter, an alias made with let, a comma, a ternary or
+// an array pattern; a setter reached by a computed name, globalThis, Object(x), spread arguments
+// or Reflect.apply (each a known-limit case below, green until it is caught).
 import assert from 'node:assert/strict'
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import {dirname, join, normalize, relative} from 'node:path'
@@ -190,7 +195,7 @@ function walk(n: unknown, see: (n: {type: string; [k: string]: any}, parent: {ty
 }
 /** The binding a write lands on: `a` for `a`, `a.b`, `a.b.c`, `a['b']` (through brackets, `!` and `as`). */
 const rootOf = (n: {type: string; [k: string]: any} | null | undefined): string | undefined =>
-  !n ? undefined : n.type === 'Identifier' ? n.name : n.type === 'MemberExpression' ? rootOf(n.object) : /^(ParenthesizedExpression|TSNonNullExpression|TSAsExpression|TSSatisfiesExpression|TSTypeAssertion)$/.test(n.type) ? rootOf(n.expression) : undefined
+  !n ? undefined : n.type === 'Identifier' ? n.name : n.type === 'MemberExpression' ? rootOf(n.object) : /^(ChainExpression|ParenthesizedExpression|TSNonNullExpression|TSAsExpression|TSSatisfiesExpression|TSTypeAssertion)$/.test(n.type) ? rootOf(n.expression) : undefined
 /** The places an assignment's left side writes (a pattern's every target). */
 const targets = (p: {type: string; [k: string]: any} | null | undefined): {type: string; [k: string]: any}[] =>
   !p ? [] : p.type === 'ObjectPattern' ? p.properties.flatMap((x: any) => targets(x.type === 'RestElement' ? x.argument : x.value)) : p.type === 'ArrayPattern' ? p.elements.flatMap(targets) : p.type === 'RestElement' ? targets(p.argument) : p.type === 'AssignmentPattern' ? targets(p.left) : [p]
@@ -231,16 +236,24 @@ function hungProblems(file: string, text: string): string[] {
     for (let more = true; more; ) {
       more = false
       walk(program, (n) => {
-        if (n.type === 'VariableDeclarator' && n.id.type === 'Identifier' && !aliases.has(n.id.name) && aliases.has(rootOf(n.init) ?? '') && n.init.type !== 'MemberExpression') (aliases.add(n.id.name), (more = true))
+        // The export, or a property of it (`const p = X.prototype`), under another name.
+        if (n.type === 'VariableDeclarator' && n.id.type === 'Identifier' && !aliases.has(n.id.name) && aliases.has(rootOf(n.init) ?? '')) (aliases.add(n.id.name), (more = true))
       })
     }
     for (const ns of namespaces) {
       const name = rootName(ns.id)
       if (exported.has(name) && declared.get(name)! > 1) problems.push(`${file} merges a namespace into its export ${name} (line ${line(ns)}): a value hung onto an export is not on its list`)
     }
+    // A setter taken out of Object or Reflect under a name (`const {assign} = Object`) is that setter.
+    const setters = new Set<string>()
     walk(program, (n) => {
+      if (n.type === 'VariableDeclarator' && n.id.type === 'ObjectPattern' && n.init?.type === 'Identifier' && /^(Object|Reflect)$/.test(n.init.name))
+        for (const p of n.id.properties) if (p.type === 'Property' && SETTERS.test(`${n.init.name}.${p.key.name ?? p.key.value}`)) setters.add(bound(p.value)[0]!)
+    })
+    walk(program, (n) => {
+      const setter = n.type === 'CallExpression' && ((n.callee.type === 'MemberExpression' && SETTERS.test(`${n.callee.object.name}.${n.callee.property.name}`)) || (n.callee.type === 'Identifier' && setters.has(n.callee.name)))
       const hits =
-        n.type === 'AssignmentExpression' ? targets(n.left) : (n.type === 'ForInStatement' || n.type === 'ForOfStatement') && n.left.type !== 'VariableDeclaration' ? targets(n.left) : n.type === 'CallExpression' && n.callee.type === 'MemberExpression' && SETTERS.test(`${n.callee.object.name}.${n.callee.property.name}`) ? [n.arguments[0]] : []
+        n.type === 'AssignmentExpression' ? targets(n.left) : (n.type === 'ForInStatement' || n.type === 'ForOfStatement') && n.left.type !== 'VariableDeclaration' ? targets(n.left) : setter ? [n.arguments[0]] : []
       for (const t of hits) {
         const root = rootOf(t)
         if (root && aliases.has(root)) problems.push(`${file} sets ${text.slice(t.start, t.end)} (line ${line(n)}): a value hung onto its export ${root} is not on its list`)
@@ -355,7 +368,17 @@ test('every surface that shows or edits a field asks the one rule; the writers b
   assert.match(src['lib/conditions.ts']!, /const readOnly = fieldState\(type, f, doc, currentUser, rules, at\)\.readOnly/)
 })
 
-const fails = (src: Record<string, string>, file: string, text: string, why: RegExp) => assert.match(judge({...src, [file]: text}).join('\n'), why, file)
+/** `src` with `file` made `text`: a plant. It prints the line it changed; a plant that changes nothing fails. */
+function plant(src: Record<string, string>, file: string, text: string) {
+  const was = src[file] ?? ''
+  assert.notEqual(text, was, `${file}: the plant changes nothing`)
+  const [a, b] = [was.split('\n'), text.split('\n')]
+  let i = 0
+  while (i < b.length && a[i] === b[i]) i++
+  console.log(`plant ${file}:${i + 1}: ${b[i] ?? '(lines removed)'}`)
+  return {...src, [file]: text}
+}
+const fails = (src: Record<string, string>, file: string, text: string, why: RegExp) => assert.match(judge(plant(src, file, text)).join('\n'), why, file)
 
 test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dynamic import, a direct mutate, an alias, a re-export, a copy of the rule', () => {
   const src = tree()
@@ -452,6 +475,29 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
     ["Reflect.set(runBulkRow, 'raw', mutate)", /sets runBulkRow \(line/],
   ]
   for (const [added, why] of hangs) fails(src, 'lib/bulk-run.ts', `${src['lib/bulk-run.ts']}\n${added}\n`, why)
+  // Through `?.`, a setter destructured from Object or Reflect, an alias of a property of the export.
+  for (const [added, why] of [
+    ['Object.assign((runBulkRow as any)?.prototype, {raw: mutate})', /sets \(runBulkRow as any\)\?\.prototype \(line \d+\): a value hung onto its export runBulkRow/],
+    ["Object.defineProperty(runBulkRow?.prototype, 'raw', {value: mutate})", /sets runBulkRow\?\.prototype \(line \d+\)/],
+    ['const {assign} = Object\nassign(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\): a value hung onto its export runBulkRow/],
+    ['const {set: put} = Reflect\nput(runBulkRow, "raw", mutate)', /sets runBulkRow \(line \d+\)/],
+    ['const p = (runBulkRow as any).prototype\np.raw = mutate', /sets p\.raw \(line \d+\): a value hung onto its export p/],
+  ] as const)
+    fails(src, 'lib/bulk-run.ts', `${src['lib/bulk-run.ts']}\n${added}\n`, why)
+  // Known limits: disguises this scan does not follow. Each stays green here; one that turns red is caught
+  // now: move it up and take it off the header's limit.
+  for (const added of [
+    'let r: any\nr = runBulkRow\nr.raw = mutate',
+    ';((0, runBulkRow) as any).raw = mutate',
+    'Object.assign(...([runBulkRow, {raw: mutate}] as [object, object]))',
+    "Object['assign'](runBulkRow, {raw: mutate})",
+    'globalThis.Object.assign(runBulkRow, {raw: mutate})',
+    'const [r] = [runBulkRow]\n;(r as any).raw = mutate',
+    'Object.assign(Object(runBulkRow), {raw: mutate})',
+    'Reflect.apply(Object.assign, null, [runBulkRow, {raw: mutate}])',
+    'const r: any = Math.random() > 2 ? runBulkRow : null\nr.raw = mutate',
+  ])
+    assert.deepEqual(judge(plant(src, 'lib/bulk-run.ts', `${src['lib/bulk-run.ts']}\n${added}\n`)), [], `a known limit is caught now: ${added}`)
   // In paste-reads.ts too; and `namespace A.B` is A.
   fails(src, PASTE_READS, `${src[PASTE_READS]}\nObject.assign(pasteFieldWith, {raw: pasteFieldReading})\n`, /lib\/paste-reads\.ts sets pasteFieldWith/)
   fails(src, PASTE_READS, `${src[PASTE_READS]}\nexport namespace N.M {\n  export const raw = pasteDocumentReading\n}\n`, /lib\/paste-reads\.ts exports N, which is not on its list/)
