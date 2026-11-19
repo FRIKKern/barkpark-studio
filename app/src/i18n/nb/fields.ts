@@ -97,6 +97,8 @@ export default {
   'Nothing to paste': 'Ingenting å lime inn',
   // @sanity/locale-nb-no 1.1.39, inputs.array.action.max-reached
   'Maximum items reached': 'Maksimalt antall elementer nådd',
+  'The schemas have not loaded, so nothing was pasted. Try again.': 'Skjemaene er ikke lastet, så ingenting ble limt inn. Prøv igjen.',
+  'A locked item stays, so this would pass the maximum': 'Et låst element blir stående, så dette ville gått over maksimum',
   'Open in new tab': 'Åpne i ny fane',
   'Paste field': 'Lim inn felt',
   'Reference to {types}': 'Referanse til {types}',

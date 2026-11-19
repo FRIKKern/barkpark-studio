@@ -30,7 +30,7 @@ import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
 import {insertItemProps, ptDeprecated} from '../lib/deprecated'
 import {OneLine} from '../lib/pt-one-line'
-import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, dialogFields, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
 import {BlockObjectDialog, type BlockObjectRequest} from './BlockObjectDialog'
@@ -852,21 +852,13 @@ function ObjectDialog({id, edit, field, stored, schemas, openRef, onClose}: {id:
   const {kind, node, path} = edit
   const title = objectTitle(field, kind, node._type, schemas)
   // An image block: Sanity's image input on the block itself (upload, select, hotspot and crop).
-  const image = kind === 'block' && node._type === 'image'
   // A code block: the code editor on the block itself (components/CodeInput.tsx), not its four fields.
-  const code = kind === 'block' ? codeBlockOptions(field, node._type) : null
-  const fields = useMemo(
-    () =>
-      image
-        ? [{name: 'image', title, type: 'image', options: {hotspot: true}} as Field]
-        : code
-          ? [{name: 'code', title, type: 'composite', namedType: 'code', options: code} as Field]
-          : objectFields(field, kind, node._type, stored, schemas),
-    [image, code && JSON.stringify(code), title, field, kind, node._type, stored, schemas],
-  )
+  // Paste walks a block the same way (lib/paste-locked.ts).
+  const {fields, whole} = useMemo(() => dialogFields(field, kind, node._type, stored, schemas, title), [title, field, kind, node._type, stored, schemas])
+  const image = whole === 'image'
+  const isCode = whole === 'code'
   // Steady while the dialog is open: a new request has the dialog focus its first field again,
   // which took the caret out of the code editor mid-word whenever this input re-rendered.
-  const isCode = !!code
   const request = useMemo((): BlockObjectRequest => {
     const {_key: _k, ...own} = node
     return {type: node._type, title, inline: kind === 'inline', fields, value: (image ? {type: 'image', image: own} : isCode ? {type: 'code', code: own} : node) as unknown as BlockObjectRequest['value'], error: null}
@@ -874,7 +866,7 @@ function ObjectDialog({id, edit, field, stored, schemas, openRef, onClose}: {id:
   const done = (value: Record<string, unknown> | null) => {
     onClose()
     if (value) {
-      const next = image ? {...(value.image as Obj | undefined), _key: node._key, _type: 'image'} : code ? {...(value.code as Obj | undefined), _key: node._key, _type: node._type} : storedShape(fields, value, node)
+      const next = image ? {...(value.image as Obj | undefined), _key: node._key, _type: 'image'} : isCode ? {...(value.code as Obj | undefined), _key: node._key, _type: node._type} : storedShape(fields, value, node)
       const {set, unset} = objectChanges(node, next)
       const at = path as never
       if (Object.keys(set).length) editor.send(kind === 'block' ? {type: 'block.set', at, props: set} : {type: 'child.set', at, props: set})

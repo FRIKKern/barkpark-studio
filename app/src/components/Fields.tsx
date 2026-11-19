@@ -1,14 +1,17 @@
 import {createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {descId, fieldAria, problemId} from '../lib/field-aria'
-import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
+import {anyDocQuery, refId, refTypesOf, schemasQuery, type Doc, type Field} from '../lib/data'
 import {refFilterOf} from '../lib/ref-filter'
 import {objectKinds} from '../lib/object-block'
 import {actions} from '../lib/array-options'
-import {MAX_REACHED, maxItems, pasteAllowed} from '../lib/array-max'
+import {maxItems, maxRefusal} from '../lib/array-max'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
-import {isHidden, isReadOnly} from '../lib/conditions'
+import {conditionKey, fieldState} from '../lib/conditions'
+import {pasteField, SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
+import {setPath} from '../lib/paths'
+import {useCurrentUser} from '../lib/session'
 import {mapCaret} from '../lib/merge'
 import {textDiff} from '../lib/changes'
 import {FieldClashCard} from './FieldClash'
@@ -185,16 +188,28 @@ export function ProblemMark({path, within, id}: {path: string; within?: boolean;
  * condition reads the whole doc. Hidden and read-only follow the doc as it is edited (J30).
  */
 export const FieldView = memo(function FieldView(props: FieldProps) {
+  // The studio config's hidden / readOnly callbacks for this field (Sanity's, with currentUser).
+  const type = useContext(DocTypeContext)
+  const rules = studio.form?.conditions
+  const byConfig = !!rules && !!type && !!rules[conditionKey(type, props.path)]
   // Barkpark's `hidden: true` (Sanity's): never in the form, its value kept (a manual order's orderRank).
   if (props.field.hidden === true) return null
-  const conditional = !!props.field.visibleWhen || (typeof props.field.readOnly === 'object' && props.field.readOnly !== null)
+  const conditional = byConfig || !!props.field.visibleWhen || (typeof props.field.readOnly === 'object' && props.field.readOnly !== null)
   return conditional ? <ConditionalField {...props} /> : <FieldBody {...props} />
 })
 
 function ConditionalField(props: FieldProps) {
   const parent = useContext(ParentContext)
-  const hidden = useDocSelect((doc) => !!doc && isHidden(props.field, doc, parent))
-  const readOnly = useDocSelect((doc) => (doc ? isReadOnly(props.field, doc, parent) : false))
+  const type = useContext(DocTypeContext) ?? ''
+  const user = useCurrentUser()
+  // Hidden by a condition or a role: not drawn, its value kept as it is (never cleared, never written).
+  // One number (hidden 1, read-only 2), so each callback runs once a change and the field re-renders only when it flips.
+  const bits = useDocSelect((doc) => {
+    const s = doc && fieldState(type, props.field, doc, user, studio.form?.conditions, {path: props.path, value: props.value, parent})
+    return s ? (s.hidden ? 1 : 0) | (s.readOnly ? 2 : 0) : 0
+  })
+  const hidden = (bits & 1) !== 0
+  const readOnly = (bits & 2) !== 0
   useSteadyFocus(hidden)
   if (hidden) return null
   return <FieldBody {...props} readOnly={props.readOnly || readOnly} />
@@ -399,8 +414,11 @@ function ChangeBar({onClick}: {onClick: () => void}) {
  */
 export const fieldClipboard = new WeakMap<Element, {copy: () => void; paste?: () => void}>()
 
-function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & {titleId: string}) {
+function FieldActions({field, path, value, onChange, readOnly, titleId}: FieldProps & {titleId: string}) {
   const t = useT()
+  const docStore = useContext(DocContext)
+  const user = useCurrentUser()
+  const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const doc = {id: useContext(DocIdContext) ?? undefined, type: useContext(DocTypeContext) ?? undefined}
@@ -413,9 +431,17 @@ function FieldActions({field, value, onChange, readOnly, titleId}: FieldProps & 
     if (!item || isEmpty(item.value)) return toast({title: tBrowser('Nothing to paste')})
     const pasted = transfer(item, field, value)
     if ('why' in pasted) return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: pasted.why})
-    // A paste that would leave an array past its max and longer than it was is refused (lib/array-max.ts).
-    if (!pasteAllowed(field, value, pasted.value)) return toast({tone: 'caution', title: tBrowser(MAX_REACHED)})
-    onChange(pasted.value)
+    // Inside this object or its items, a field read-only, or hidden from this person but shown to another role, keeps its value (lib/paste-locked.ts).
+    // A rich-text object is walked as its dialog shows it, with the dialog's schemas: waited for, never guessed.
+    const doc = docStore.doc
+    const schemas = await qc.ensureQueryData(schemasQuery).catch(() => undefined)
+    const out = doc && doc._type ? pasteField(field, path, pasted.value, value, {type: doc._type, doc, after: setPath(doc, path, pasted.value), user, rules: studio.form?.conditions, schemas}) : {value: pasted.value}
+    if ('refused' in out) return toast({tone: 'critical', title: tBrowser(SCHEMAS_NOT_LOADED)})
+    // A paste that would leave an array past its max and longer than it was is refused (lib/array-max.ts);
+    // one under it that a kept locked item takes past it says so.
+    const refusal = maxRefusal(field, value, pasted.value, out.value)
+    if (refusal) return toast({tone: 'caution', title: tBrowser(refusal)})
+    onChange(out.value)
   }
   // An array's disableActions (Sanity's): 'copy' takes Copy field, 'add' Paste field, from the menu and the keys alike.
   const allow = actions(field.options)
@@ -497,19 +523,21 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
   // A form shown to read (the published version, a revision, no write access): its fieldset
   // disables the inputs, and the text editor (no input, the fieldset does not reach it) is told.
   const formDisabled = useContext(FormDisabledContext)
+  // A fix-it card's buttons write the value: a read-only field (its condition, a role) keeps them shut.
+  const shut = (card: ReactElement) => (readOnly ? <fieldset className="readonly-wrap" disabled>{card}</fieldset> : card)
   // S4a: Portable Text in a rich text field (a Sanity import, gyl's bodies) edits in place.
   if (isPortableTextField(field, value)) {
     // Blocks without keys, or sharing one: fixed first, as Sanity asks.
     const keys = Array.isArray(value) && keyProblem(value)
-    if (keys) return <KeysAlert problem={keys} onChange={onChange} />
+    if (keys) return shut(<KeysAlert problem={keys} onChange={onChange} />)
     return <PortableTextField id={path} field={field} value={value as PtBlock[] | undefined} onChange={onChange} readOnly={readOnly || formDisabled} openRef={openRef} />
   }
   // J39: a stored value this input can't edit gets Sanity's fix-it card instead.
   const wrongType = invalidValue(field, value)
-  if (wrongType) return <InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />
+  if (wrongType) return shut(<InvalidValueCard invalid={wrongType} value={value} onChange={onChange} />)
   // An asset from elsewhere (a Sanity export, a Sanity asset id): kept as it is, never read as empty.
   const foreign = unsupportedAsset(field, value)
-  if (foreign) return <UnsupportedAssetCard asset={foreign} value={value} onChange={onChange} />
+  if (foreign) return shut(<UnsupportedAssetCard asset={foreign} value={value} onChange={onChange} />)
   const str = value == null ? '' : String(value)
   // Text stays focusable and selectable when read-only (Sanity does the same); other controls disable.
   if (readOnly && !['string', 'url', 'email', 'text', 'slug', 'composite', 'datetime', 'arrayOf', 'markdown', 'date', 'time', 'tags', 'color', 'source', 'json', 'localizedText', 'codelist'].includes(field.type))
@@ -587,7 +615,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     case 'arrayOf': {
       const items = (value as unknown[]) ?? []
       const keys = keyProblem(items)
-      if (keys) return <KeysAlert problem={keys} onChange={onChange} />
+      if (keys) return shut(<KeysAlert problem={keys} onChange={onChange} />)
       // Barkpark serves `of` as a list when it names member types. Several objects (a page
       // builder) are rows of items, each by its own member (task-3da190705a269df1); a list of
       // one is that member.
@@ -655,7 +683,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
     }
     case 'richText': {
       const broken = richTextProblem(value)
-      if (broken) return <RichTextCard problem={broken} onChange={onChange} />
+      if (broken) return shut(<RichTextCard problem={broken} onChange={onChange} />)
       // J10: a block-editor field is Barkpark's canvas (decision 0004), scoped to the field.
       return field.editor === 'blocks' && !path.includes('.') ? <BodyCanvas field={path} title={field.title ?? field.name} value={value} vocabulary={(field as {blocks?: unknown}).blocks} readOnly={readOnly} openRef={openRef} /> : <ClassicBody id={path} value={value} />
     }
