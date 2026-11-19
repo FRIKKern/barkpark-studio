@@ -143,11 +143,29 @@ type Where = {path: string; value: unknown; parent?: Record<string, unknown>}
 /** A config callback, which may ask who the person is: until that is known it cannot be answered. */
 const awaitsPerson = (p: ConditionalProperty, person: Person) => person === undefined && typeof p === 'function'
 /**
+ * Who makes a write, for mayWrite: this person by hand (a key, a menu, an undo), "Keep mine" on
+ * a clash, kept edits put back (a replay), or a document action's `set` (code the developer wrote).
+ */
+export type WriteBy = 'hand' | 'keep-mine' | 'replay' | 'action'
+/**
+ * Whether a write may go ahead: the one decision, made where the write is (lib/doc-lock.ts
+ * writeAllowed asks it with what the doc's panes say now; lib/edits.ts acts on the answer).
+ * Every write keeps the document lock. The field rule (fieldState's readOnly for this person)
+ * stops a write by hand, Keep mine and a replay; an action's set is code and writes a field the
+ * form shows read-only, as Sanity's patch.execute.
+ */
+export function mayWrite(by: WriteBy, now: {docLocked: boolean; fieldReadOnly: boolean}): 'ok' | 'document locked' | 'field read-only' {
+  if (now.docLocked) return 'document locked'
+  if (now.fieldReadOnly && by !== 'action') return 'field read-only'
+  return 'ok'
+}
+
+/**
  * THE rule for whether this person may see and edit a field: hidden and readOnly from the
  * schema (`hidden`, `visibleWhen`, `readOnly`) and the studio config's callbacks for
  * `type.path`. Every surface that shows or edits a field asks it, directly or through a
  * helper built on it (fieldLock and pasteSkips for paste, form-lock's canvasAccess for the
- * Freeform canvas, doc-lock at save); fieldrule.test.ts lists them. Until the person is known
+ * Freeform canvas, doc-lock at save); fieldrule-scan.test.ts lists them. Until the person is known
  * (`person` undefined) a field with a callback is read-only, and hidden if its hidden is one:
  * it opens once Barkpark has said who, never the other way round. `at` defaults to a top-level
  * field (its parent the document), what the group tabs and Paste document ask about.

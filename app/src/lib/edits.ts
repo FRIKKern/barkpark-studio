@@ -20,8 +20,8 @@ import {applyPaths, getPath, keyedRoots, setInside, setPath, within} from './pat
 import {setTableKeptScope, takeTableKept} from './table-kept'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {clientGone} from '../server/client-gone'
-import {docLocked, fieldLocked, fieldRefused, unlessDocLocked} from './doc-lock'
-import {combine, dropPending, judge, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
+import {gated, putBackKept, writeAllowed} from './doc-lock'
+import {combine, dropPending, judge, keepPlan, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
 import {paceMs, paced} from './write-pace'
 
@@ -417,9 +417,9 @@ export function applyServer(qc: QueryClient, doc: Doc) {
  * `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. `value` may be a function of the path's value now.
  * An edit by hand: refused (false, nothing kept or sent) while every pane showing the doc is locked, or the field is read-only for this person (lib/doc-lock.ts).
  */
-export const edit = unlessDocLocked(([, doc]) => doc._publishedId, write, ([, , field]) => field)
-/** A document action's set: the document lock only (lib/doc-lock.ts). The action's code decides what it writes, a read-only field too, as Sanity's patch.execute. */
-export const setByAction = unlessDocLocked(([, doc]: Parameters<typeof write>) => doc._publishedId, write)
+export const edit = gated('hand', ([, doc]) => doc._publishedId, write, ([, , field]) => field)
+/** A document action's set: the action's code decides what it writes, a read-only field too, as Sanity's patch.execute (conditions.ts mayWrite). */
+export const setByAction = gated('action', ([, doc]) => doc._publishedId, write, ([, , field]) => field)
 
 /** edit(), past the lock: a save's own resend, and Restore's put-back of the edits a delete lost (a document action). */
 function write(qc: QueryClient, doc: Doc, field: string, value: unknown, record = true): void {
@@ -493,7 +493,7 @@ function schedule(qc: QueryClient, id: string) {
  * the field it changed, for focus.
  */
 export function undo(qc: QueryClient, id: string, back = true): string | undefined {
-  if (docLocked(id)) return // the step stays where it is, for when the doc is editable again
+  if (!writeAllowed('hand', id)) return // the step stays where it is, for when the doc is editable again
   const e = docs.get(id)
   const doc = qc.getQueryData<Doc>(['doc', id])
   const list = back ? e?.undo : e?.redo
@@ -974,11 +974,15 @@ export function useFieldClash(id: string | null, field: string): (FieldClash & {
 
 /** The card's answer for one clashed field: "Keep mine" sends mine over theirs; "Take theirs" drops mine. */
 export function settleClash(qc: QueryClient, id: string, field: string, keep: 'mine' | 'theirs') {
+  if (keep === 'mine') keepMine(qc, id, field)
+  else settle(qc, id, field, 'theirs')
+}
+/** Keep mine sends mine over theirs: as gated as an edit by hand (lib/doc-lock.ts); refused, the card stays and the pane says why. */
+const keepMine = gated('keep-mine', ([, id]) => id, (qc: QueryClient, id: string, field: string) => settle(qc, id, field, 'mine'), ([, , field]) => field)
+function settle(qc: QueryClient, id: string, field: string, keep: 'mine' | 'theirs') {
   const e = docs.get(id)
   const c = e?.clashes?.get(field)
   if (!e || !c) return
-  // Keep mine is an edit by hand: not while the field is read-only for this person (the card stays, and says it).
-  if (keep === 'mine' && fieldRefused(id, field)) return
   e.clashes = new Map(e.clashes)
   e.clashes.delete(field)
   if (keep === 'theirs') {
@@ -1101,39 +1105,29 @@ export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema)
   if (!docKeyOf(id) || doc._rev === '' || (e && (e.dirty.size || e.inflight || e.pendingCreate))) return null
   const kept = await orphaned(id)
   // Locked (a scheduled draft, a revision, …): kept as they are, offered again once editable.
-  if (!kept || docLocked(id)) return null
+  if (!kept || !writeAllowed('replay', id)) return null
   const {keys, pending} = kept
   const verdict = judge(pending, doc, schema)
   if (verdict.kind === 'drop') return (keys.forEach((k) => void dropPending(k)), null)
   if (verdict.kind === 'ask') return {ask: {pending, fields: verdict.fields, gone: verdict.gone, keys}}
   // As sets (lib/pt-dmp.ts): the page that kept them may have had a patch of these on its way.
   for (const [f] of verdict.fields) (entry(id, doc._type).noDmp ??= new Set()).add(f)
-  const refused = putBack(id, verdict.fields, (f, v) => edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? doc, f, v))
+  const refused = putBackKept(id, verdict.fields, (f, v) => edit(qc, qc.getQueryData<Doc>(['doc', id]) ?? doc, f, v))
   // Now this page's own edits (kept under its own entry): the dead pages' entries go, less the refused ones.
   keepRefused(id, keys, pending, refused)
   return {replayed: pending.at, put: verdict.fields.length - refused.length, refused}
 }
 
-/** Kept edits put back by `put`, but none to a field read-only for this person now: those are named, not sent. */
-function putBack(id: string, fields: [string, unknown][], put: (f: string, v: unknown) => void): string[] {
-  const refused = fields.flatMap(([f]) => (fieldLocked(id, f) ? [f] : []))
-  for (const [f, v] of fields) if (!refused.includes(f)) put(f, v)
-  return refused
-}
-
-/** The dead pages' kept edits go, but those to a refused field stay kept, under the page that made them, to be offered again. */
+/** The dead pages' kept edits go, but those to a refused field stay kept (keepPlan: kept first, then the rest dropped). */
 function keepRefused(id: string, keys: string[], pending: Pending, refused: string[]) {
-  const key = docKeyOf(id)
-  const kept = (f: string) => refused.includes(f)
-  void Promise.all(keys.map((k) => dropPending(k))).then(() => {
-    if (key && refused.length) return putPending(pendingKey(key, pending.tab), {...pending, fields: pending.fields.filter(([f]) => kept(f)), base: pending.base.filter(([f]) => kept(f))})
-  })
+  const {keep, drop} = keepPlan(docKeyOf(id) || undefined, keys, pending, refused)
+  void (keep ? putPending(...keep) : Promise.resolve()).then(() => Promise.all(drop.map((k) => dropPending(k))))
 }
 
 /** Restore kept edits over the document as it is now (text merges with what changed since). Returns the fields not put back (read-only for this person), still kept. */
 export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys}: Recovered): string[] | null {
-  if (docLocked(doc._publishedId)) return null
-  const refused = putBack(doc._publishedId, fields, (f, v) => {
+  if (!writeAllowed('replay', doc._publishedId)) return null
+  const refused = putBackKept(doc._publishedId, fields, (f, v) => {
     const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
     ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(f)
     edit(qc, now, f, restoreValue(pending, f, v, now))

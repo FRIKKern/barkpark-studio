@@ -15,14 +15,17 @@ import {fileURLToPath} from 'node:url'
 const SRC = fileURLToPath(new URL('..', import.meta.url))
 const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? files(join(dir, n)) : /\.tsx?$/.test(n) && !/\.test\.tsx?$/.test(n) ? [join(dir, n)] : []))
 const tree = (): Record<string, string> => Object.fromEntries(files(SRC).map((f) => [relative(SRC, f), readFileSync(f, 'utf8')]))
-/** The code without its comments (a comment may name a writer or an endpoint). */
-const code = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+/** The code without its comments (a comment may name a writer or an endpoint); `image/*` in a string is no comment. */
+const code = (text: string) => text.replace(/(^|[\s{(;,])\/\*[\s\S]*?\*\//gm, '$1').replace(/^\s*\/\/.*$/gm, '')
+/** The code on one line, as a formatter may lay it out any way: what a surface's `asks` are read against. */
+const flat = (text: string) => code(text).replace(/\s+/g, ' ').replace(/([([{]) /g, '$1').replace(/ ([)\]}])/g, '$1').replace(/,([)\]}])/g, '$1')
 
 /** The writers below the save, by the module that defines them: they store a field unjudged. */
 const WRITERS: Record<string, string[]> = {
   'lib/edits.ts': ['mutate', 'applyServer', 'reapply', 'createDoc', 'draftNew'],
   'lib/blocks.ts': ['applyBlockOps'],
   'lib/order-save.ts': ['saveRanks'],
+  'lib/paper-masters.ts': ['insertMaster', 'pinMaster', 'detachMaster'],
 }
 /** The checked save: a file that imports it is a listed surface. */
 const SAVES: Record<string, string[]> = {'lib/edits.ts': ['edit', 'setByAction']}
@@ -36,7 +39,7 @@ const ALLOWED: Record<string, string> = {
   'lib/order-save.ts': 'defines saveRanks',
   'routes/api/mutate.ts': 'the page-unload beacon’s route (edits.ts sends what edit() kept)',
   'lib/doc-actions.ts': 'a schema’s server actions: code, run by Barkpark',
-  'components/PortableDocEditor.tsx': 'the canvas’s batch, behind docLocked and canvasLocked',
+  'components/PortableDocEditor.tsx': 'the canvas’s batch, behind docLocked and canvasLocked; a paper’s linked masters (insert, pin, detach), behind editable: the canvas’s field rule',
   'components/OrderableRows.tsx': 'a manual order’s rank, a field never in the form',
   'routeTree.gen.ts': 'the generated route list names the /api/mutate route',
   'components/DocumentPane.tsx': 'a new document’s initial values (draftNew, createDoc): code, the template’s',
@@ -53,27 +56,39 @@ const ALLOWED: Record<string, string> = {
   'lib/vision-shared.ts': 'shared Vision queries, their own documents',
 }
 
-/** Each import of `file`: the module it resolves to (src-relative, or the package) and the names, or '*' for all. */
-function imports(file: string, text: string, src: Record<string, string>): {to: string; names: string[] | '*'}[] {
+/**
+ * Each import of `file`: the module it resolves to (src-relative, or the package), the names, or
+ * '*' for all, and whether it is a re-export (`export … from`).
+ */
+type Import = {to: string; names: string[] | '*'; locals: string[]; reexport: boolean}
+function imports(file: string, text: string, src: Record<string, string>): Import[] {
   const resolve = (spec: string) => {
     if (!spec.startsWith('.')) return spec
     const p = normalize(join(dirname(file), spec))
     return [p, `${p}.ts`, `${p}.tsx`, join(p, 'index.ts'), join(p, 'index.tsx')].find((c) => c in src) ?? p
   }
-  const named = (clause: string): string[] | '*' => {
-    if (/\*\s*as\s/.test(clause)) return '*'
+  /** The names a clause takes (or '*'), and the local name each is bound to. */
+  const named = (clause: string): {names: string[] | '*'; locals: string[]} => {
+    const ns = /\*\s*as\s+([\w$]+)/.exec(clause)
+    if (ns || /^\s*\*\s*$/.test(clause)) return {names: '*', locals: ns ? [ns[1]!] : []}
     const braces = /\{([^}]*)\}/.exec(clause)?.[1] ?? ''
-    const out = braces.split(',').map((x) => x.trim()).filter((x) => x && !x.startsWith('type ')).map((x) => x.split(/\s+as\s+/)[0]!.trim())
-    if (/^\s*[A-Za-z_$][\w$]*\s*(,|$)/.test(clause.replace(/^\s*type\s/, ''))) out.push('default')
-    return out
+    const pairs = braces.split(',').map((x) => x.trim()).filter((x) => x && !x.startsWith('type ')).map((x) => x.split(/\s+as\s+/).map((y) => y.trim()))
+    const out = pairs.map(([name]) => name!)
+    const locals = pairs.map(([name, local]) => local ?? name!)
+    const def = /^\s*([A-Za-z_$][\w$]*)\s*(,|$)/.exec(clause.replace(/^\s*type\s/, ''))
+    if (def) out.push('default'), locals.push(def[1]!)
+    return {names: out, locals}
   }
   const c = code(text)
-  const out: {to: string; names: string[] | '*'}[] = []
-  for (const m of c.matchAll(/\bimport\s+(type\s+)?([^'";]*?)\s*from\s*['"]([^'"]+)['"]/g)) if (!m[1]) out.push({to: resolve(m[3]!), names: named(m[2]!)})
-  for (const m of c.matchAll(/\bexport\s+(type\s+)?(\*(?:\s*as\s+\w+)?|\{[^}]*\})\s*from\s*['"]([^'"]+)['"]/g)) if (!m[1]) out.push({to: resolve(m[3]!), names: m[2]!.startsWith('*') ? '*' : named(m[2]!)})
-  for (const m of c.matchAll(/\bimport\(\s*(['"`])([^'"`$]+)\1\s*\)/g)) out.push({to: resolve(m[2]!), names: '*'})
+  const out: Import[] = []
+  for (const m of c.matchAll(/\bimport\s+(type\s+)?([^'";]*?)\s*from\s*['"]([^'"]+)['"]/g)) if (!m[1]) out.push({to: resolve(m[3]!), ...named(m[2]!), reexport: false})
+  for (const m of c.matchAll(/\bexport\s+(type\s+)?(\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*['"]([^'"]+)['"]/g)) if (!m[1]) out.push({to: resolve(m[3]!), ...named(m[2]!), reexport: true})
+  for (const m of c.matchAll(/\bimport\(\s*(['"`])([^'"`$]+)\1\s*\)/g)) out.push({to: resolve(m[2]!), names: '*', locals: [], reexport: false})
   return out
 }
+/** Whether `file` passes on a writer it imported under `local` (export {local}, export const x = local, export default local). */
+const passesOn = (c: string, local: string) =>
+  new RegExp(`\\bexport\\s*\\{[^}]*\\b${local.replace('$', '\\$')}\\b[^}]*\\}(?!\\s*from)|\\bexport\\s+(const|let|var)\\s+[\\w$]+\\s*=\\s*${local.replace('$', '\\$')}\\b|\\bexport\\s+default\\s+${local.replace('$', '\\$')}\\b`).test(c)
 const takes = (names: string[] | '*', of: string[]) => (names === '*' ? of : names.filter((n) => of.includes(n)))
 
 /** The listed surfaces, what each is, the rule it follows, and how it asks: each pattern must be in the file. */
@@ -90,8 +105,8 @@ const SURFACES: Surface[] = [
   {file: 'components/CodeInput.tsx', what: 'a code field’s clash card', rule: 'the field rule', asks: [/<FieldClashCard path=\{`\$\{id\}\.code`\} readOnly=\{shut\} \/>/]},
   {file: 'components/PortableDocEditor.tsx', what: 'the canvas’s save', rule: 'the field rule', asks: [/canvasLocked\(id, field\)/]},
   {file: 'components/TranslationsMenu.tsx', what: 'the language field, set from the menu: judged at the save', rule: 'the field rule', asks: [/if \(edit\(qc, doc, config\.languageField, language\.id\) === false\) return/]},
-  {file: 'lib/edits.ts', what: 'the save of every edit by hand; Keep mine; kept edits put back', rule: 'the field rule', asks: [/^export const edit = unlessDocLocked\(\(\[, doc\]\) => doc\._publishedId, write, \(\[, , field\]\) => field\)$/m, /if \(keep === 'mine' && fieldRefused\(id, field\)\) return/, /fieldLocked\(id, f\)/]},
-  {file: 'lib/edits.ts', what: 'a document action’s set', rule: 'code: document lock only', asks: [/^export const setByAction = unlessDocLocked\(\(\[, doc\]: Parameters<typeof write>\) => doc\._publishedId, write\)$/m]},
+  {file: 'lib/edits.ts', what: 'the save of every edit by hand; Keep mine; kept edits put back', rule: 'the field rule', asks: [/export const edit = gated\('hand', /, /if \(keep === 'mine'\) keepMine\(qc, id, field\)/, /const keepMine = gated\('keep-mine', /, /putBackKept\(id, verdict\.fields, /, /putBackKept\(doc\._publishedId, fields, /, /keepPlan\(docKeyOf\(id\)/]},
+  {file: 'lib/edits.ts', what: 'a document action’s set', rule: 'code: document lock only', asks: [/export const setByAction = gated\('action', /]},
   {file: 'lib/presentation-overlay.ts', what: 'a change made on the Presentation page (no pane need show the doc)', rule: 'the field rule', asks: [/pathReadOnly\(/, /edit\(qc, doc, path, result\.next\) === false/]},
 ]
 
@@ -104,8 +119,10 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
   const problems: string[] = []
   const listed = new Set(surfaces.map((s) => s.file))
   for (const [file, text] of Object.entries(src)) {
-    for (const {to, names} of imports(file, text, src)) {
+    for (const {to, names, locals, reexport} of imports(file, text, src)) {
       const low = takes(names, WRITERS[to] ?? [])
+      // A writer passed on (re-exported) by a file that does not define it would reach its importers unseen.
+      if (low.length && file !== to && (reexport || locals.some((l) => passesOn(code(text), l)))) problems.push(`${file} passes on ${low.join(', ')} (below the save) from ${to}: only ${to} exports it`)
       if (low.length && !ALLOWED[file]) problems.push(`${file} imports ${low.join(', ')} (below the save) from ${to}: write through the save, or allow it in fieldrule-scan.test.ts with why`)
       const saves = takes(names, SAVES[to] ?? [])
       if (saves.length && !listed.has(file)) problems.push(`${file} imports ${saves.join(', ')} (the save) and is no listed surface: list it in SURFACES with how it asks the rule`)
@@ -120,7 +137,7 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
   }
   for (const {file, asks} of surfaces) {
     if (!(file in src)) problems.push(`${file} is listed and gone: take it off`)
-    else for (const re of asks) if (!re.test(src[file]!)) problems.push(`${file} no longer asks the rule: ${re}`)
+    else for (const re of asks) if (!re.test(flat(src[file]!))) problems.push(`${file} no longer asks the rule: ${re}`)
   }
   for (const file of Object.keys(ALLOWED)) {
     if (!(file in src)) problems.push(`${file} is allowed and gone: take it off`)
@@ -131,6 +148,13 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
 
 test('every surface that shows or edits a field asks the one rule; the writers below the save are imported only where allowed', () => {
   assert.deepEqual(judge(tree()), [])
+  // The save decides by the one function: edits.ts takes its gates from doc-lock, whose writeAllowed asks conditions.ts mayWrite.
+  const all = tree()
+  const from = (file: string, to: string) => imports(file, all[file]!, all).filter((i) => i.to === to).flatMap((i) => (i.names === '*' ? ['*'] : i.names))
+  assert.deepEqual(from('lib/edits.ts', 'lib/doc-lock.ts').sort(), ['gated', 'putBackKept', 'writeAllowed'], 'edits.ts decides no write itself: only through gated, putBackKept and writeAllowed')
+  assert.ok(from('lib/edits.ts', 'lib/pending-edits.ts').includes('keepPlan'), 'kept edits: what stays kept is keepPlan’s')
+  assert.ok(from('lib/doc-lock.ts', 'lib/conditions.ts').includes('mayWrite'), 'doc-lock asks mayWrite')
+  assert.match(all['lib/doc-lock.ts']!, /const answer = mayWrite\(by, \{docLocked: docLocked\(id\), fieldReadOnly: path !== undefined && fieldLocked\(id, path\)\}\)/)
   // The helpers the surfaces ask are built on fieldState, the one rule.
   const src = tree()
   assert.match(src['lib/form-lock.ts']!, /canvasFields\(schema\)\.map\(\(f\) => fieldState\(/)
@@ -141,7 +165,7 @@ test('every surface that shows or edits a field asks the one rule; the writers b
 
 const fails = (src: Record<string, string>, file: string, text: string, why: RegExp) => assert.match(judge({...src, [file]: text}).join('\n'), why, file)
 
-test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dynamic import, a direct mutate, an alias, a copy of the rule', () => {
+test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dynamic import, a direct mutate, an alias, a re-export, a copy of the rule', () => {
   const src = tree()
   fails(src, 'lib/quick-edit.ts', "import {edit} from './edits.ts'\nexport const q = edit\n", /lib\/quick-edit\.ts imports edit \(the save\) and is no listed surface/)
   fails(src, 'components/Quick.tsx', 'import * as E from "../lib/edits"\nexport const q = E\n', /components\/Quick\.tsx imports mutate, applyServer, reapply, createDoc, draftNew \(below the save\)/)
@@ -153,8 +177,22 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
   fails(src, 'components/Badge.tsx', 'export const editable = (f: {readOnly?: boolean}) => f.readOnly !== true\n', /Badge\.tsx decides a field's hidden or read-only itself/)
   fails(src, 'components/Peek.tsx', 'export const Peek = (p: never) => <FieldBody {...p} />\n', /Peek\.tsx draws a field input past FieldView/)
   fails(src, 'components/Lang.tsx', "import {edit} from '../lib/edits'\nconst go = () => {\n  edit(qc, doc, 'language', 'nb')\n  toast({title: 'Set'})\n}\n", /Lang\.tsx says a save was made without reading its result/)
+  // A writer passed on through any file but its own, an allowed one too, and what imports it.
+  const passed = {...src, 'lib/templates.ts': `${src['lib/templates.ts']}\nexport {mutate as templateMutate} from './edits'\n`, 'components/I.tsx': "import {templateMutate} from '../lib/templates'\nexport const i = templateMutate\n"}
+  assert.match(judge(passed).join('\n'), /lib\/templates\.ts passes on mutate \(below the save\) from lib\/edits\.ts/)
+  fails(src, 'lib/carry.ts', "import {mutate as m} from './edits'\nexport {m}\n", /lib\/carry\.ts passes on mutate/)
+  fails(src, 'lib/carry2.ts', "import * as E from './edits'\nexport const m = E.mutate\n", /lib\/carry2\.ts passes on mutate, applyServer, reapply, createDoc, draftNew/)
+  fails(src, 'lib/carry3.ts', "export * from './blocks'\n", /lib\/carry3\.ts passes on applyBlockOps/)
+  // A paper's linked masters (insert, pin, detach) write its body.
+  fails(src, 'components/Masters.tsx', "import {pinMaster} from '../lib/paper-masters'\nexport const pin = pinMaster\n", /components\/Masters\.tsx imports pinMaster \(below the save\)/)
   // A listed surface that stops asking.
   fails(src, 'components/PortableDocEditor.tsx', src['components/PortableDocEditor.tsx']!.replace('canvasLocked(id, field)', 'false'), /PortableDocEditor\.tsx no longer asks the rule/)
+  // Laid out another way, as a formatter might: nothing changes.
+  const wrapped = src['lib/edits.ts']!.replace(/export const setByAction = gated\(\s*'action',\s*/, "export const setByAction = gated(\n    'action',\n\n    ")
+  assert.notEqual(wrapped, src['lib/edits.ts'])
+  assert.deepEqual(judge({...src, 'lib/edits.ts': wrapped}), [])
+  // Keep mine sent past its gate: a listed surface that stops asking.
+  fails(src, 'lib/edits.ts', src['lib/edits.ts']!.replace(/if \(keep === 'mine'\)\s*keepMine\(qc, id, field\)/, "if (keep === 'mine') settle(qc, id, field, 'mine')"), /lib\/edits\.ts no longer asks the rule: .*keepMine/)
   // A type-only import of a writer is no write.
   assert.deepEqual(judge({...src, 'lib/types-only.ts': "import type {mutate} from './edits'\nimport {type createDoc} from './edits'\nexport type M = typeof mutate\n"}), [])
 })

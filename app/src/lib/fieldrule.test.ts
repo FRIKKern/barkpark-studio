@@ -8,7 +8,7 @@ import {test} from 'node:test'
 import type {Field, Schema} from './data.ts'
 import {currentUserOf, fieldState, pasteSkips, pathReadOnly, type FieldConditions, type Person} from './conditions.ts'
 import {canvasAccess, freeformCanvas, paneFieldLock} from './form-lock.ts'
-import {canvasLocked, docLocked, fieldLocked, hideDoc, showDoc, unlessDocLocked} from './doc-lock.ts'
+import {canvasLocked, docLocked, fieldLocked, gated, hideDoc, showDoc} from './doc-lock.ts'
 import {pasteDocument} from './paste-locked.ts'
 
 const editor = currentUserOf({email: 'e@example.com', name: 'E', userId: 'u1', role: 'member', canWrite: true})
@@ -85,8 +85,8 @@ test('the save: a write to a field read-only for this person is refused and said
   const writes: [string, unknown][] = []
   let now = {schema: note as Schema | undefined, doc: doc as Record<string, unknown>, user: editor as Person, rules: {'note.label': {readOnly: notAdmin}} as Record<string, FieldConditions> | undefined, canvas: 'editable' as const as 'hidden' | 'readOnly' | 'editable'}
   showDoc('n1', pane, false, paneFieldLock(() => now, (path) => told.push(path)))
-  // edits.ts: edit = unlessDocLocked(([, doc]) => doc._publishedId, write, ([, , field]) => field)
-  const edit = unlessDocLocked(([, d]: [unknown, {_publishedId: string}, string, unknown]) => d._publishedId, (_qc: unknown, _d: {_publishedId: string}, field: string, value: unknown) => (writes.push([field, value]), true), ([, , field]) => field)
+  // As edits.ts's edit: gated('hand', …), a write by hand.
+  const edit = gated('hand', ([, d]: [unknown, {_publishedId: string}, string, unknown]) => d._publishedId, (_qc: unknown, _d: {_publishedId: string}, field: string, value: unknown) => (writes.push([field, value]), true), ([, , field]) => field)
   const n1 = {_publishedId: 'n1'}
   assert.equal(edit(null, n1, 'title', 'T2'), true)
   assert.equal(edit(null, n1, 'label', 'L2'), false)
@@ -117,7 +117,7 @@ test('the save: an undo of a field that went read-only mid-session is refused an
   const stageLock = {...note, fields: note.fields.map((f) => (f.name === 'label' ? {...f, readOnly: {field: 'stage', operator: 'eq', value: 'done'}} : f))} as Schema
   let now = {schema: stageLock as Schema | undefined, doc: {...doc} as Record<string, unknown>, user: editor as Person, rules: undefined as Record<string, FieldConditions> | undefined, canvas: 'editable' as 'hidden' | 'readOnly' | 'editable'}
   showDoc('n3', pane, false, paneFieldLock(() => now, (path) => told.push(path)))
-  const edit = unlessDocLocked(([id]: [string, string, unknown]) => id, (_id: string, field: string, value: unknown) => ((written[field] = value), true), ([, field]) => field)
+  const edit = gated('hand', ([id]: [string, string, unknown]) => id, (_id: string, field: string, value: unknown) => ((written[field] = value), true), ([, field]) => field)
   assert.equal(edit('n3', 'label', 'mine'), true, 'typed while open')
   now = {...now, doc: {...now.doc, label: 'mine', stage: 'done'}} // another editor's write arrives: no edit, no check
   assert.equal(edit('n3', 'label', 'L'), false, 'Undo puts the old label back: refused')

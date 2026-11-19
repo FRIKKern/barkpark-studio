@@ -15,6 +15,8 @@
 // Pause to edit, Duplicate and Delete do not come here. Nor do the server's own frames (another
 // editor's write, a rebase onto it): only this person's edits are judged.
 
+import {mayWrite, type WriteBy} from './conditions.ts'
+
 /** What a pane says of the fields of the doc it shows, for this person, read when a write is made. */
 export type FieldLock = {
   /** A write to `path` (a field, or a path into one) this person may not make (conditions.ts pathReadOnly). */
@@ -53,25 +55,42 @@ export const fieldLocked = (id: string, path: string): boolean => every(id, (s) 
 /** A canvas batch on `id`: a field canvas's (`field`) as a write to that field, the whole-document canvas's as its fields say. */
 export const canvasLocked = (id: string, field?: string): boolean => (field ? fieldLocked(id, field) : every(id, (s) => s.locked || !!s.fields?.canvas))
 
-/** A write by hand to `path` in `id` this person may not make: true, and the pane is told so it can say it. */
-export function fieldRefused(id: string, path: string): boolean {
-  if (!fieldLocked(id, path)) return false
-  ;[...(shown.get(id)?.values() ?? [])].find((s) => s.fields)?.fields!.refused(path)
-  return true
+/**
+ * Whether a write `by` someone to `path` in `id` may go ahead now: conditions.ts mayWrite, the one
+ * decision, asked with what the doc's panes say when it is made. A field write refused by hand or
+ * by Keep mine is said by the pane; a replay's refused fields are named by its caller.
+ */
+export function writeAllowed(by: WriteBy, id: string, path?: string): boolean {
+  const answer = mayWrite(by, {docLocked: docLocked(id), fieldReadOnly: path !== undefined && fieldLocked(id, path)})
+  if (answer === 'field read-only' && by !== 'replay') [...(shown.get(id)?.values() ?? [])].find((s) => s.fields)?.fields!.refused(path!)
+  return answer === 'ok'
 }
 
 /**
- * `write`, refused (false, nothing written) while the doc it writes (`idOf` its arguments) is
- * locked when it is called; with `pathOf` (an edit by hand), also while the field it writes is
- * read-only for this person there (fieldRefused). A caller reads the false before it says the
- * write was made.
+ * Kept edits put back, field by field, by `put`: each only where writeAllowed('replay') says so.
+ * The others are not sent: returned, for the caller to keep and name.
  */
-export const unlessDocLocked =
-  <A extends unknown[], R>(idOf: (args: NoInfer<A>) => string, write: (...a: A) => R, pathOf?: (args: NoInfer<A>) => string) =>
-  (...a: A): R | false => {
-    const id = idOf(a)
-    if (docLocked(id)) return false
-    const path = pathOf?.(a)
-    if (path !== undefined && fieldRefused(id, path)) return false
-    return write(...a)
+export function putBackKept(id: string, fields: [string, unknown][], put: (field: string, value: unknown) => void): string[] {
+  const refused: string[] = []
+  for (const [f, v] of fields) {
+    if (writeAllowed('replay', id, f)) put(f, v)
+    else refused.push(f)
   }
+  return refused
+}
+
+/**
+ * `write`, made only when writeAllowed(`by`, the doc `idOf` its arguments, the field `pathOf`
+ * them) says so; refused, it is false and nothing is written. A caller reads the false before it
+ * says the write was made.
+ */
+export const gated =
+  <A extends unknown[], R>(by: WriteBy, idOf: (args: NoInfer<A>) => string, write: (...a: A) => R, pathOf: (args: NoInfer<A>) => string) =>
+  (...a: A): R | false =>
+    writeAllowed(by, idOf(a), pathOf(a)) ? write(...a) : false
+
+/** `write`, refused (false, nothing written) while the doc it writes (`idOf` its arguments) is locked when it is called. */
+export const unlessDocLocked =
+  <A extends unknown[], R>(idOf: (args: NoInfer<A>) => string, write: (...a: A) => R) =>
+  (...a: A): R | false =>
+    docLocked(idOf(a)) ? false : write(...a)
