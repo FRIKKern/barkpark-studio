@@ -12,7 +12,7 @@ export type FormState = {published: boolean; revision: boolean; gone: boolean; s
 export const formLocked = (s: FormState) => s.published || s.revision || s.gone || s.scheduled || !s.canWrite
 
 /** What the canvas writes, to judge its body by: the type, the draft, who is signed in, the config's `form.conditions`. */
-export type CanvasBody = {schema: Schema | undefined; doc: Record<string, unknown> | undefined; user: CurrentUser | null; rules: Record<string, FieldConditions> | undefined}
+export type CanvasBody = {schema: Schema | undefined; doc: Record<string, unknown> | null | undefined; user: CurrentUser | null; rules: Record<string, FieldConditions> | undefined}
 
 /** A body region of the type's layout (a richText field the canvas writes) read-only for this person, as the form decides it (fieldState). */
 export const bodyReadOnly = ({schema, doc, user, rules}: CanvasBody) =>
