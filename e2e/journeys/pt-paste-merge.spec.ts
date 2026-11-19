@@ -120,6 +120,17 @@ test('@local Portable Text: a paste kept while its page reloads mid-save, the ot
     const card = page.getByTestId('kept-edits')
     const shown = await card.waitFor({timeout: 8_000}).then(() => true, () => false)
     log('card shown', shown, 'stored', JSON.stringify(await stored()))
+    if (!shown) {
+      // The outcome of a quiet put-back: saved once in place, twice, or shown and never saved?
+      await page.waitForTimeout(3_000)
+      log('no card: stored', JSON.stringify(await stored()), 'screen', JSON.stringify(await lines(page.locator('[id="body"][contenteditable="true"]'))))
+      await page.reload()
+      await target(info).settle(page)
+      await page.getByRole('tab', {name: 'All fields'}).click()
+      await page.waitForTimeout(3_000)
+      log('no card, second reload: stored', JSON.stringify(await stored()), 'screen', JSON.stringify(await lines(page.locator('[id="body"][contenteditable="true"]'))), 'card', await card.isVisible())
+      throw new Error('diag: no Restore card on this load')
+    }
     await card.getByRole('button', {name: 'Restore'}).click()
     await savesLanded(page)
     await expect.poll(stored, {timeout: 15_000}).toEqual(WANT)
