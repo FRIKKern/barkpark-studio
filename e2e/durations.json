@@ -134,6 +134,7 @@
   "presentation.spec.ts": 0,
   "previews-tips.spec.ts": 0,
   "pt-inline-comments.spec.ts": 3.9,
+  "pt-paste-merge.spec.ts": 8.9,
   "pt-table.spec.ts": 4.6,
   "published-writes-nothing.spec.ts": 3.8,
   "read-only.spec.ts": 0,
