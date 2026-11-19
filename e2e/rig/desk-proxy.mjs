@@ -3,8 +3,9 @@
 // at /structure/<panes> on localhost, so the specs run against it as they are: the same URLs,
 // the same href selectors, the same URL checks (project `desk`, `pnpm desk`).
 //
-// It is a plain reverse proxy to BARKPARK_URL with one alias, both ways:
+// It is a plain reverse proxy to BARKPARK_URL with two aliases, both ways:
 //   /structure…  ⇄  /w/<workspace>/p/<project>/d/<dataset>/studio/_desk…
+//   /vision      ⇄  /w/<workspace>/p/<project>/d/<dataset>/studio/_desk/_tools/vision
 // (and any e2e-* dataset's desk by its full path, …/d/<e2e-*>/structure…), in request paths,
 // Location headers, HTML bodies and LiveView's WebSocket frames (the join and every patch
 // carry the page's URL; every diff carries hrefs). Everything else passes as it is, except
@@ -38,6 +39,10 @@ const PORT = Number(process.env.DESK_PORT || 3200)
 const LOCAL = `http://localhost:${PORT}`
 const BASE = `/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}/d/${DATASET}/studio/_desk`
 const ALIAS = '/structure'
+// The desk's Vision is a tool on the desk's own page (FRIKKern/barkpark#27621), so it is matched
+// before the desk's root: a spec opens /vision and sees /vision, not /structure/_tools/vision.
+const VISION = '/vision'
+const VISION_AT = `${BASE}/_tools/vision`
 const web = UP.protocol === 'https:' ? https : http
 const agent = new web.Agent({keepAlive: true})
 
@@ -52,14 +57,22 @@ const fullPath = new RegExp(`^(${AT})/structure(?=$|[/;?#])`)
 const fullUp = new RegExp(`(${esc(LOCAL)}|["'])(${AT})/structure(?=$|["'/;?#])`, 'g')
 const fullUpEncoded = new RegExp(`${esc(encodeURIComponent(LOCAL))}(%2Fw%2F[^%&]+%2Fp%2F[^%&]+%2Fd%2Fe2e-[a-z0-9][a-z0-9-]*)%2Fstructure(?=$|&|%2F|%3B|%3F|%23)`, 'g')
 const fullDown = new RegExp(`(${AT})/studio/_desk`, 'g')
+// Vision's own URL, and no longer one (…/_tools/visionary, /visions): each ends at its own end,
+// a quote (in a frame's JSON, an escaped one: `\"`), a space or a tag's end.
+const END = String.raw`(?=$|[;?#"'\\\s<>&])`
+const visionLocal = new RegExp(esc(LOCAL + VISION) + END, 'g')
+const visionDown = new RegExp(esc(VISION_AT) + END, 'g')
+const visionEncoded = new RegExp(`${esc(encodeURIComponent(LOCAL + VISION))}(?=$|&|%3B|%3F|%23)`, 'g')
 /** A request path as the browser has it → the desk's own. */
-const pathUp = (path) => (path === ALIAS || (path.startsWith(ALIAS) && '/;?#'.includes(path[ALIAS.length])) ? BASE + path.slice(ALIAS.length) : path.replace(fullPath, '$1/studio/_desk'))
+const pathUp = (path) => (path === VISION || (path.startsWith(VISION) && ';?#'.includes(path[VISION.length])) ? VISION_AT + path.slice(VISION.length) : path === ALIAS || (path.startsWith(ALIAS) && '/;?#'.includes(path[ALIAS.length])) ? BASE + path.slice(ALIAS.length) : path.replace(fullPath, '$1/studio/_desk'))
 /** Text from the browser (a header, a WebSocket frame): its URLs and quoted paths → the desk's own. */
 const textUp = (s) =>
   s
     .replace(fullUp, (_, pre, at) => (pre === LOCAL ? UP.origin : pre) + at + '/studio/_desk')
+    .replace(visionLocal, UP.origin + VISION_AT)
     .replaceAll(LOCAL + ALIAS, UP.origin + BASE)
     .replaceAll(LOCAL, UP.origin)
+    .replace(/(["'])\/vision(?=["';?#])/g, (_, q) => q + VISION_AT)
     .replace(/(["'])\/structure(?=["'/;?#])/g, (_, q) => q + BASE)
 // So a spec cannot wander into another dataset by accident; not a security boundary (the token
 // is). INVARIANT: the proxy refuses URLs that name a dataset not matching e2e-* (403, upstream
@@ -126,7 +139,7 @@ function guardFrame(text) {
 }
 
 /** Text from the desk → as the browser is to see it. */
-const textDown = (s) => s.replaceAll(BASE, ALIAS).replace(fullDown, '$1/structure').replaceAll(UP.origin, LOCAL)
+const textDown = (s) => s.replace(visionDown, VISION).replaceAll(BASE, ALIAS).replace(fullDown, '$1/structure').replaceAll(UP.origin, LOCAL)
 
 // The browser's own accept-encoding goes to the desk, less what this proxy cannot undo, so the
 // bytes paced to it are the compressed ones a browser gets. A page it rewrites (HTML) is decoded,
@@ -190,7 +203,7 @@ const server = http.createServer(async (req, res) => {
       sent = fresh()
     }
     res.writeHead(200, {'content-type': 'application/json'})
-    return void res.end(JSON.stringify({ok: true, alias: ALIAS, dataset: DATASET, ...shape, sent}))
+    return void res.end(JSON.stringify({ok: true, alias: ALIAS, vision: VISION, dataset: DATASET, ...shape, sent}))
   }
   sent.requests++
   sent.peak = Math.max(sent.peak, ++open)
@@ -265,7 +278,7 @@ const deflateOne = (z, buf) =>
 
 server.on('upgrade', (req, socket) => {
   // The socket's query can carry the page's URL too (LiveView's referer).
-  const {path, foreign} = judge(req.url.replace(fullUpEncoded, `${encodeURIComponent(UP.origin)}$1%2Fstudio%2F_desk`).replaceAll(encodeURIComponent(LOCAL + ALIAS), encodeURIComponent(UP.origin + BASE)).replaceAll(encodeURIComponent(LOCAL), encodeURIComponent(UP.origin)))
+  const {path, foreign} = judge(req.url.replace(fullUpEncoded, `${encodeURIComponent(UP.origin)}$1%2Fstudio%2F_desk`).replace(visionEncoded, encodeURIComponent(UP.origin + VISION_AT)).replaceAll(encodeURIComponent(LOCAL + ALIAS), encodeURIComponent(UP.origin + BASE)).replaceAll(encodeURIComponent(LOCAL), encodeURIComponent(UP.origin)))
   if (foreign) {
     refused('upgrade', path)
     return void socket.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n')
