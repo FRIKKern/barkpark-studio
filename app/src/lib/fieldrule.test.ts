@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Field, Schema} from './data.ts'
 import {currentUserOf, fieldState, pasteSkips, pathReadOnly, UNKNOWN, type FieldConditions, type Person} from './conditions.ts'
+import {nobody} from './persons.fixture.ts'
 import {canvasAccess, freeformCanvas, paneFieldLock} from './form-lock.ts'
 import {canvasLocked, docLocked, fieldLocked, gated, hideDoc, showDoc} from './doc-lock.ts'
 import {pasteDocument} from './paste-locked.ts'
@@ -26,7 +27,7 @@ const note = {
 // A paper type with no layout in this workspace: the canvas holds its body, the rich-text field.
 const paper = {name: 'paper', title: 'Paper', fields: [{name: 'title', type: 'string'}, {name: 'body', type: 'richText'}, {name: 'orderRank', type: 'string', hidden: true}]} as unknown as Schema
 const doc = {title: 'T', label: 'L', body: {blocks: []}, stage: 'draft'}
-const canvas = (schema: Schema, user: Person, rules?: Record<string, FieldConditions>) => freeformCanvas(open, {schema, doc, user, rules})
+const canvas = (schema: Schema, user: Person, rules?: Record<string, FieldConditions>) => freeformCanvas(open, user, {schema, doc, rules})
 
 test('the Freeform canvas: a bound field block read-only for this person leaves it read-only, as its body does', () => {
   assert.equal(canvas(note, editor), 'editable')
@@ -65,7 +66,7 @@ test('before the person is known, a field with a role rule is locked on every su
     assert.deepEqual(fieldState('note', F('label'), doc, person, rules), {hidden: true, readOnly: true})
     assert.deepEqual(fieldState('note', F('title'), doc, person, rules), {hidden: false, readOnly: false}, 'no rule: open')
     // The canvas.
-    assert.equal(canvasAccess({schema: note, doc, user: person, rules: {'note.body': {readOnly: notAdmin}}}), 'readOnly')
+    assert.equal(canvasAccess(person, {schema: note, doc, rules: {'note.body': {readOnly: notAdmin}}}), 'readOnly')
     assert.equal(canvas(note, person, rules), 'hidden')
     // Paste.
     assert.deepEqual([...pasteSkips('note', note.fields, doc, person, rules).skip].sort(), ['body', 'label', 'stage'])
@@ -76,15 +77,15 @@ test('before the person is known, a field with a role rule is locked on every su
   }
   // Known: the administrator has them all; nobody signed in (shared sign-in) is known too.
   assert.equal(canvas(note, admin, {'note.body': {readOnly: notAdmin}, 'note.label': {hidden: notAdmin}}), 'editable')
-  assert.deepEqual(fieldState('note', F('label'), doc, null, rules), {hidden: true, readOnly: false})
+  assert.deepEqual(fieldState('note', F('label'), doc, nobody, rules), {hidden: true, readOnly: false})
 })
 
 test('the save: a write to a field read-only for this person is refused and said; the rest are written', () => {
   const pane = {}
   const told: string[] = []
   const writes: [string, unknown][] = []
-  let now = {schema: note as Schema | undefined, doc: doc as Record<string, unknown>, user: editor as Person, rules: {'note.label': {readOnly: notAdmin}} as Record<string, FieldConditions> | undefined, canvas: 'editable' as const as 'hidden' | 'readOnly' | 'editable'}
-  showDoc('n1', pane, false, paneFieldLock(() => now, (path) => told.push(path)))
+  let now = {schema: note as Schema | undefined, doc: doc as Record<string, unknown>, rules: {'note.label': {readOnly: notAdmin}} as Record<string, FieldConditions> | undefined, canvas: 'editable' as const as 'hidden' | 'readOnly' | 'editable'}
+  showDoc('n1', pane, false, paneFieldLock(() => now, editor, (path) => told.push(path)))
   // As edits.ts's edit: gated('hand', …), a write by hand.
   const edit = gated('hand', ([, d]: [unknown, {_publishedId: string}, string, unknown]) => d._publishedId, (_qc: unknown, _d: {_publishedId: string}, field: string, value: unknown) => (writes.push([field, value]), true), ([, , field]) => field)
   const n1 = {_publishedId: 'n1'}
@@ -115,8 +116,8 @@ test('the save: an undo of a field that went read-only mid-session is refused an
   const told: string[] = []
   const written: Record<string, unknown> = {}
   const stageLock = {...note, fields: note.fields.map((f) => (f.name === 'label' ? {...f, readOnly: {field: 'stage', operator: 'eq', value: 'done'}} : f))} as Schema
-  let now = {schema: stageLock as Schema | undefined, doc: {...doc} as Record<string, unknown>, user: editor as Person, rules: undefined as Record<string, FieldConditions> | undefined, canvas: 'editable' as 'hidden' | 'readOnly' | 'editable'}
-  showDoc('n3', pane, false, paneFieldLock(() => now, (path) => told.push(path)))
+  let now = {schema: stageLock as Schema | undefined, doc: {...doc} as Record<string, unknown>, rules: undefined as Record<string, FieldConditions> | undefined, canvas: 'editable' as 'hidden' | 'readOnly' | 'editable'}
+  showDoc('n3', pane, false, paneFieldLock(() => now, editor, (path) => told.push(path)))
   const edit = gated('hand', ([id]: [string, string, unknown]) => id, (_id: string, field: string, value: unknown) => ((written[field] = value), true), ([, field]) => field)
   assert.equal(edit('n3', 'label', 'mine'), true, 'typed while open')
   now = {...now, doc: {...now.doc, label: 'mine', stage: 'done'}} // another editor's write arrives: no edit, no check

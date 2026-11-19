@@ -9,13 +9,13 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Schema} from './data.ts'
-import {currentUserOf, mayWrite, type FieldConditions, type Person, type WriteBy} from './conditions.ts'
+import {currentUserOf, mayWrite, type FieldConditions, type WriteBy} from './conditions.ts'
 import {paneFieldLock} from './form-lock.ts'
 import {gated, hideDoc, putBackKept, showDoc, writeAllowed} from './doc-lock.ts'
 import {keepPlan, keptOnly, pendingKey, type Pending} from './pending-edits.ts'
 
 const admin = currentUserOf({email: 'a@example.com', name: 'A', userId: 'u2', role: 'admin', canWrite: true})
-type Now = {schema: Schema | undefined; doc: Record<string, unknown>; user: Person; rules: Record<string, FieldConditions> | undefined; canvas: 'hidden' | 'readOnly' | 'editable'}
+type Now = {schema: Schema | undefined; doc: Record<string, unknown>; rules: Record<string, FieldConditions> | undefined; canvas: 'hidden' | 'readOnly' | 'editable'}
 // post.json's way: `approved` read-only in the form, set by an "Approve" action; `reviewNote` read-only once the stage is done.
 const post = {
   name: 'post',
@@ -36,8 +36,8 @@ test('mayWrite: every write keeps the document lock; the field rule stops all bu
 function shown<T>(id: string, locked: boolean, doc: Record<string, unknown>, run: () => T): {out: T; told: string[]} {
   const told: string[] = []
   const holder = {}
-  const now: Now = {schema: post, doc, user: admin, rules: undefined, canvas: 'editable'}
-  showDoc(id, holder, locked, paneFieldLock(() => now, (p) => told.push(p)))
+  const now: Now = {schema: post, doc, rules: undefined, canvas: 'editable'}
+  showDoc(id, holder, locked, paneFieldLock(() => now, admin, (p) => told.push(p)))
   try {
     return {out: run(), told}
   } finally {

@@ -74,14 +74,20 @@ export const groupShows = (fields: Field[], group: string, doc: Record<string, u
 
 /** Sanity's CurrentUser: who is signed in, their role here under Sanity's role names. */
 export type CurrentUser = {id: string; name: string; email: string; roles: {name: string; title: string}[]}
-/** Who the person is not known yet: whoAmI not read, a provisional stand-in, or a check Barkpark did not answer. Never nobody (`null`). */
-export const UNKNOWN = 'unknown' as const
+/** Who the person is not known yet: whoAmI not read, a provisional stand-in, or a check Barkpark did not answer. Never nobody. */
+export const UNKNOWN: unique symbol = Symbol('unknown')
+/** Nobody signed in (shared sign-in): a role rule's callbacks get `currentUser: null`. Not exported: only currentUserOf says nobody. */
+const NOBODY: unique symbol = Symbol('nobody')
+/** The seal on a known person: not exported, so no other file can make one. */
+declare const sealed: unique symbol
+type Known = CurrentUser & {readonly [sealed]: true}
 /**
- * The person a field is judged for, one of three: known (a CurrentUser), nobody signed in (null,
- * shared sign-in), or UNKNOWN. A field with a role rule waits while UNKNOWN (awaitsPerson); only
- * this file reads UNKNOWN (person-scan.test.ts).
+ * The person a field is judged for, one of three: known (a CurrentUser), nobody signed in, or
+ * UNKNOWN. Only currentUserOf makes one (and only lib/session.ts calls it): a lock site cannot
+ * write a nobody, a person, or a compare-and-replace that tsc takes. A field with a role rule
+ * waits while UNKNOWN (awaitsPerson); only this file reads UNKNOWN (person-scan.test.ts).
  */
-export type Person = CurrentUser | null | typeof UNKNOWN
+export type Person = Known | typeof NOBODY | typeof UNKNOWN
 /** Sanity's Path: field names and array items by `_key`. */
 export type PathSegment = string | {_key: string}
 export type ConditionContext = {currentUser: CurrentUser | null; document: Record<string, unknown>; parent: unknown; value: unknown; path: PathSegment[]}
@@ -108,9 +114,9 @@ type Me = {email: string | null; name: string | null; userId: string | null; rol
 /** whoAmI as Sanity's currentUser: null with nobody signed in (shared sign-in); UNKNOWN while Barkpark has not said who (not read yet, a provisional stand-in, or a check it did not answer). */
 export function currentUserOf(me: Me | undefined): Person {
   if (!me || me.provisional || me.unchecked) return UNKNOWN
-  if (!me.email) return null
+  if (!me.email) return NOBODY
   const role = sanityRole(me.role, me.canWrite)
-  return {id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles: role ? [{name: role, title: roleTitle(role)}] : []}
+  return {id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles: role ? [{name: role, title: roleTitle(role)}] : []} as Known
 }
 
 /** The config key of a field path: its type, then field names with array items left out (`post.links.title`). */
@@ -151,7 +157,9 @@ type Where = {path: string; value: unknown; parent?: Record<string, unknown>}
 /** A config callback, which may ask who the person is: until that is known it cannot be answered. */
 const awaitsPerson = (p: ConditionalProperty, person: Person): person is typeof UNKNOWN => person === UNKNOWN && typeof p === 'function'
 /** Whether the person is known (or known to be nobody). Only this file asks (person-scan.test.ts). */
-const personKnown = (person: Person): person is CurrentUser | null => person !== UNKNOWN
+const personKnown = (person: Person): person is Known | typeof NOBODY => person !== UNKNOWN
+/** A known person (or nobody) as Sanity's callbacks take it: `currentUser`, or null. */
+const sanityUser = (person: Known | typeof NOBODY): CurrentUser | null => (person === NOBODY ? null : person)
 /** Whether kept edits wait to be put back: until the person is known, a role rule may lock a field they hold. */
 export const keptEditsWait = (person: Person) => !personKnown(person)
 /** Whether a type has a role rule: a `form.conditions` callback under `type.`, which waits while the person is unknown. */
@@ -191,7 +199,7 @@ export function fieldState(type: string, f: Field, doc: Record<string, unknown>,
   // A callback is asked only of a known person (awaitsPerson first); a plain true or false asks nobody.
   const context = (known: CurrentUser | null): ConditionContext => ({currentUser: known, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)})
   const name = (p: string) => `form.conditions['${key}'].${p}`
-  const asks = (p: ConditionalProperty, n: string) => p !== undefined && (awaitsPerson(p, person) || (personKnown(person) ? resolveConditional(p, context(person), name(n)) : p === true))
+  const asks = (p: ConditionalProperty, n: string) => p !== undefined && (awaitsPerson(p, person) || (personKnown(person) ? resolveConditional(p, context(sanityUser(person)), name(n)) : p === true))
   const hidden = isHidden(f, doc, at.parent) || asks(rule?.hidden, 'hidden')
   // Not known yet, a hidden callback locks the field as well: its value is not this person's to change before they are known.
   const readOnly = isReadOnly(f, doc, at.parent) || awaitsPerson(rule?.hidden, person) || asks(rule?.readOnly, 'readOnly')
@@ -242,7 +250,7 @@ export function roleHidden(type: string, doc: Record<string, unknown>, currentUs
   const hidden = rules?.[key]?.hidden
   // Until the person is known, a hidden callback hides the field as fieldState does.
   if (awaitsPerson(hidden, currentUser)) return true
-  if (!personKnown(currentUser) || !currentUser || hidden === undefined) return false
+  if (!personKnown(currentUser) || currentUser === NOBODY || hidden === undefined) return false
   const ask = (user: CurrentUser, log = false) => resolveConditional(hidden, {currentUser: user, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)}, `form.conditions['${key}'].hidden`, log)
   if (!ask(currentUser, true)) return false
   const probes = new Set([...KNOWN_ROLES, ...currentUser.roles.map((r) => r.name), ...roles.flatMap((r) => sanityRole(r) ?? [])])

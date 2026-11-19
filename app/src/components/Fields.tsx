@@ -433,7 +433,7 @@ function FieldActions({field, path, value, onChange, readOnly, titleId}: FieldPr
     // A rich-text object is walked as its dialog shows it, with the dialog's schemas: waited for, never guessed.
     const doc = docStore.doc
     // "Another role": each the workspace defines; today's five when Barkpark does not say (lib/workspace-roles.ts).
-    const out = await pasteFieldWith(qc, field, path, pasted.value, value, doc && doc._type ? {type: doc._type, doc, after: setPath(doc, path, pasted.value), user, rules: studio.form?.conditions} : null)
+    const out = await pasteFieldWith(qc, field, path, pasted.value, value, user, doc && doc._type ? {type: doc._type, doc, after: setPath(doc, path, pasted.value), rules: studio.form?.conditions} : null)
     if ('refused' in out) return toast({tone: 'critical', title: tBrowser(SCHEMAS_NOT_LOADED)})
     // A paste that would leave an array past its max and longer than it was is refused (lib/array-max.ts);
     // one under it that a kept locked item takes past it says so.

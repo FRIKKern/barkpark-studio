@@ -1,9 +1,10 @@
 // J30 + barkpark#22554: a condition reads the document, or (scope "parent") its object.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
+import {currentUserOf, fieldState, groupShows, isHidden, pasteSkips, UNKNOWN, type CurrentUser, type FieldConditions, type Person} from './conditions.ts'
 import type {Field} from './data.ts'
-import {currentUserOf, fieldState, groupShows, isHidden, pasteSkips, UNKNOWN, type CurrentUser, type FieldConditions} from './conditions.ts'
 import {roleConditions} from './conditions.fixture.ts'
+import {known, nobody} from './persons.fixture.ts'
 import {pasteDocument} from './paste-locked.ts'
 
 test('scope "parent" reads the enclosing object, the default reads the document', () => {
@@ -41,8 +42,8 @@ test('readOnly ({currentUser}) locks the field for an editor and leaves it open 
   assert.deepEqual((currentUserOf(me('member', false)) as CurrentUser).roles, [{name: 'viewer', title: 'Viewer'}])
   assert.equal(fieldState('author', stage, doc, currentUserOf(me('member')), rules).readOnly, false)
   // Nobody signed in (shared sign-in): currentUser is null, and this config leaves the field open.
-  assert.equal(fieldState('post', stage, doc, null, rules).readOnly, false)
-  assert.equal(currentUserOf({...me('owner'), email: null}), null)
+  assert.equal(fieldState('post', stage, doc, nobody, rules).readOnly, false)
+  assert.equal(String(currentUserOf({...me('owner'), email: null})), 'Symbol(nobody)')
   // Barkpark not answered yet (no answer, or the server render's provisional stand-in): not known, so the rule locks it (fieldrule.test.ts).
   assert.equal(currentUserOf({...me('owner'), provisional: true}), UNKNOWN)
   assert.equal(currentUserOf(undefined), UNKNOWN)
@@ -63,8 +64,8 @@ test('a callback gets Sanity\'s context; one that throws, or answers anything bu
   try {
     // Sanity's own example on a shared studio: currentUser is null, so it throws.
     const sanityStyle = {hidden: ({currentUser}: {currentUser: {roles: {name: string}[]} | null}) => !currentUser!.roles.some((r) => r.name === 'administrator')}
-    assert.equal(fieldState('post', title, {}, null, {'post.title': sanityStyle}).hidden, false)
-    assert.equal(fieldState('post', title, {}, null, {'post.title': sanityStyle}).hidden, false)
+    assert.equal(fieldState('post', title, {}, nobody, {'post.title': sanityStyle}).hidden, false)
+    assert.equal(fieldState('post', title, {}, nobody, {'post.title': sanityStyle}).hidden, false)
     assert.equal(errors.length, 1) // said once, not on every keystroke
     assert.equal(fieldState('post', title, {}, user, {'post.title': {readOnly: () => 1 as unknown as boolean}}).readOnly, false)
     assert.equal(fieldState('post', title, {}, user, {'post.title': {readOnly: (() => Promise.resolve(true)) as unknown as () => boolean}}).readOnly, false)
@@ -91,4 +92,11 @@ test('hidden by role: its group tab goes when nothing in it shows, and Paste doc
   assert.deepEqual(editorPaste.named, ['Stage'])
   assert.deepEqual([...pasteSkips('post', fields, doc, editor, rules).skip], ['internal', 'stage'])
   assert.equal(pasteDocument(fields, {title: 'P', internal: 'pasted', stage: 'idea'}, {type: 'post', doc, user: currentUserOf(me('owner')), rules}).writes.length, 3)
+})
+
+test('the test people (persons.fixture.ts) are as a role rule sees them: currentUser with the role, null, and unknown', () => {
+  const seen: unknown[] = []
+  const f = {name: 'title', type: 'string'} as Field
+  for (const p of [known('editor'), nobody, UNKNOWN] as Person[]) fieldState('post', f, {}, p, {'post.title': {hidden: ({currentUser}) => (seen.push(currentUser), false)}})
+  assert.deepEqual(seen, [{id: 'u1', name: 'A', email: 'a@example.com', roles: [{name: 'editor', title: 'Editor'}]}, null])
 })

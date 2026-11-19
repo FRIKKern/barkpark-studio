@@ -26,8 +26,8 @@ test('a check Barkpark answered: checked, and the person is known, or nobody', (
   assert.deepEqual(currentUserOf(me), {id: 'u1', name: 'E', email: 'e@example.com', roles: [{name: 'editor', title: 'Editor'}]})
   const shared = meOf(read({permissions: ['read', 'write'], boundDataset: null}, {mode: 'shared', editor: null}))
   assert.equal(shared.unchecked, false)
-  assert.equal(currentUserOf(shared), null)
+  assert.equal(String(currentUserOf(shared)), 'Symbol(nobody)')
   // The editor's own token refused (401): the session ends, and nobody is signed in.
   const ended = meOf(read({permissions: [], boundDataset: null, refused: true}))
-  assert.deepEqual([ended.unchecked, ended.email, currentUserOf(ended)], [false, null, null])
+  assert.deepEqual([ended.unchecked, ended.email, String(currentUserOf(ended))], [false, null, 'Symbol(nobody)'])
 })

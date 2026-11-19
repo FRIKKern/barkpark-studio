@@ -355,23 +355,24 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
   // Published and a revision are read in Classic: the canvas holds the draft. Locked, or a field
   // of it read-only for this person, it is read-only; a field of it hidden from them, not drawn.
-  const canvasMode = freeformCanvas(lockState, {schema, doc, user, rules: studio.form?.conditions})
+  const canvasMode = freeformCanvas(lockState, user, {schema, doc, rules: studio.form?.conditions})
   // The same lock where edits are written (lib/doc-lock.ts): edit() and the canvas's batches,
-  // field by field as the form judges them (the one rule), on the doc and person at the write.
+  // field by field as the form judges them (the one rule), on the doc at the write, for this person.
   const lockHolder = useRef({}).current
-  const judged = useRef({schema, doc, user, rules: studio.form?.conditions, canvas: canvasMode})
-  judged.current = {schema, doc, user, rules: studio.form?.conditions, canvas: canvasMode}
+  const judged = useRef({schema, doc, rules: studio.form?.conditions, canvas: canvasMode})
+  judged.current = {schema, doc, rules: studio.form?.conditions, canvas: canvasMode}
   const fieldLock = useMemo(
     () =>
       paneFieldLock(
         () => judged.current,
+        user,
         (path) => {
           const names = segments(path).flatMap((x) => ('name' in x ? [x.name] : [])).join('.')
           const field = fieldTitle(judged.current.schema?.fields ?? [], names) ?? path
           toast({key: `read-only-${pane.id}-${path}`, tone: 'caution', title: tt('“{field}” is read-only for you: the change was not saved.', {field})})
         },
       ),
-    [pane.id],
+    [pane.id, user],
   )
   useLayoutEffect(() => showDoc(pane.id, lockHolder, locked, fieldLock), [pane.id, locked, fieldLock])
   // Kept edits to fields read-only for this person now: not put back, named, and still kept in this browser.
