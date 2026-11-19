@@ -105,6 +105,9 @@ test('@local Portable Text: a paste kept while its page reloads mid-save, the ot
           }),
       )
     await expect.poll(keptHere, {timeout: 5_000}).toBeGreaterThan(0)
+    // A reload right as the kept entry appears can put it back with no Restore card (seen on main
+    // too): task-e437f5ba355f317e. This scene reloads a moment later.
+    await page.waitForTimeout(1_000)
     await page.reload()
     await page.unroute('**/_serverFn/**', slow)
     await target(info).settle(page)
