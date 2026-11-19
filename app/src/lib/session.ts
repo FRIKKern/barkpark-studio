@@ -8,7 +8,7 @@ import {currentScopeQuery} from './scope-switch'
 import {serviceAccess} from './token-self'
 import {headStartAllowed} from './gate-head-start'
 import {currentUserOf} from './conditions'
-import {readWorkspaceRoles} from './workspace-roles'
+import {rolesFor} from './workspace-roles'
 import {useMemo} from 'react'
 
 // Who is editing (server/auth.ts). Server functions: the session cookie is
@@ -179,8 +179,7 @@ export const useStudioTokenRefused = () => !!useQuery(meQuery).data?.studioToken
  * the schemas are, never the studio's. Nobody signed in: none (no role rule locks a paste then).
  */
 const fetchWorkspaceRoles = createServerFn({method: 'GET'}).handler(async () => {
-  const editor = currentEditor()
-  return editor ? readWorkspaceRoles((path) => bpFetch(path, {}, editor.token)) : null
+  return rolesFor(currentEditor(), bpFetch)
 })
 /** Once per page load, which is one workspace (a scope switch loads the page again). Null: today's roles. */
 export const workspaceRolesQuery = queryOptions({queryKey: ['workspace-roles'], queryFn: async () => (await fetchWorkspaceRoles()) as string[] | null, staleTime: Infinity, retry: false})

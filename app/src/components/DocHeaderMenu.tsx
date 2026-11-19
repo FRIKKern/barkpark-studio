@@ -5,7 +5,7 @@ import {copy, isEmpty, read, signature, transfer} from '../lib/clipboard'
 import {schemasQuery, type Doc, type Schema} from '../lib/data'
 import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Transfer, EarthAmericas, JsonIcon, LaunchIcon, RestoreIcon, SyncIcon, TaskIcon} from './icons'
 import studio from '../studio.config'
-import {pasteDocument, SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
+import {pasteDocumentReading, SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
 import {useCurrentUser, workspaceRolesQuery} from '../lib/session'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
@@ -197,8 +197,8 @@ export function DocHeaderMenu({doc, schema, readOnly, onEdit, onInspect, onHisto
               // A field read-only, or hidden from this person but shown to another role, keeps its value at any depth;
               // rich-text objects are walked with the dialog's schemas, waited for, never guessed (lib/paste-locked.ts).
               // "Another role": each the workspace defines; today's five when Barkpark does not say (lib/workspace-roles.ts).
-              const [schemas, roles] = await Promise.all([qc.ensureQueryData(schemasQuery).catch(() => undefined), qc.ensureQueryData(workspaceRolesQuery).catch(() => null)])
-              const {writes, named, refused} = pasteDocument(schema.fields, values, {type: schema.name, doc, user, rules: studio.form?.conditions, roles: roles ?? undefined, schemas})
+              const reads = {schemas: () => qc.ensureQueryData(schemasQuery), roles: () => qc.ensureQueryData(workspaceRolesQuery)}
+              const {writes, named, refused} = await pasteDocumentReading(reads, schema.fields, values, {type: schema.name, doc, user, rules: studio.form?.conditions})
               if (refused) return toast({tone: 'critical', title: tt(SCHEMAS_NOT_LOADED)})
               // Sanity's toast: three names, then how many more.
               const fieldNames = named.slice(0, 3).join(', ')
