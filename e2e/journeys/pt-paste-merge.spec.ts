@@ -162,7 +162,7 @@ test('@local Portable Text: a line kept while its page reloads mid-save, the oth
     const card = page.getByTestId('kept-edits')
     await card.getByRole('button', {name: 'Restore'}).click()
     await expect(card).toContainText('could not be put back: the text changed since')
-    // The paste drops the leading space today; this text gains the space when the paste keeps it.
+    // The paste here drops the leading space today; this line and WANT gain the space when the paste keeps it.
     await expect(card.getByTestId('kept-text')).toHaveText('Start textone two three')
     await expect(card.getByRole('button', {name: 'Restore'})).toHaveCount(0)
     await page.waitForTimeout(1_000)
