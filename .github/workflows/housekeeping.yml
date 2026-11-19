@@ -31,6 +31,7 @@ jobs:
         run: |
           node scripts/generate-roadmap.mjs
           node scripts/check-docs.mjs
+          python3 -I scripts/lib/svg-check.py docs/images/roadmap.svg # fails early; push checks it again itself
           if git diff --quiet -- docs/images/roadmap.svg; then echo 'changed=false' >> "$GITHUB_OUTPUT"; else echo 'changed=true' >> "$GITHUB_OUTPUT"; fi
       - if: steps.regen.outputs.changed == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

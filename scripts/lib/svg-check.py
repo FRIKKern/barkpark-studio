@@ -3,10 +3,10 @@
 # does an SVG shown through <img>, and passes only an SVG that holds nothing that runs or loads: UTF-8, no
 # DOCTYPE or ENTITY (refused in the raw bytes, before the parser sees them), no processing instruction,
 # only SVG elements, no script or foreignObject, no on... attribute, no href and no url( but to a
-# #fragment, and <style> only as the generator writes it: CSS custom properties, var() and one
-# prefers-color-scheme query, nothing else that takes ( or @ or \ (so nothing CSS could load).
-# On a refusal it prints the reason and exits 1.
+# #fragment, no style attribute, and a <style> only when its text is scripts/lib/roadmap-style.css byte for
+# byte (the file generate-roadmap.mjs writes it from). On a refusal it prints the reason and exits 1.
 # docs/decisions/0003-tracking-and-hygiene.md
+import os
 import re
 import sys
 import xml.parsers.expat
@@ -18,8 +18,8 @@ class Refused(Exception):
     pass
 
 
-# The CSS the generator writes, once these are taken out, holds no ( @ or \.
-CSS_ALLOWED = re.compile(r'var\(--[a-z-]+\)|@media \(prefers-color-scheme: (dark|light)\)')
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'roadmap-style.css'), encoding='utf-8') as f:
+    STYLE = f.read()
 URL = re.compile(r'url\(\s*([\'"]?)\s*(?!#)', re.I)
 
 
@@ -65,8 +65,8 @@ def check(data):
                 raise Refused(f'has a url( to something but a #fragment in {attr!r}')
             if '\\' in value:
                 raise Refused(f'has a backslash (a CSS escape) in {attr!r}')
-            if attr == 'style' and re.search(r'[(@]', CSS_ALLOWED.sub('', value)):
-                raise Refused('has a style attribute with CSS beyond custom properties and var()')
+            if attr == 'style':
+                raise Refused('has a style attribute')
             if attr == 'attributeName' and (value.lower().startswith('on') or value.lower().endswith('href')):
                 raise Refused(f'animates {value!r}')
         if local == 'style':
@@ -84,8 +84,8 @@ def check(data):
     except xml.parsers.expat.ExpatError as e:
         raise Refused(f'is not well-formed XML ({e})')
     for css in (''.join(t) for t in styles):
-        if re.search(r'[(@\\]', CSS_ALLOWED.sub('', css)):
-            raise Refused('has a <style> with CSS beyond custom properties, var() and prefers-color-scheme')
+        if css != STYLE:
+            raise Refused('has a <style> that is not scripts/lib/roadmap-style.css')
 
 
 if __name__ == '__main__':

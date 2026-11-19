@@ -3,7 +3,7 @@
 # housekeeping deploy key; it is pinned with each of their jobs in scripts/lib/keyed-jobs.json.
 # The key comes from the step's env (DEPLOY_KEY) and leaves it here, so no child process sees it. It is a
 # file only inside deploy_push, removed after the push, and by the trap if the script ends mid-push.
-# docs/decisions/0009-pack-syncs-itself.md
+# docs/decisions/0010-deploy-key-one-helper.md
 
 # An error line; % CR LF escaped as GitHub reads them, so a value never starts a line of its own.
 fail() {

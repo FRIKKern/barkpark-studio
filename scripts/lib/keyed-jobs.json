@@ -12,8 +12,9 @@
       "sha256": "1040be981e96a32428f977d32abdbe344e6cd5f0ae5de281b8dd34f68f3e0746",
       "runs": {
         "scripts/housekeeping-push.sh": "bda2360b18a6ae2eafef15d35b5e888385a004d43af903cf89c5f8dc4b44c731",
-        "scripts/lib/deploy-push.sh": "507754c4b0a1e907f09350e7a02716bce0ffa2216dc726f32948e5f1067279b3",
-        "scripts/lib/svg-check.py": "1b9df1ca83b3e36532d602f2bf67fe14639b3443e92acb6d6a63ed015ee9c8e4"
+        "scripts/lib/deploy-push.sh": "cb8e2bd2cdf72b5388d299e21a0db51fada431d6e9fc3160cc0605c1ae7feb1b",
+        "scripts/lib/svg-check.py": "8b66e132f5b5ab8bee566588bdd61a02b380513131af41d0c3f50e9f91d2716f",
+        "scripts/lib/roadmap-style.css": "022f0e45bf55d72f81cfd43aff6fef5608c6b57674e8aa16c87b544033df3480"
       }
     },
     {
@@ -21,7 +22,7 @@
       "sha256": "9a1b13f037cdaf0a4001eff5eeceadb55b9cc28ac2531b7ad2c9452c930774f6",
       "runs": {
         "scripts/sync-act.sh": "8cb25fbef6d2324ae1b2da133ee196c13850dbe9bc6d385d240ab9d305043e28",
-        "scripts/lib/deploy-push.sh": "507754c4b0a1e907f09350e7a02716bce0ffa2216dc726f32948e5f1067279b3"
+        "scripts/lib/deploy-push.sh": "cb8e2bd2cdf72b5388d299e21a0db51fada431d6e9fc3160cc0605c1ae7feb1b"
       }
     },
     {

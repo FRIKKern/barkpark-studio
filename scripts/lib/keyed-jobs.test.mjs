@@ -18,7 +18,7 @@ test('every job in .github/workflows holds no key or matches its pin, and every 
   assert.deepEqual(keyProblems(files, pins, read), [])
   assert.deepEqual(pins.jobs.map((p) => p.job), ['housekeeping.yml hygiene', 'housekeeping.yml push', 'sync-pack.yml act', 'sync-pack.yml checks-on-main'])
   assert.deepEqual(Object.keys(pins.jobs.find((p) => p.job === 'sync-pack.yml act').runs), ['scripts/sync-act.sh', 'scripts/lib/deploy-push.sh'])
-  assert.deepEqual(Object.keys(pins.jobs.find((p) => p.job === 'housekeeping.yml push').runs), ['scripts/housekeeping-push.sh', 'scripts/lib/deploy-push.sh', 'scripts/lib/svg-check.py'])
+  assert.deepEqual(Object.keys(pins.jobs.find((p) => p.job === 'housekeeping.yml push').runs), ['scripts/housekeeping-push.sh', 'scripts/lib/deploy-push.sh', 'scripts/lib/svg-check.py', 'scripts/lib/roadmap-style.css'])
   // The jobs that run the roadmap generator and the pack sync hold no key.
   for (const [file, job] of [['housekeeping.yml', 'refresh'], ['sync-pack.yml', 'plan']]) assert.deepEqual(keyReasons(load(files[file]), load(files[file]).jobs[job]), [], `${file} ${job}`)
   assert.deepEqual(Object.keys(DATA_SECRETS), ['BARKPARK_TOKEN'])

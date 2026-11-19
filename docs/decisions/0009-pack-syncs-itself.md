@@ -19,19 +19,19 @@ act (deploy key, git/gh/jq): the commit is the pack, as Barkpark holds it ─►
   the sync wrote it, fails every PR (uncommitted files git ignores, such as `.DS_Store`, are skipped).
 - `.github/workflows/sync-pack.yml` runs daily and on demand, on main only. A source at odds with its stamp
   is refused; a stamp-only change (several a day) opens no PR, the summary names it, the next real change carries it.
-- Two jobs. `plan` installs the app and runs `scripts/pack-sync-pr.mjs`, which writes nothing to GitHub. `act` keeps
-  no credentials and runs main's `scripts/sync-act.sh`, trusting from `plan` only which of three actions to take (each
-  re-checked against GitHub), the report and SOURCE.md's prose. It finds the sync PR itself, checks the bundle, its
-  parent (main, or the PR's head with main merged in), both sides of every path, and each other pack file against
-  Barkpark's blob at the commit SOURCE.md names (on Barkpark's main, not older than main's); it writes the message,
-  title and body. If a Barkpark history rewrite drops main's SOURCE.md commit, pushes fail safe until a hand sync.
+- Two jobs. `plan` installs the app and runs `scripts/pack-sync-pr.mjs`, which writes nothing to GitHub. `act`
+  keeps no credentials and runs main's `scripts/sync-act.sh`, trusting from `plan` only which of three actions
+  to take (each re-checked against GitHub), the report and SOURCE.md's prose. It finds the sync PR itself,
+  checks the bundle, its parent (main, or the PR's head with main merged in), both sides of every path, and
+  each other pack file against Barkpark's blob at the commit SOURCE.md names (on Barkpark's main, not older
+  than main's); it writes the message, title and body. If a Barkpark history rewrite drops main's SOURCE.md
+  commit, pushes fail safe until a hand sync.
 - Conformance runs on the new pack; the report takes the new stamp only when no row moved, else `unit` fails.
   Fix the renderer, or accept the rows on the sync branch (`conformance:write`) and say why; the next sync keeps it.
-- Every workflow job holds no key or is pinned whole (`scripts/lib/keyed-jobs.json`). Pushes use
-  `HOUSEKEEPING_DEPLOY_KEY` (a workflow-token push starts no checks; a new PR gets an empty commit), only in the
-  script's step and a file only while each push runs (`scripts/lib/deploy-push.sh`). The workflow token merges,
-  held to green checks by the ruleset, then dispatches `unit` and `e2e` on main. Needs "Allow GitHub Actions to
-  create and approve pull requests" on, else the opening run fails and says so.
+- `act` pushes with the deploy key, handled as [0010](0010-deploy-key-one-helper.md) says; a new PR gets an
+  empty commit by it to start the checks. The merge uses the workflow token, held to green checks by the
+  ruleset, then dispatches `unit` and `e2e` on main. Needs "Allow GitHub Actions to create and approve pull
+  requests" on, else the opening run fails and says so.
 
 ## Considered
 

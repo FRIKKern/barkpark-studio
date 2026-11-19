@@ -105,7 +105,10 @@ test('svg-check.py: today\'s roadmap passes; one row per refusal', () => {
     assert.equal(r.status, 0, r.stderr)
     return r.stdout.trim().split('\n')
   }
-  const passing = [readFileSync(join(root, SVG)), '<?xml version="1.0" encoding="UTF-8"?>\n' + pic('a'), pic('<a href="#x">x</a>').replace('<text>', '<text fill="url(#g)">')]
+  // The generator writes its one <style> from scripts/lib/roadmap-style.css; the picture on main holds it.
+  const today = readFileSync(join(root, SVG), 'utf8')
+  assert.ok(today.includes(`<style>${readFileSync(join(root, 'scripts/lib/roadmap-style.css'), 'utf8')}</style>`))
+  const passing = [today, '<?xml version="1.0" encoding="UTF-8"?>\n' + pic('a'), pic('<a href="#x">x</a>').replace('<text>', '<text fill="url(#g)">')]
   assert.deepEqual(checkAll(passing), ['ok', 'ok', 'ok'], "today's roadmap.svg; an XML declaration first; a #fragment href and url(#…)")
   const svgWith = (inner, attrs = '') => `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"${attrs}>${inner}</svg>`
   const rows = [
@@ -125,10 +128,11 @@ test('svg-check.py: today\'s roadmap passes; one row per refusal', () => {
     [svgWith('<use xlink:href="https://x/a.svg#b"/>'), "has an href to 'https://x/a.svg#b', not a #fragment"],
     [svgWith('<rect fill="url(https://x/a#b)"/>'), "has a url( to something but a #fragment in 'fill'"],
     [svgWith('<rect fill="\\75rl(x)"/>'), "has a backslash (a CSS escape) in 'fill'"],
-    [svgWith('<rect style="fill: red; mask: image(x)"/>'), 'has a style attribute with CSS beyond custom properties and var()'],
+    [svgWith('<rect style="fill: red"/>'), 'has a style attribute'],
     [svgWith('<set attributeName="href" to="https://x"/>'), "animates 'href'"],
-    [svgWith('<style>@import "https://x/a.css";</style>'), 'has a <style> with CSS beyond custom properties, var() and prefers-color-scheme'],
-    [svgWith('<style>text { fill: url(https://x/a#b) }</style>'), 'has a <style> with CSS beyond custom properties, var() and prefers-color-scheme'],
+    [svgWith('<style>@import "https://x/a.css";</style>'), 'has a <style> that is not scripts/lib/roadmap-style.css'],
+    [today.replace('--bg:#fbfaf7', '--bg:#fbfaf8'), 'has a <style> that is not scripts/lib/roadmap-style.css'],
+    [today.replace('</style>', '</style><style></style>'), 'has a <style> that is not scripts/lib/roadmap-style.css'],
   ]
   const got = checkAll(rows.map(([bytes]) => bytes))
   rows.forEach(([, why], i) => assert.ok(got[i].startsWith(why), `${why}: ${got[i]}`))
