@@ -20,8 +20,7 @@ const REAL_GIT = execFileSync('sh', ['-c', 'command -v git'], {encoding: 'utf8'}
 const BRANCH = 'sync/barkpark-pack'
 const made = []
 const tmp = (prefix) => (made.push(mkdtempSync(join(tmpdir(), prefix))), made.at(-1))
-// PATH holds only these shims and each run's own wrappers: every child act starts is checked for the key.
-const shim = keyShims(join(tmp('shims-'), 'bin'), 'the deploy key')
+const KEY = 'the deploy key'
 after(() => made.forEach((d) => rmSync(d, {recursive: true, force: true})))
 
 const env = {...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1'}
@@ -57,11 +56,22 @@ async function slot(fn, urgent) {
     else free++
   }
 }
-/** A test whose body starts now, while the tests before it still run (the runner awaits the same promise). */
-const early = (body) => {
+// The --test-name-pattern and --test-skip-pattern node was given (each a regexp, or /regexp/flags).
+const patterns = (flag) =>
+  process.execArgv
+    .flatMap((a, i, all) => (a === flag ? [all[i + 1]] : a.startsWith(`${flag}=`) ? [a.slice(flag.length + 1)] : []))
+    .map((p) => (/^\/(.*)\/([a-z]*)$/s.exec(p) ?? [, p, ''])).map(([, re, flags]) => new RegExp(re, flags))
+const only = patterns('--test-name-pattern')
+const skip = patterns('--test-skip-pattern')
+/**
+ * A test whose body starts now, while the tests before it still run (the runner awaits the same promise);
+ * a test the name patterns leave out never starts its acts.
+ */
+function earlyTest(name, body) {
+  if ((only.length && !only.some((r) => r.test(name))) || skip.some((r) => r.test(name))) return test(name, body)
   const running = body()
   running.catch(() => {})
-  return () => running
+  test(name, () => running)
 }
 
 const base = tmp('act-')
@@ -197,13 +207,16 @@ async function plan(json, head, not = [S.main], lenders = [STUDIO]) {
 
 /**
  * Act's script in a fresh clone of origin (the job's checkout); gh answers `pr list` with `prs`, and every
- * child is checked for the key (key-shims.mjs). Origin's pre-receive hook logs the key file as a push sees it.
+ * child is checked for the key by this run's own shims and log (key-shims.mjs): PATH holds only those and the
+ * run's own wrappers. Origin's pre-receive hook logs the key file as a push sees it.
  * `keyWhile`: each git command run while the key file exists; `keyLeft`: key files left in RUNNER_TEMP;
- * `sshCommand`: the checkout's core.sshCommand.
+ * `sshCommand`: the checkout's core.sshCommand. `plant` (a folder; outside the slots): gh's first call starts
+ * a command with the key in its env, makes `planted` there and waits for `go`.
  */
-const act = (w, runnerTemp, prs = [], urgent = false) =>
-  slot(async () => {
+const act = (w, runnerTemp, prs = [], urgent = false, plant) =>
+  (plant ? (fn) => fn() : (fn) => slot(fn, urgent))(async () => {
     const bin = tmp('gh-')
+    const shim = keyShims(join(bin, 'shims'), KEY)
     const log = join(bin, 'calls.log')
     const pushed = join(bin, 'pushed-key.log')
     writeFileSync(join(w.origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "$RUNNER_TEMP/deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
@@ -211,15 +224,17 @@ const act = (w, runnerTemp, prs = [], urgent = false) =>
     const keyWhile = join(bin, 'key-while.log')
     writeFileSync(join(bin, 'git'), `#!/bin/sh\n${shim.check('git')}\n[ ! -e "$RUNNER_TEMP/deploy-key" ] || echo "$1" >> "${keyWhile}"\nexec "${REAL_GIT}" "$@"\n`)
     chmodSync(join(bin, 'git'), 0o755)
-    writeFileSync(join(bin, 'gh'), `#!/bin/sh\n${shim.check('gh')}\necho "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
+    const planting = plant ? `[ -e "${plant}/planted" ] || { LEAK='${KEY}' cat < /dev/null; : > "${plant}/planted"; while [ ! -e "${plant}/go" ]; do sleep 0.02; done; }\n` : ''
+    writeFileSync(join(bin, 'gh'), `#!/bin/sh\n${shim.check('gh')}\n${planting}echo "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
     writeFileSync(join(bin, 'prs.json'), JSON.stringify(prs))
     chmodSync(join(bin, 'gh'), 0o755)
     // --no-local: the checkout holds only what origin's refs reach, never the objects origin borrows.
     const checkout = join(tmp('checkout-'), 'repo')
     await gitRun(base, ['clone', '-q', '--no-local', w.origin, checkout])
     const out = join(bin, 'out')
-    const r = await run(BASH, [ACT], {cwd: checkout, env: {...env, PATH: `${bin}:${shim.dir}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, DEPLOY_KEY: 'the deploy key', DEPLOY_PUSH_URL: w.origin}})
-    assert.deepEqual(shim.seen(), [], `a child process saw the deploy key: ${r.stdout + r.stderr}`)
+    const r = await run(BASH, [ACT], {cwd: checkout, env: {...env, PATH: `${bin}:${shim.dir}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, DEPLOY_KEY: KEY, DEPLOY_PUSH_URL: w.origin}})
+    const seen = shim.seen()
+    assert.deepEqual(seen, [], `a child process saw the deploy key (${seen.join(', ')}): ${r.stdout + r.stderr}`)
     const calls = existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []
     const sshCommand = readFileSync(join(checkout, '.git/config'), 'utf8').match(/^\s*sshcommand\s*=\s*(.*)$/im)?.[1] ?? ''
     return {
@@ -233,7 +248,7 @@ const act = (w, runnerTemp, prs = [], urgent = false) =>
       keyLeft: readdirSync(runnerTemp).filter((f) => f.startsWith('deploy-key')),
       sshCommand,
     }
-  }, urgent)
+  })
 /** Act's commit on the branch: the plan's tree and parents under act's own message. */
 function landed(w, planned) {
   const at = branchAt(w)
@@ -250,6 +265,11 @@ async function cases(runs) {
   if (failed.length) throw new Error(failed.join('\n---\n'))
 }
 
+test('the .. fixture holds a tree entry named .. in conformance/pack', () => {
+  const at = S[`refused-${REFUSED.findIndex(([name]) => name === 'a .. entry in the pack')}`]
+  assert.deepEqual(git(STUDIO, 'ls-tree', '-z', '--name-only', `${at}:conformance/pack`).split('\0').filter(Boolean), ['..', 'a.json'])
+})
+
 test('sync-act.sh handles no key itself: it sources scripts/lib/deploy-push.sh and pushes with deploy_push', () => {
   const code = readFileSync(ACT, 'utf8').split('\n').filter((l) => !/^\s*#/.test(l))
   assert.deepEqual(code.filter((l) => /deploy-push\.sh/.test(l)), ['. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"'])
@@ -263,7 +283,7 @@ test('sync-act.sh handles no key itself: it sources scripts/lib/deploy-push.sh a
   for (const [added, named = added] of PRELUDE_BREAKS) assert.deepEqual(beforeTheHelper(withLine(bytes, added)), named.split('\n'), JSON.stringify(added))
 })
 
-test('act pushes a sync commit on main and opens the PR; it refuses to push one that leaves the pack', early(async () => {
+earlyTest('act pushes a sync commit on main and opens the PR; it refuses to push one that leaves the pack', async () => {
   const pushes = async () => {
     const ok = world()
     const r = await act(ok, await plan({action: 'push', main: S.main}, S.synced))
@@ -301,14 +321,14 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
     assert.doesNotMatch(r.err, /^::set-output/m)
   }
   await cases([['a push', pushes()], ...REFUSED.map((row, i) => [row[0], refused(row, i)]), ['a forged plan value', forged()]])
-}))
+})
 
 test("act's Barkpark paths are the sync's: conformance.mjs and its types from Barkpark's conformance/", () => {
   assert.deepEqual(Object.entries(COPIED).filter(([mine, theirs]) => mine !== theirs), [['conformance.mjs', 'conformance/conformance.mjs'], ['conformance.d.mts', 'conformance/conformance.d.mts']])
   assert.match(readFileSync(ACT, 'utf8'), /^ {8}conformance\.mjs \| conformance\.d\.mts\) src=conformance\/\$rel ;;$/m)
 })
 
-test('act finds the sync PR itself: a plan naming another PR is refused for close, land and push', early(async () => {
+earlyTest('act finds the sync PR itself: a plan naming another PR is refused for close, land and push', async () => {
   const other = syncPr(1287, {headRefName: 'feat/other'})
   const named = async (json) => {
     const r = await act(world(), await plan(json), [syncPr(9), other])
@@ -354,9 +374,9 @@ test('act finds the sync PR itself: a plan naming another PR is refused for clos
     ['close', closes()],
     ['land', lands()],
   ])
-}))
+})
 
-test('act, with the sync PR open: the commit sits on its head with main merged in, never straight on main', early(async () => {
+earlyTest('act, with the sync PR open: the commit sits on its head with main merged in, never straight on main', async () => {
   // The PR's branch (S.hand): a hand commit on main. Straight on main, the hand commit dropped: refused.
   const refusedStraight = async () => {
     const w = world(S.main, S.hand)
@@ -404,4 +424,22 @@ test('act, with the sync PR open: the commit sits on its head with main merged i
     assert.equal(branchAt(w), second)
   }
   await cases([['straight on main', refusedStraight()], ['no valid bundle', refusedBundle()], ['on the head, then main merged in', onHead()]])
-}))
+})
+
+// Each act run reads its own key-leak log. One shared log, read and cleared by whichever run ended first, named
+// a leak under another case, or lost it (task-8b57e3da21dab4b3): here one run leaks while another ends.
+earlyTest('a key leak is named under the run that made it, while another run ends, and never lost', async () => {
+  const marks = tmp('plant-')
+  const close = async () => plan({action: 'close'})
+  const planted = act(world(), await close(), [], false, marks)
+  const isPlanted = async () => {
+    while (!existsSync(join(marks, 'planted'))) await new Promise((r) => setTimeout(r, 10))
+  }
+  await Promise.race([isPlanted(), planted.catch(() => {})])
+  const clean = act(world(), await close()).finally(() => writeFileSync(join(marks, 'go'), ''))
+  await assert.rejects(cases([['the leaking run', planted], ['the clean run', clean]]), (e) => {
+    assert.match(e.message, /^the leaking run: a child process saw the deploy key \(cat\)/)
+    assert.doesNotMatch(e.message, /the clean run/)
+    return true
+  })
+})
