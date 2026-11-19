@@ -10,8 +10,19 @@
 //   which reads them from Barkpark: no menu hands a paste roles of its own;
 // - paste-reads.ts, and each ALLOWED file that defines no writer (or defines one and imports
 //   another file's), exports only the values listed here, whatever the form of any other export.
-// The limit: an allowed file can still hand a writer on without exporting it (say, put into an object
-// another module holds); no scan of export names sees that.
+//   A value hung onto a listed export fails too: a namespace merged with it (a type-only one
+//   too), or an assignment or a setter (Object.assign, defineProperty, setPrototypeOf,
+//   Reflect.set, also destructured from Object or Reflect or taken under a name, and through
+//   brackets, `!` or `as` around the setter or Object) on the export, a property of it, or a
+//   `const` alias of either, `?.` included. It goes by name, not scope: a local or a parameter
+//   that shadows an export's name, and `X.displayName =` on an export, are refused too (it fails
+//   closed).
+// The limit: an allowed file can still hand a writer on without exporting it (put into an object
+// another module holds), or hang it on an export through a binding this scan does not follow: a
+// `this` inside the export, a function's parameter, a let assigned after its declaration, a comma,
+// a ternary or an array pattern; a setter reached through .call or .bind, an alias of Object
+// itself or of a pulled-out setter, a computed name, globalThis, Object(x), spread arguments or
+// Reflect.apply (each a known-limit case below, green until it is caught).
 import assert from 'node:assert/strict'
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import {dirname, join, normalize, relative} from 'node:path'
@@ -149,7 +160,7 @@ function readExports(file: string, text: string): string[] {
       case 'TSImportEqualsDeclaration':
         return [d.id?.name ?? `?${d.type}`]
       case 'TSModuleDeclaration':
-        return [d.id?.name ?? String(d.id?.value)]
+        return [rootName(d.id)]
       case 'TSTypeAliasDeclaration':
       case 'TSInterfaceDeclaration':
         return []
@@ -173,6 +184,101 @@ function readExports(file: string, text: string): string[] {
         return NOT_EXPORTS.has(n.type) ? [] : [`?${n.type}`]
     }
   })
+}
+/** A namespace's name: `A` for `namespace A.B`. */
+const rootName = (id: {type: string; [k: string]: any} | undefined): string => (id?.type === 'TSQualifiedName' ? rootName(id.left) : (id?.name ?? String(id?.value)))
+/** Every node under `n`, with its parent. */
+function walk(n: unknown, see: (n: {type: string; [k: string]: any}, parent: {type: string; [k: string]: any} | undefined) => void, parent?: {type: string; [k: string]: any}) {
+  if (Array.isArray(n)) return n.forEach((x) => walk(x, see, parent))
+  if (!n || typeof n !== 'object' || typeof (n as {type?: unknown}).type !== 'string') return
+  const node = n as {type: string; [k: string]: any}
+  see(node, parent)
+  for (const k in node) if (k !== 'type' && k !== 'start' && k !== 'end' && node[k] && typeof node[k] === 'object') walk(node[k], see, node)
+}
+type Node = {type: string; [k: string]: any}
+/** `n` without what wraps it and changes no value: brackets, `?.`, `!`, `as`, `satisfies`, `<T>`. */
+const bare = (n: Node | null | undefined): Node | null | undefined =>
+  n && /^(ChainExpression|ParenthesizedExpression|TSNonNullExpression|TSAsExpression|TSSatisfiesExpression|TSTypeAssertion)$/.test(n.type) ? bare(n.expression) : n
+/** The binding a write lands on: `a` for `a`, `a.b`, `a.b.c`, `a['b']` (through brackets, `!` and `as`). */
+const rootOf = (n: Node | null | undefined): string | undefined => {
+  const b = bare(n)
+  return !b ? undefined : b.type === 'Identifier' ? b.name : b.type === 'MemberExpression' ? rootOf(b.object) : undefined
+}
+/** `Object.assign` for `Object.assign`, also through brackets, `!` and `as`; else undefined. */
+const memberName = (n: Node | null | undefined): string | undefined => {
+  const b = bare(n)
+  return b?.type === 'MemberExpression' && !b.computed && bare(b.object)?.type === 'Identifier' ? `${bare(b.object)!.name}.${b.property.name}` : undefined
+}
+/** The places an assignment's left side writes (a pattern's every target). */
+const targets = (p: {type: string; [k: string]: any} | null | undefined): {type: string; [k: string]: any}[] =>
+  !p ? [] : p.type === 'ObjectPattern' ? p.properties.flatMap((x: any) => targets(x.type === 'RestElement' ? x.argument : x.value)) : p.type === 'ArrayPattern' ? p.elements.flatMap(targets) : p.type === 'RestElement' ? targets(p.argument) : p.type === 'AssignmentPattern' ? targets(p.left) : [p]
+/** Calls that set a property, or a prototype, on their first argument. */
+const SETTERS = /^(Object\.(assign|defineProperty|defineProperties|setPrototypeOf)|Reflect\.(set|defineProperty|setPrototypeOf))$/
+const hung = new Map<string, string[]>()
+/**
+ * A value hung onto an export of `file`, so the export's name is kept and the value is not seen:
+ * a namespace merged with it (any other declaration of the same name), or an assignment or a
+ * setter call (Object.assign …) whose target is the export or a property of one, also through a
+ * `const` alias of it.
+ */
+function hungProblems(file: string, text: string): string[] {
+  const key = `${file}\0${text}`
+  if (hung.has(key)) return hung.get(key)!
+  const {program, errors} = parseSync(file, text, {lang: file.endsWith('.tsx') ? 'tsx' : 'ts'})
+  const problems: string[] = []
+  if (!errors.length) {
+    const line = (n: {[k: string]: any}) => text.slice(0, n.start as number).split('\n').length
+    const exported = new Set<string>()
+    const declared = new Map<string, number>()
+    const declare = (name: string) => declared.set(name, (declared.get(name) ?? 0) + 1)
+    const namespaces: {type: string; [k: string]: any}[] = []
+    for (const top of program.body as {type: string; [k: string]: any}[]) {
+      const d = top.type === 'ExportNamedDeclaration' || top.type === 'ExportDefaultDeclaration' ? top.declaration : top
+      const names = !d ? [] : d.type === 'VariableDeclaration' ? d.declarations.flatMap((v: any) => bound(v.id)) : d.type === 'TSModuleDeclaration' ? [rootName(d.id)] : /^(FunctionDeclaration|ClassDeclaration|TSEnumDeclaration|TSDeclareFunction)$/.test(d.type) && d.id ? [d.id.name] : []
+      names.forEach(declare)
+      if (d?.type === 'TSModuleDeclaration') namespaces.push(d)
+      if (top.type === 'ExportNamedDeclaration') {
+        if (top.declaration) names.forEach((x: string) => exported.add(x))
+        else if (!top.source) for (const x of top.specifiers) if (x.local.type === 'Identifier') exported.add(x.local.name)
+      }
+      if (top.type === 'ExportDefaultDeclaration') (d?.id?.name ? [d.id.name] : d?.type === 'Identifier' ? [d.name] : []).forEach((x: string) => exported.add(x))
+      if (top.type === 'TSExportAssignment' && top.expression.type === 'Identifier') exported.add(top.expression.name)
+    }
+    // A `const` that is the export under another name is the export.
+    const aliases = new Set(exported)
+    for (let more = true; more; ) {
+      more = false
+      walk(program, (n) => {
+        // The export, or a property of it (`const p = X.prototype`), under another name.
+        if (n.type === 'VariableDeclarator' && n.id.type === 'Identifier' && !aliases.has(n.id.name) && aliases.has(rootOf(n.init) ?? '')) (aliases.add(n.id.name), (more = true))
+      })
+    }
+    for (const ns of namespaces) {
+      const name = rootName(ns.id)
+      if (exported.has(name) && declared.get(name)! > 1) problems.push(`${file} merges a namespace into its export ${name} (line ${line(ns)}): a value hung onto an export is not on its list`)
+    }
+    // A setter taken out of Object or Reflect under a name (`const {assign} = Object`,
+    // `const put = Reflect.set`) is that setter.
+    const setters = new Set<string>()
+    walk(program, (n) => {
+      const from = n.type === 'VariableDeclarator' ? bare(n.init) : undefined
+      if (n.type === 'VariableDeclarator' && n.id.type === 'ObjectPattern' && from?.type === 'Identifier' && /^(Object|Reflect)$/.test(from.name))
+        for (const p of n.id.properties) if (p.type === 'Property' && SETTERS.test(`${from.name}.${p.key.name ?? p.key.value}`)) setters.add(bound(p.value)[0]!)
+      if (n.type === 'VariableDeclarator' && n.id.type === 'Identifier' && SETTERS.test(memberName(from) ?? '')) setters.add(n.id.name)
+    })
+    walk(program, (n) => {
+      const callee = n.type === 'CallExpression' ? bare(n.callee) : undefined
+      const setter = !!callee && (SETTERS.test(memberName(callee) ?? '') || (callee.type === 'Identifier' && setters.has(callee.name)))
+      const hits =
+        n.type === 'AssignmentExpression' ? targets(n.left) : (n.type === 'ForInStatement' || n.type === 'ForOfStatement') && n.left.type !== 'VariableDeclaration' ? targets(n.left) : setter ? [n.arguments[0]] : []
+      for (const t of hits) {
+        const root = rootOf(t)
+        if (root && aliases.has(root)) problems.push(`${file} sets ${text.slice(t.start, t.end)} (line ${line(n)}): a value hung onto its export ${root} is not on its list`)
+      }
+    })
+  }
+  hung.set(key, problems)
+  return problems
 }
 /** Whether `file` passes on a writer it imported under `local` (export {local}, export const x = local, export default local). */
 const passesOn = (c: string, local: string) =>
@@ -255,6 +361,7 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
       continue
     }
     const has = exportsOf(file, src[file]!)
+    problems.push(...hungProblems(file, src[file]!))
     for (const name of has) if (!list.includes(name)) problems.push(`${file} exports ${name}, which is not on its list (${list.join(', ')}): fieldrule-scan.test.ts names all it may export`)
     for (const name of list) if (!has.includes(name)) problems.push(`${file} no longer exports ${name}: take it off its list`)
   }
@@ -278,7 +385,17 @@ test('every surface that shows or edits a field asks the one rule; the writers b
   assert.match(src['lib/conditions.ts']!, /const readOnly = fieldState\(type, f, doc, currentUser, rules, at\)\.readOnly/)
 })
 
-const fails = (src: Record<string, string>, file: string, text: string, why: RegExp) => assert.match(judge({...src, [file]: text}).join('\n'), why, file)
+/** `src` with `file` made `text`: a plant. It prints the line it changed; a plant that changes nothing fails. */
+function plant(src: Record<string, string>, file: string, text: string) {
+  const was = src[file] ?? ''
+  assert.notEqual(text, was, `${file}: the plant changes nothing`)
+  const [a, b] = [was.split('\n'), text.split('\n')]
+  let i = 0
+  while (i < b.length && a[i] === b[i]) i++
+  console.log(`plant ${file}:${i + 1}: ${b[i] ?? '(lines removed)'}`)
+  return {...src, [file]: text}
+}
+const fails = (src: Record<string, string>, file: string, text: string, why: RegExp) => assert.match(judge(plant(src, file, text)).join('\n'), why, file)
 
 test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dynamic import, a direct mutate, an alias, a re-export, a copy of the rule', () => {
   const src = tree()
@@ -362,6 +479,63 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
   assert.deepEqual(judge({...src, [PASTE_READS]: `${src[PASTE_READS]}\nexport type Raw = typeof pasteDocumentReading\nexport interface R {\n  r: Raw\n}\n`}), [])
   fails(src, PASTE_READS, src[PASTE_READS]!.replace('export const pasteFieldWith', 'const pasteFieldWith'), /lib\/paste-reads\.ts no longer exports pasteFieldWith/)
   fails(src, 'lib/bulk-run.ts', src['lib/bulk-run.ts']!.replace('export async function runBulkRow', 'export async function runBulkRow2'), /lib\/bulk-run\.ts exports runBulkRow2, which is not on its list \(runBulkRow\)/)
+  // A value hung onto an allowed export keeps its name: a merged namespace, a property set later,
+  // Object.assign; and the same through brackets, a pattern, a deeper property, an alias, a setter.
+  const hangs: [string, RegExp][] = [
+    ['export namespace runBulkRow {\n  export const raw = (...a: Parameters<typeof mutate>) => mutate(...a)\n}', /lib\/bulk-run\.ts merges a namespace into its export runBulkRow/],
+    ['runBulkRow.raw = mutate', /lib\/bulk-run\.ts sets runBulkRow\.raw \(line \d+\): a value hung onto its export runBulkRow/],
+    ['Object.assign(runBulkRow, {raw: mutate})', /lib\/bulk-run\.ts sets runBulkRow \(line \d+\): a value hung onto its export runBulkRow/],
+    ["runBulkRow['raw'] = mutate", /sets runBulkRow\['raw'\]/],
+    [';(runBulkRow as unknown as {a: {b: unknown}}).a.b = mutate', /sets \(runBulkRow as unknown/],
+    [';[(runBulkRow as unknown as {raw: unknown}).raw] = [mutate]', /hung onto its export runBulkRow/],
+    ['const r = runBulkRow\nObject.defineProperty(r, "raw", {value: mutate})', /sets r \(line \d+\): a value hung onto its export r/],
+    ["Reflect.set(runBulkRow, 'raw', mutate)", /sets runBulkRow \(line/],
+  ]
+  for (const [added, why] of hangs) fails(src, 'lib/bulk-run.ts', `${src['lib/bulk-run.ts']}\n${added}\n`, why)
+  // Through `?.`, a setter destructured from Object or Reflect, an alias of a property of the export.
+  for (const [added, why] of [
+    ['Object.assign((runBulkRow as any)?.prototype, {raw: mutate})', /sets \(runBulkRow as any\)\?\.prototype \(line \d+\): a value hung onto its export runBulkRow/],
+    ["Object.defineProperty(runBulkRow?.prototype, 'raw', {value: mutate})", /sets runBulkRow\?\.prototype \(line \d+\)/],
+    ['const {assign} = Object\nassign(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\): a value hung onto its export runBulkRow/],
+    ['const {set: put} = Reflect\nput(runBulkRow, "raw", mutate)', /sets runBulkRow \(line \d+\)/],
+    ['const p = (runBulkRow as any).prototype\np.raw = mutate', /sets p\.raw \(line \d+\): a value hung onto its export p/],
+    // A setter taken under a name by a plain const (G1, G2), also inside a function (G9).
+    ['const assign = Object.assign\nassign(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\): a value hung onto its export runBulkRow/],
+    ["const put = Reflect.set\nput(runBulkRow, 'raw', mutate)", /sets runBulkRow \(line \d+\)/],
+    ['export function later() {\n  const assign = Object.assign\n  assign(runBulkRow, {raw: mutate})\n}', /sets runBulkRow \(line \d+\)/],
+    // The same through a cast, brackets or `!` around the setter or Object (H4, H8, H12, H6), and at the call.
+    ['const assign = Object.assign as any\nassign(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\)/],
+    ['const assign = (Object.assign)\nassign(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\)/],
+    ['const assign = Object.assign!\nassign(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\)/],
+    ['const {assign} = Object as any\nassign(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\)/],
+    ['(Object.assign as any)(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\)/],
+    ['(Object as any).assign(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\)/],
+  ] as const)
+    fails(src, 'lib/bulk-run.ts', `${src['lib/bulk-run.ts']}\n${added}\n`, why)
+  // Known limits: disguises this scan does not follow. Each stays green here; one that turns red is caught
+  // now: move it up and take it off the header's limit.
+  for (const added of [
+    'let r: any\nr = runBulkRow\nr.raw = mutate',
+    ';((0, runBulkRow) as any).raw = mutate',
+    'Object.assign(...([runBulkRow, {raw: mutate}] as [object, object]))',
+    "Object['assign'](runBulkRow, {raw: mutate})",
+    'globalThis.Object.assign(runBulkRow, {raw: mutate})',
+    'const [r] = [runBulkRow]\n;(r as any).raw = mutate',
+    'Object.assign(Object(runBulkRow), {raw: mutate})',
+    'Reflect.apply(Object.assign, null, [runBulkRow, {raw: mutate}])',
+    'const r: any = Math.random() > 2 ? runBulkRow : null\nr.raw = mutate',
+    // A setter reached through .call (G3), an alias of Object itself (G4), globalThis.Object (G5).
+    'Object.assign.call(Object, runBulkRow, {raw: mutate})',
+    'const O = Object\nO.assign(runBulkRow, {raw: mutate})',
+    'const {assign} = globalThis.Object\nassign(runBulkRow, {raw: mutate})',
+    // .bind (H3); an alias of a pulled-out setter (H7).
+    'Object.assign.bind(Object)(runBulkRow, {raw: mutate})',
+    'const assign = Object.assign\nconst a2 = assign\na2(runBulkRow, {raw: mutate})',
+  ])
+    assert.deepEqual(judge(plant(src, 'lib/bulk-run.ts', `${src['lib/bulk-run.ts']}\n${added}\n`)), [], `a known limit is caught now: ${added}`)
+  // In paste-reads.ts too; and `namespace A.B` is A.
+  fails(src, PASTE_READS, `${src[PASTE_READS]}\nObject.assign(pasteFieldWith, {raw: pasteFieldReading})\n`, /lib\/paste-reads\.ts sets pasteFieldWith/)
+  fails(src, PASTE_READS, `${src[PASTE_READS]}\nexport namespace N.M {\n  export const raw = pasteDocumentReading\n}\n`, /lib\/paste-reads\.ts exports N, which is not on its list/)
   fails(src, 'components/Later2.tsx', "export const p = async () => (await import('../lib/paste-locked.ts')).pasteField\n", /Later2\.tsx imports pasteDocument, pasteField, .* from lib\/paste-locked\.ts/)
   // A paper's linked masters (insert, pin, detach) write its body.
   fails(src, 'components/Masters.tsx', "import {pinMaster} from '../lib/paper-masters'\nexport const pin = pinMaster\n", /components\/Masters\.tsx imports pinMaster \(below the save\)/)
