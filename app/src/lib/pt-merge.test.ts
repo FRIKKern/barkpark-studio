@@ -137,3 +137,11 @@ test('their new block before the block (a paste that split it at its start): its
   assert.deepEqual(texts(mergeList3(base, mine, theirs)), ['Header', 'Start text one'])
   assert.deepEqual(texts(freshItems(base, mine, theirs)), ['Header', 'Start text one'])
 })
+
+test('a block written back unchanged with its keys in another order is not an edit: their version of it stays', () => {
+  const was = [blk('b1', ['b1s', 'Start text one']), blk('t', ['ts', 'three'])]
+  const reordered = (b: Record<string, unknown>) => Object.fromEntries(Object.entries(b).reverse())
+  const mine = [reordered(was[0]!), blk('t', ['ts', 'three four'])]
+  const theirs = [blk('b1', ['x1', 'x']), blk('z3', ['z3s', 'z Start text one']), was[1]]
+  assert.deepEqual(texts(mergeList3(was, mine, theirs)), ['x', 'z Start text one', 'three four'])
+})

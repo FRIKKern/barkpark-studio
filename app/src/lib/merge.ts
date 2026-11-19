@@ -1,5 +1,5 @@
 import {applyPatches as apply, makePatches, type Patch} from '@sanity/diff-match-patch'
-import {hasTextBlocks, mergeBlock, withTheirWords} from './pt-merge.ts'
+import {hasTextBlocks, mergeBlock, same, withTheirWords} from './pt-merge.ts'
 
 // A patch placed on other text than it was made from: its byte offset may fall inside one of
 // that text's letters (an æ or an emoji the other editor typed before it). The library throws
@@ -63,7 +63,8 @@ export function mapCaret(before: string, after: string, pos: number): number {
   return after.length - end
 }
 
-const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
+// Key order aside: a block the editor wrote back unchanged, its keys in its own order, read as
+// changed and went back over another editor's version of it (a third editor's paste lost).
 const keyOf = (x: unknown) => (x && typeof x === 'object' && typeof (x as {_key?: unknown})._key === 'string' ? (x as {_key: string})._key : null)
 
 // Where a Portable Text table holds its items (lib/pt-table.ts): rows of cells of blocks.

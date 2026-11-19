@@ -20,7 +20,8 @@ const OBJ = '￼'
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v)
 const isText = (b: unknown): b is Obj & {children: Obj[]} => isObj(b) && b._type === 'block' && Array.isArray(b.children) && b.children.every(isObj)
 const keyOf = (b: unknown): string | undefined => (isObj(b) && typeof b._key === 'string' ? b._key : undefined)
-const same = (a: unknown, b: unknown): boolean => {
+/** Equal as JSON values: key order and undefined keys aside (the editor writes keys in its own order). */
+export const same = (a: unknown, b: unknown): boolean => {
   if (a === b) return true
   if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((x, i) => same(x, b[i]))
   if (!isObj(a) || !isObj(b)) return false
