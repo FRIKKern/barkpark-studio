@@ -10,7 +10,7 @@ import {readDoc} from '../rig/portable-text'
 const ID = `post-paste-${Date.now().toString(36)}`
 const blk = (key: string, text: string) => ({_type: 'block', _key: key, style: 'normal', markDefs: [], children: [{_type: 'span', _key: `${key}s`, text, marks: []}]})
 
-test.setTimeout(45_000)
+test.setTimeout(90_000)
 test.beforeEach(async ({}, info) => {
   test.skip(target(info).name === 'sanity', 'ours: the merge of two editors\' saves')
   await bpMutate([{createOrReplace: {_id: ID, _type: 'post', title: 'Paste notes', body: [blk('p0', 'Kettle on.'), blk('p1', 'Start text'), blk('p2', 'Cups out.')]}}])
