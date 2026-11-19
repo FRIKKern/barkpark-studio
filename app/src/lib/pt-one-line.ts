@@ -9,10 +9,15 @@ import {isOneLine} from './pt-value.ts'
 const LINE_BREAKS = /(?:\r\n|\r|\n)+/g
 
 const behaviors = [
-  // A soft break is no line break here: one space, none where a space is already beside the caret.
-  // On Android the editor splits text put in with a line break at each "\n" and sends a soft break
-  // between the pieces (@portabletext/editor lib/index.js, its input path); Shift+Enter sends the
-  // same event, so it types a space too (Sanity's one-line field does nothing on it).
+  // A soft break, by where it comes from; this is the one place that decides it.
+  // - Typed: Shift+Enter, a real keydown with key "Enter". Nothing, as Sanity's
+  //   (core/form/inputs/PortableText/object/Plugins.tsx): the keydown is taken, so the browser
+  //   sends no line break after it.
+  // - Arriving text: on Android the editor splits text put in with a line break at each "\n" and
+  //   sends a soft break between the pieces (@portabletext/editor lib/index.js, its input path);
+  //   no Enter keydown comes first (an Android keyboard's is "Unidentified", or none). One space,
+  //   none where a space is already beside the caret, as a line break inside inserted text below.
+  defineBehavior({on: 'keyboard.keydown', guard: ({event}) => event.originEvent.key === 'Enter' && event.originEvent.shiftKey, actions: []}),
   defineBehavior({
     on: 'insert.soft break',
     guard: ({snapshot}) => !isSelectionCollapsed(snapshot) || !(/\s$/.test(getBlockTextBefore(snapshot)) || /^\s/.test(getBlockTextAfter(snapshot))),
@@ -31,8 +36,8 @@ const behaviors = [
 
 /**
  * A Portable Text field with `options.oneLine`, as Sanity's: its OneLinePlugin, the version
- * Sanity 6.17 ships. Enter never splits the block (over a selection it deletes it), a soft break
- * or a line break in text put in is one space (the behaviors above), a paste of
+ * Sanity 6.17 ships. Enter never splits the block (over a selection it deletes it), Shift+Enter
+ * does nothing, a line break in text put in is one space (the behaviors above), a paste of
  * several lines or blocks joins into the caret's block, and a block inserted before or after
  * it is dropped. A stored value holding several blocks is not rewritten: it opens as it is.
  * Mounted before the editor's other plugins: behaviors run in the order they register, and
