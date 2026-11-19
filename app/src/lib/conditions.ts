@@ -74,8 +74,14 @@ export const groupShows = (fields: Field[], group: string, doc: Record<string, u
 
 /** Sanity's CurrentUser: who is signed in, their role here under Sanity's role names. */
 export type CurrentUser = {id: string; name: string; email: string; roles: {name: string; title: string}[]}
-/** The person a field is judged for: a CurrentUser; null with nobody signed in (shared sign-in); undefined until Barkpark has said who. */
-export type Person = CurrentUser | null | undefined
+/** Who the person is not known yet: whoAmI not read, a provisional stand-in, or a check Barkpark did not answer. Never nobody (`null`). */
+export const UNKNOWN = 'unknown' as const
+/**
+ * The person a field is judged for, one of three: known (a CurrentUser), nobody signed in (null,
+ * shared sign-in), or UNKNOWN. A field with a role rule waits while UNKNOWN (awaitsPerson); only
+ * this file reads UNKNOWN (person-scan.test.ts).
+ */
+export type Person = CurrentUser | null | typeof UNKNOWN
 /** Sanity's Path: field names and array items by `_key`. */
 export type PathSegment = string | {_key: string}
 export type ConditionContext = {currentUser: CurrentUser | null; document: Record<string, unknown>; parent: unknown; value: unknown; path: PathSegment[]}
@@ -99,9 +105,9 @@ export function sanityRole(role: string | null | undefined, canWrite = true): st
 }
 
 type Me = {email: string | null; name: string | null; userId: string | null; role: string | null; canWrite: boolean; provisional?: boolean; unchecked?: boolean}
-/** whoAmI as Sanity's currentUser: null with nobody signed in (shared sign-in); undefined while Barkpark has not said who (not read yet, a provisional stand-in, or a check it did not answer). */
+/** whoAmI as Sanity's currentUser: null with nobody signed in (shared sign-in); UNKNOWN while Barkpark has not said who (not read yet, a provisional stand-in, or a check it did not answer). */
 export function currentUserOf(me: Me | undefined): Person {
-  if (!me || me.provisional || me.unchecked) return undefined
+  if (!me || me.provisional || me.unchecked) return UNKNOWN
   if (!me.email) return null
   const role = sanityRole(me.role, me.canWrite)
   return {id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles: role ? [{name: role, title: roleTitle(role)}] : []}
@@ -143,7 +149,9 @@ export function resolveConditional(property: ConditionalProperty, context: Condi
 
 type Where = {path: string; value: unknown; parent?: Record<string, unknown>}
 /** A config callback, which may ask who the person is: until that is known it cannot be answered. */
-const awaitsPerson = (p: ConditionalProperty, person: Person) => person === undefined && typeof p === 'function'
+const awaitsPerson = (p: ConditionalProperty, person: Person): person is typeof UNKNOWN => person === UNKNOWN && typeof p === 'function'
+/** Whether the person is known (or known to be nobody): what may wait on it, as kept edits do. */
+export const personKnown = (person: Person): person is CurrentUser | null => person !== UNKNOWN
 /**
  * Who makes a write, for mayWrite: this person by hand (a key, a menu, an undo), "Keep mine" on
  * a clash, kept edits put back (a replay), or a document action's `set` (code the developer wrote).
@@ -168,16 +176,17 @@ export function mayWrite(by: WriteBy, now: {docLocked: boolean; fieldReadOnly: b
  * `type.path`. Every surface that shows or edits a field asks it, directly or through a
  * helper built on it (fieldLock and pasteSkips for paste, form-lock's canvasAccess for the
  * Freeform canvas, doc-lock at save); fieldrule-scan.test.ts lists them. Until the person is known
- * (`person` undefined) a field with a callback is read-only, and hidden if its hidden is one:
+ * (`person` UNKNOWN) a field with a callback is read-only, and hidden if its hidden is one:
  * it opens once Barkpark has said who, never the other way round. `at` defaults to a top-level
  * field (its parent the document), what the group tabs and Paste document ask about.
  */
 export function fieldState(type: string, f: Field, doc: Record<string, unknown>, person: Person, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}) {
   const key = conditionKey(type, at.path)
   const rule = rules?.[key]
-  const context = (): ConditionContext => ({currentUser: person ?? null, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)})
+  // A callback is asked only of a known person (awaitsPerson first); a plain true or false asks nobody.
+  const context = (known: CurrentUser | null): ConditionContext => ({currentUser: known, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)})
   const name = (p: string) => `form.conditions['${key}'].${p}`
-  const asks = (p: ConditionalProperty, n: string) => p !== undefined && (awaitsPerson(p, person) || resolveConditional(p, context(), name(n)))
+  const asks = (p: ConditionalProperty, n: string) => p !== undefined && (awaitsPerson(p, person) || (personKnown(person) ? resolveConditional(p, context(person), name(n)) : p === true))
   const hidden = isHidden(f, doc, at.parent) || asks(rule?.hidden, 'hidden')
   // Not known yet, a hidden callback locks the field as well: its value is not this person's to change before they are known.
   const readOnly = isReadOnly(f, doc, at.parent) || awaitsPerson(rule?.hidden, person) || asks(rule?.readOnly, 'readOnly')
@@ -228,7 +237,7 @@ export function roleHidden(type: string, doc: Record<string, unknown>, currentUs
   const hidden = rules?.[key]?.hidden
   // Until the person is known, a hidden callback hides the field as fieldState does.
   if (awaitsPerson(hidden, currentUser)) return true
-  if (!currentUser || hidden === undefined) return false
+  if (!personKnown(currentUser) || !currentUser || hidden === undefined) return false
   const ask = (user: CurrentUser, log = false) => resolveConditional(hidden, {currentUser: user, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)}, `form.conditions['${key}'].hidden`, log)
   if (!ask(currentUser, true)) return false
   const probes = new Set([...KNOWN_ROLES, ...currentUser.roles.map((r) => r.name), ...roles.flatMap((r) => sanityRole(r) ?? [])])

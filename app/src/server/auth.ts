@@ -29,7 +29,7 @@ import {getCookie, setCookie, deleteCookie, getRequest} from '@tanstack/react-st
 import {scope} from './barkpark'
 import {seal, unseal} from './session-cookie'
 import {heardRefused, oncePerRequest, refusedLately} from '../lib/gate-head-start'
-import {tokenSelf, UNKNOWN_SELF, type TokenBody, type TokenSelf} from '../lib/token-self'
+import {readSelf, type TokenSelf} from '../lib/token-self'
 import {CLOUD_COOKIE, CLOUD_PATH, CLOUD_TTL_SECONDS, cloudConfig, cloudExchange, cloudStart, publicOrigin, ssoConfig, stateMatches, type CloudError, type CloudPending} from '../lib/cloud-signin'
 import {returnPath} from '../lib/return-path'
 import {onRequest, sessionWindow, type SessionClock} from '../lib/session-age'
@@ -137,11 +137,10 @@ export async function signIn(email: string) {
 
 /** Why an account sign-in was refused, in words for the sign-in screen. */
 export class SignInRefused extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
+  readonly code: string
+  constructor(code: string, message: string) {
     super(message)
+    this.code = code
   }
 }
 
@@ -296,12 +295,9 @@ async function editorToken(email: string): Promise<string> {
  * What a token may do (J49 and the roles scout: a read-only role sees a locked form,
  * not refused writes): the token describes itself (GET /v1/auth/token, barkpark#22130),
  * its permissions as far as its seat in the workspace allows, and the dataset it is held
- * to when bound (#22393). Kept a minute per token; one Barkpark did not give, a moment. Unknown: Barkpark judges each write.
+ * to when bound (#22393). Kept a minute per token; one Barkpark did not give (UNKNOWN_SELF), not at all.
  */
-const described = new Map<string, {at: number; self: Promise<TokenSelf>; hold: number}>()
-/** How long describeToken waits for Barkpark, and keeps an answer it did not get. */
-const TOKEN_READ_MS = 8000
-const UNKNOWN_HOLD_MS = 2000
+const described = new Map<string, {at: number; self: Promise<TokenSelf>}>()
 // When Barkpark last said each token ends (unix seconds; null, never), for currentEditor.
 const ends = new Map<string, number | null>()
 const knownEnd = (token: string) => ends.get(token)
@@ -311,31 +307,30 @@ const refused = refusedLately()
 export function knownTokenSelf(token: string): Promise<TokenSelf> | undefined {
   if (refused.has(`${token} ${scope().workspace}`)) return Promise.resolve({permissions: [], boundDataset: null, refused: true})
   const held = described.get(`${token} ${scope().workspace}`)
-  return held && Date.now() - held.at < held.hold ? held.self : undefined
+  return held && Date.now() - held.at < 60_000 ? held.self : undefined
 }
 
 export function describeToken(token: string): Promise<TokenSelf> {
   // A login session holds a seat per workspace: what it may do depends on where it is.
   const key = `${token} ${scope().workspace}`
   const held = described.get(key)
-  if (held && Date.now() - held.at < held.hold) return held.self
+  if (held && Date.now() - held.at < 60_000) return held.self
   const workspace = scope().workspace
   const self = (async (): Promise<TokenSelf> => {
-    const res = await fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}, signal: AbortSignal.timeout(TOKEN_READ_MS)}).catch(() => undefined)
+    const {status, self: me} = await readSelf((signal) => fetch(`${process.env.BARKPARK_URL}/v1/auth/token`, {headers: {authorization: `Bearer ${token}`}, signal}), workspace)
     // 401: dead (revoked or expired). 403: alive but not allowed here: nothing to write with.
-    if (heardRefused(refused, res?.status, token, workspace)) return {permissions: [], boundDataset: null, refused: true}
-    if (res?.status === 403) return {permissions: [], boundDataset: null}
-    if (!res?.ok) return {...UNKNOWN_SELF}
-    const me = tokenSelf((await res.json()) as TokenBody, workspace)
+    if (heardRefused(refused, status, token, workspace)) return {permissions: [], boundDataset: null, refused: true}
+    if (status === 403) return {permissions: [], boundDataset: null}
+    if (me.unknown) return me
     if (me.expiresAt !== undefined) (ends.delete(token), ends.set(token, me.expiresAt))
     // Held by insertion: the oldest go first, so a long-running server keeps a bounded few.
     if (ends.size > 10_000) ends.delete(ends.keys().next().value!)
     return me
   })()
-  const entry = {at: Date.now(), self, hold: 60_000}
+  const entry = {at: Date.now(), self}
   described.set(key, entry)
-  // Not said: kept only a moment (a page's burst of reads asks once), so a retry asks Barkpark again.
-  void self.then((s) => s.unknown && Object.assign(entry, {at: Date.now(), hold: UNKNOWN_HOLD_MS}), () => {})
+  // An answer Barkpark did not give is never kept: shared while asked, then the next read asks again.
+  void self.then((s) => s.unknown && described.get(key) === entry && described.delete(key))
   return self
 }
 

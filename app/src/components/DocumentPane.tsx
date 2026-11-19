@@ -18,7 +18,7 @@ import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withPara
 import {choiceById} from '../lib/templates'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
-import {fieldState, groupShows} from '../lib/conditions'
+import {fieldState, groupShows, personKnown} from '../lib/conditions'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
@@ -452,7 +452,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     setRecovered(null)
     // Judged against the schema as it is now (a field it dropped or retyped is not sent).
     // And once the person is known: a field a rule may lock for them refuses its kept edits until then.
-    if (!keepScope || !editable || !draftQ.data || !schema || user === undefined) return
+    if (!keepScope || !editable || !draftQ.data || !schema || !personKnown(user)) return
     let live = true
     void recoverPending(qc, draftQ.data, schema).then((r) => {
       if (!live || !r) return
@@ -462,7 +462,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       notPutBack(r.refused, date, r.put > 0)
     })
     return () => void (live = false)
-  }, [keepScope, pane.id, editable, !!schema, user === undefined])
+  }, [keepScope, pane.id, editable, !!schema, personKnown(user)])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   // Sanity's Inspect is in the URL (`inspect=on`): Back closes and reopens it, a link or a
   // reload opens it, and it takes the inspector's place (History closes), as there.

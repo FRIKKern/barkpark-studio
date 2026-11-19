@@ -19,6 +19,33 @@ export type TokenBody = {kind?: string; user?: {id?: string | number}; permissio
  */
 export const UNKNOWN_SELF: Readonly<TokenSelf> = {permissions: ['read', 'write'], boundDataset: null, unknown: true}
 
+/** How long describeToken (server/auth.ts) waits for Barkpark's answer, body and all. */
+export const TOKEN_READ_MS = 8000
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+/** A body in GET /v1/auth/token's shape: a login session or an API token. */
+const isTokenBody = (b: unknown): b is TokenBody => isObj(b) && (typeof b.kind === 'string' || Array.isArray(b.permissions))
+
+/**
+ * Barkpark's GET /v1/auth/token for a token, read within `ms`: its status, and what the token may
+ * do here. No answer in time, a dropped connection, a failed status or a body not in the route's
+ * shape: UNKNOWN_SELF (the status, when one came, is still given: describeToken reads 401 and 403).
+ */
+export async function readSelf(get: (signal: AbortSignal) => Promise<Response>, workspace: string, ms = TOKEN_READ_MS): Promise<{status: number | undefined; self: TokenSelf}> {
+  const stop = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const late = new Promise<undefined>((r) => (timer = setTimeout(() => (stop.abort(), r(undefined)), ms)))
+  try {
+    const res = await Promise.race([get(stop.signal), late])
+    if (!res?.ok) return {status: res?.status, self: {...UNKNOWN_SELF}}
+    const body: unknown = await Promise.race([res.json(), late])
+    return {status: res.status, self: isTokenBody(body) ? tokenSelf(body, workspace) : {...UNKNOWN_SELF}}
+  } catch {
+    return {status: undefined, self: {...UNKNOWN_SELF}}
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export function tokenSelf(me: TokenBody, workspace: string): TokenSelf {
   // A login session (#22783): its seat in this workspace says what it may do; none, nothing.
   if (me.kind === 'session') {

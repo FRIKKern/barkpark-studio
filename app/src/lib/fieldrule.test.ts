@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import type {Field, Schema} from './data.ts'
-import {currentUserOf, fieldState, pasteSkips, pathReadOnly, type FieldConditions, type Person} from './conditions.ts'
+import {currentUserOf, fieldState, pasteSkips, pathReadOnly, UNKNOWN, type FieldConditions, type Person} from './conditions.ts'
 import {canvasAccess, freeformCanvas, paneFieldLock} from './form-lock.ts'
 import {canvasLocked, docLocked, fieldLocked, gated, hideDoc, showDoc} from './doc-lock.ts'
 import {pasteDocument} from './paste-locked.ts'
@@ -58,8 +58,8 @@ test('the Freeform canvas without a layout: its body counts as a region does', (
 test('before the person is known, a field with a role rule is locked on every surface, and opens once they are', () => {
   const rules: Record<string, FieldConditions> = {'note.body': {readOnly: notAdmin}, 'note.label': {hidden: notAdmin}, 'note.stage': {readOnly: true}}
   const F = (name: string) => note.fields.find((f) => f.name === name)!
-  for (const person of [undefined, currentUserOf(undefined), currentUserOf({email: 'a@example.com', name: 'A', userId: 'u2', role: 'admin', canWrite: true, provisional: true})]) {
-    assert.equal(person, undefined)
+  for (const person of [UNKNOWN, currentUserOf(undefined), currentUserOf({email: 'a@example.com', name: 'A', userId: 'u2', role: 'admin', canWrite: true, provisional: true}), currentUserOf({email: 'a@example.com', name: 'A', userId: 'u2', role: null, canWrite: true, unchecked: true})]) {
+    assert.equal(person, UNKNOWN)
     // The form (ConditionalField draws by fieldState).
     assert.deepEqual(fieldState('note', F('body'), doc, person, rules), {hidden: false, readOnly: true})
     assert.deepEqual(fieldState('note', F('label'), doc, person, rules), {hidden: true, readOnly: true})
