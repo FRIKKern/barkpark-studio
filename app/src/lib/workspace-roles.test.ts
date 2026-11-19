@@ -1,12 +1,11 @@
 // task-27d3f08bf49a2259: a paste keeps a field a role rule hides from the person and shows to any
 // role the workspace defines, custom ones too; when Barkpark does not say which, today's roles.
 import assert from 'node:assert/strict'
-import {readFileSync} from 'node:fs'
 import {test} from 'node:test'
 import type {Field} from './data.ts'
 import type {FieldConditions} from './conditions.ts'
-import {keepLocked, pasteDocument} from './paste-locked.ts'
-import {readWorkspaceRoles, ROLES_PATH} from './workspace-roles.ts'
+import {keepLocked, pasteDocument, pasteDocumentReading, pasteFieldReading} from './paste-locked.ts'
+import {readWorkspaceRoles, ROLES_PATH, rolesFor} from './workspace-roles.ts'
 
 const editor = {id: 'u1', name: 'E', email: 'e@example.com', roles: [{name: 'editor', title: 'Editor'}]}
 const fields = [{name: 'title', type: 'string'}, {name: 'review', type: 'string'}] as unknown as Field[]
@@ -59,14 +58,25 @@ test("no roles from Barkpark: today's roles, never no lock", async () => {
   assert.deepEqual(pasteDocument(fields, {title: 'B', review: 'pasted'}, {type: 'post', doc, user: editor, rules: {'post.review': onlyFor('reviewer')}}).writes, [['title', 'B'], ['review', 'pasted']])
 })
 
-test("the roles are read with the signed-in person's own token, never the studio's, and every paste asks them", () => {
-  const session = readFileSync(new URL('./session.ts', import.meta.url), 'utf8')
-  const read = session.slice(session.indexOf('const fetchWorkspaceRoles'), session.indexOf('export const workspaceRolesQuery'))
-  assert.match(read, /const editor = currentEditor\(\)\n\s+return editor \? readWorkspaceRoles\(\(path\) => bpFetch\(path, \{\}, editor\.token\)\) : null/)
-  assert.doesNotMatch(read, /serviceToken|studioToken|contentModelToken|requestToken/)
-  for (const file of ['../components/DocHeaderMenu.tsx', '../components/Fields.tsx']) {
-    const src = readFileSync(new URL(file, import.meta.url), 'utf8')
-    assert.match(src, /qc\.ensureQueryData\(workspaceRolesQuery\)\.catch\(\(\) => null\)/, file)
-    assert.match(src, /rules: studio\.form\?\.conditions, roles: roles \?\? undefined, schemas\}/, file)
-  }
+test("the roles are read with the signed-in person's own token, and every paste asks them", async () => {
+  // session.ts's read: the person's token reaches Barkpark, and no one signed in reads nothing.
+  const tokens: string[] = []
+  const fetch = async (path: string, _init: RequestInit, token: string) => (tokens.push(token), answer(200, ROUTE)(path))
+  assert.deepEqual(await rolesFor({token: 'person-token'}, fetch), ROUTE.roles)
+  assert.equal(await rolesFor(undefined, fetch), null)
+  assert.deepEqual(tokens, ['person-token'])
+  // Paste document and Paste field (DocHeaderMenu, Fields) read the roles, faked here as Barkpark's
+  // answer with a custom `reviewer`: a field shown only to it is kept from the editor's paste.
+  let asked = 0
+  const reads = {schemas: async () => [], roles: async () => (asked++, readWorkspaceRoles(answer(200, ROUTE)))}
+  const rules = {'post.review': onlyFor('reviewer')}
+  const doc = {title: 'A', review: 'kept'}
+  assert.deepEqual((await pasteDocumentReading(reads, fields, {title: 'B', review: 'pasted'}, {type: 'post', doc, user: editor, rules})).writes, [['title', 'B']])
+  const box = {name: 'box', type: 'composite', fields} as unknown as Field
+  const inBox = {'post.box.review': onlyFor('reviewer')}
+  assert.deepEqual(await pasteFieldReading(reads, box, 'box', {title: 'B', review: 'pasted'}, doc, {type: 'post', doc: {box: doc}, user: editor, rules: inBox}), {value: {title: 'B', review: 'kept'}})
+  assert.equal(asked, 2, 'each paste reads the roles')
+  // A failed roles read: today's roles, so the custom role is unknown and the field is written, as before.
+  const failing = {...reads, roles: () => Promise.reject(new Error('offline'))}
+  assert.deepEqual((await pasteDocumentReading(failing, fields, {title: 'B', review: 'pasted'}, {type: 'post', doc, user: editor, rules})).writes, [['title', 'B'], ['review', 'pasted']])
 })

@@ -197,3 +197,25 @@ export function pasteDocument(fields: Field[], values: Obj, context: PasteContex
   }
   return {writes, named}
 }
+
+/**
+ * What every paste reads first, both at once: the rich-text dialogs' schemas, and the roles the
+ * workspace defines (lib/workspace-roles.ts) so a field shown only to a custom role is kept. A
+ * failed read gives no schemas (a paste that needs them is refused) and today's roles.
+ */
+export type PasteReads = {schemas: () => Promise<SchemaLike[] | undefined>; roles: () => Promise<readonly string[] | null>}
+/** The paste's context, less what it reads (PasteReads): a caller cannot hand in roles of its own. */
+export type PasteAsks = Omit<PasteContext, 'roles' | 'schemas'>
+async function readFor(reads: PasteReads) {
+  const [schemas, roles] = await Promise.all([reads.schemas().catch(() => undefined), reads.roles().catch(() => null)])
+  return {schemas, roles: roles ?? undefined}
+}
+/** Paste document (DocHeaderMenu): pasteDocument with the schemas and the workspace's roles read. */
+export async function pasteDocumentReading(reads: PasteReads, fields: Field[], values: Obj, context: PasteAsks) {
+  return pasteDocument(fields, values, {...context, ...(await readFor(reads))})
+}
+/** Paste field (Fields.tsx): pasteField with the schemas and the workspace's roles read; no document yet, the value as pasted. */
+export async function pasteFieldReading(reads: PasteReads, f: Field, path: string, pasted: unknown, target: unknown, context: PasteAsks | null) {
+  const read = await readFor(reads)
+  return context ? pasteField(f, path, pasted, target, {...context, ...read}) : {value: pasted}
+}
