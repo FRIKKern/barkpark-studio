@@ -65,15 +65,16 @@ test('options.oneLine: the field is one line; it offers no block to insert, and 
   assert.deepEqual(insertable({blocks}, true).blocks.map((b) => b.name), ['image', 'table', 'callout'])
 })
 
-test('Enter in a one-line field leaves one block; Shift+Enter breaks no line; Enter over a selection deletes it', async () => {
+test('Enter in a one-line field leaves one block; a soft break adds no line; Enter over a selection deletes it', async () => {
   const one = await mount(ONE, [block('a', 'Hello world')])
   await one.send(caret('a', 5))
   await one.send({type: 'insert.break'})
-  await one.send({type: 'insert.soft break'})
   assert.deepEqual(one.texts(), ['Hello world'])
-  await one.send(caret('a', 5, 11))
+  await one.send({type: 'insert.soft break'})
+  assert.deepEqual(one.texts(), ['Hello  world'], 'a lone soft break right before a space: two spaces, the accepted cost (words never join)')
+  await one.send(caret('a', 5, 12))
   await one.send({type: 'insert.break'})
-  assert.deepEqual(one.texts(), ['Hello'], 'Enter over " world" deletes it, as Sanity\'s, and splits nothing')
+  assert.deepEqual(one.texts(), ['Hello'], 'Enter over "  world" deletes it, as Sanity\'s, and splits nothing')
   await one.done()
   // The same keys without oneLine: a new block, then a line break, so the asserts above can fail.
   const many = await mount({}, [block('b', 'Hello world')])
@@ -162,7 +163,7 @@ test('text put in with a line break lands as a space, in the one span', async ()
 
 // Android: the editor splits text put in with a line break at each "\n" and sends a soft break
 // between the pieces (@portabletext/editor 8.2.5, lib/index.js 1891-1907), with no Enter keydown
-// before it. The one-line field takes each such soft break as one space; none beside a space.
+// before it. The one-line field takes each such soft break as one space; none right after a space.
 test('text put in with line breaks and no Enter keydown (Android\'s split) lands as one line with single spaces', async () => {
   const one = await mount(ONE, [block('a', 'Hello world')])
   await one.send(caret('a', 6))
@@ -181,6 +182,16 @@ test('text put in with line breaks and no Enter keydown (Android\'s split) lands
   for (const e of [{type: 'insert.text', text: 'one'}, {type: 'insert.soft break'}, {type: 'insert.text', text: 'two '}]) await many.send(e)
   assert.deepEqual(many.texts(), ['Hello one\ntwo world'])
   await many.done()
+})
+
+// Android's split with the caret right before a space (a tap at the end of a word, mid-text): the next
+// piece lands between the caret and that space, so the break between the pieces still needs its space.
+test('Android\'s split with the caret right before a space keeps the pieces apart', async () => {
+  const one = await mount(ONE, [block('a', 'Hello world')])
+  await one.send(caret('a', 5))
+  for (const e of [{type: 'insert.text', text: 'one'}, {type: 'insert.soft break'}, {type: 'insert.text', text: 'two'}]) await one.send(e)
+  assert.deepEqual(one.texts(), ['Helloone two world'])
+  await one.done()
 })
 
 // A typed Shift+Enter: a real keydown with key "Enter". A browser sends its line break (beforeinput

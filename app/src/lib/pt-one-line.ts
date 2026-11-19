@@ -1,7 +1,7 @@
 import {createElement, Fragment} from 'react'
 import {defineBehavior, raise} from '@portabletext/editor/behaviors'
 import {BehaviorPlugin} from '@portabletext/editor/plugins'
-import {getBlockTextAfter, getBlockTextBefore, isSelectionCollapsed} from '@portabletext/editor/selectors'
+import {getBlockTextBefore, isSelectionCollapsed} from '@portabletext/editor/selectors'
 import {OneLinePlugin} from '@portabletext/plugin-one-line'
 import type {Field} from './data'
 import {isOneLine} from './pt-value.ts'
@@ -16,11 +16,13 @@ const behaviors = [
   // - Arriving text: on Android the editor splits text put in with a line break at each "\n" and
   //   sends a soft break between the pieces (@portabletext/editor lib/index.js, its input path);
   //   no Enter keydown comes first (an Android keyboard's is "Unidentified", or none). One space,
-  //   none where a space is already beside the caret, as a line break inside inserted text below.
+  //   none where the text just before the caret already ends in one, so a run of breaks is one
+  //   space. Only before: the next piece lands between the caret and any space after it. A lone
+  //   break right before a space so gives two spaces; joined words would be worse.
   defineBehavior({on: 'keyboard.keydown', guard: ({event}) => event.originEvent.key === 'Enter' && event.originEvent.shiftKey, actions: []}),
   defineBehavior({
     on: 'insert.soft break',
-    guard: ({snapshot}) => !isSelectionCollapsed(snapshot) || !(/\s$/.test(getBlockTextBefore(snapshot)) || /^\s/.test(getBlockTextAfter(snapshot))),
+    guard: ({snapshot}) => !isSelectionCollapsed(snapshot) || !/\s$/.test(getBlockTextBefore(snapshot)),
     actions: [() => [raise({type: 'insert.text', text: ' '})]],
   }),
   defineBehavior({on: 'insert.soft break', actions: []}),
