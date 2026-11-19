@@ -12,15 +12,16 @@
 //   another file's), exports only the values listed here, whatever the form of any other export.
 //   A value hung onto a listed export fails too: a namespace merged with it (a type-only one
 //   too), or an assignment or a setter (Object.assign, defineProperty, setPrototypeOf,
-//   Reflect.set, also destructured from Object or Reflect) on the export, a property of it, or a
-//   `const` alias of either, `?.` included. It goes by name, not scope: a local or a parameter
-//   that shadows an export's name, and `X.displayName =` on an export, are refused too (it fails
-//   closed).
+//   Reflect.set, also destructured from Object or Reflect or taken under a name) on the export,
+//   a property of it, or a `const` alias of either, `?.` included. It goes by name, not scope: a
+//   local or a parameter that shadows an export's name, and `X.displayName =` on an export, are
+//   refused too (it fails closed).
 // The limit: an allowed file can still hand a writer on without exporting it (put into an object
 // another module holds), or hang it on an export through a binding this scan does not follow: a
-// `this` inside the export, a function's parameter, an alias made with let, a comma, a ternary or
-// an array pattern; a setter reached by a computed name, globalThis, Object(x), spread arguments
-// or Reflect.apply (each a known-limit case below, green until it is caught).
+// `this` inside the export, a function's parameter, a let assigned after its declaration, a comma,
+// a ternary or an array pattern; a setter reached through .call, an alias of Object itself, a
+// computed name, globalThis, Object(x), spread arguments or Reflect.apply (each a known-limit case
+// below, green until it is caught).
 import assert from 'node:assert/strict'
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import {dirname, join, normalize, relative} from 'node:path'
@@ -244,11 +245,13 @@ function hungProblems(file: string, text: string): string[] {
       const name = rootName(ns.id)
       if (exported.has(name) && declared.get(name)! > 1) problems.push(`${file} merges a namespace into its export ${name} (line ${line(ns)}): a value hung onto an export is not on its list`)
     }
-    // A setter taken out of Object or Reflect under a name (`const {assign} = Object`) is that setter.
+    // A setter taken out of Object or Reflect under a name (`const {assign} = Object`,
+    // `const put = Reflect.set`) is that setter.
     const setters = new Set<string>()
     walk(program, (n) => {
       if (n.type === 'VariableDeclarator' && n.id.type === 'ObjectPattern' && n.init?.type === 'Identifier' && /^(Object|Reflect)$/.test(n.init.name))
         for (const p of n.id.properties) if (p.type === 'Property' && SETTERS.test(`${n.init.name}.${p.key.name ?? p.key.value}`)) setters.add(bound(p.value)[0]!)
+      if (n.type === 'VariableDeclarator' && n.id.type === 'Identifier' && n.init?.type === 'MemberExpression' && SETTERS.test(`${n.init.object.name}.${n.init.property.name}`)) setters.add(n.id.name)
     })
     walk(program, (n) => {
       const setter = n.type === 'CallExpression' && ((n.callee.type === 'MemberExpression' && SETTERS.test(`${n.callee.object.name}.${n.callee.property.name}`)) || (n.callee.type === 'Identifier' && setters.has(n.callee.name)))
@@ -482,6 +485,10 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
     ['const {assign} = Object\nassign(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\): a value hung onto its export runBulkRow/],
     ['const {set: put} = Reflect\nput(runBulkRow, "raw", mutate)', /sets runBulkRow \(line \d+\)/],
     ['const p = (runBulkRow as any).prototype\np.raw = mutate', /sets p\.raw \(line \d+\): a value hung onto its export p/],
+    // A setter taken under a name by a plain const (G1, G2), also inside a function (G9).
+    ['const assign = Object.assign\nassign(runBulkRow, {raw: mutate})', /sets runBulkRow \(line \d+\): a value hung onto its export runBulkRow/],
+    ["const put = Reflect.set\nput(runBulkRow, 'raw', mutate)", /sets runBulkRow \(line \d+\)/],
+    ['export function later() {\n  const assign = Object.assign\n  assign(runBulkRow, {raw: mutate})\n}', /sets runBulkRow \(line \d+\)/],
   ] as const)
     fails(src, 'lib/bulk-run.ts', `${src['lib/bulk-run.ts']}\n${added}\n`, why)
   // Known limits: disguises this scan does not follow. Each stays green here; one that turns red is caught
@@ -496,6 +503,10 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
     'Object.assign(Object(runBulkRow), {raw: mutate})',
     'Reflect.apply(Object.assign, null, [runBulkRow, {raw: mutate}])',
     'const r: any = Math.random() > 2 ? runBulkRow : null\nr.raw = mutate',
+    // A setter reached through .call (G3), an alias of Object itself (G4), globalThis.Object (G5).
+    'Object.assign.call(Object, runBulkRow, {raw: mutate})',
+    'const O = Object\nO.assign(runBulkRow, {raw: mutate})',
+    'const {assign} = globalThis.Object\nassign(runBulkRow, {raw: mutate})',
   ])
     assert.deepEqual(judge(plant(src, 'lib/bulk-run.ts', `${src['lib/bulk-run.ts']}\n${added}\n`)), [], `a known limit is caught now: ${added}`)
   // In paste-reads.ts too; and `namespace A.B` is A.
