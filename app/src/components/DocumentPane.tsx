@@ -14,7 +14,7 @@ import {advisoryProblems} from '../lib/findings'
 import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
 import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setByAction, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
-import {keptText} from '../lib/kept-text'
+import {fieldNames, keptText} from '../lib/kept-text'
 import '../kept-edits.css'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {choiceById} from '../lib/templates'
@@ -830,7 +830,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <span>
               {recovered.untold?.length ? (
                 <>
-                  {t('Unsaved changes to {fields} from {date} could not be put back: the text changed since. They are kept in this browser.', {fields: recovered.untold.map((f) => fieldLabels[f.split(/[.[]/)[0]!] ?? f).join(', '), date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}
+                  {t('Unsaved changes to {fields} from {date} could not be put back: the text changed since. They are kept in this browser.', {fields: fieldNames(recovered.untold, fieldLabels), date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}
                   {/* task-28470f0d0ace566c: the kept text itself, to copy. */}
                   <span className="kept-text" data-testid="kept-text">{recovered.fields.map(([, v]) => keptText(v)).filter(Boolean).join('\n\n')}</span>
                 </>
