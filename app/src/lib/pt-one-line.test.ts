@@ -159,3 +159,33 @@ test('text put in with a line break lands as a space, in the one span', async ()
   assert.deepEqual(many.texts(), ['Hello one\ntwo world'])
   await many.done()
 })
+
+// Android: the editor splits text put in with a line break at each "\n" and sends a soft break
+// (Shift+Enter) between the pieces (@portabletext/editor 8.2.5, lib/index.js 1891-1907). The
+// one-line field takes each soft break as one space; none where a space is already beside it.
+test('a soft break in a one-line field lands as one space: Android\'s split text, and Shift+Enter', async () => {
+  const one = await mount(ONE, [block('a', 'Hello world')])
+  await one.send(caret('a', 6))
+  // "one\ntwo\n\nthree " as Android sends it: pieces, a soft break for each "\n" (an empty piece is not sent).
+  for (const e of [{type: 'insert.text', text: 'one'}, {type: 'insert.soft break'}, {type: 'insert.text', text: 'two'}, {type: 'insert.soft break'}, {type: 'insert.soft break'}, {type: 'insert.text', text: 'three '}]) await one.send(e)
+  assert.deepEqual(one.texts(), ['Hello one two three world'])
+  assert.equal(one.value()![0].children!.length, 1, 'one span')
+  // "x\r\ny": the "\r" left on its piece is a space already (the insert.text rule); the soft break adds none.
+  await one.send(caret('a', 0))
+  for (const e of [{type: 'insert.text', text: 'x\r'}, {type: 'insert.soft break'}, {type: 'insert.text', text: 'y'}]) await one.send(e)
+  assert.deepEqual(one.texts(), ['x yHello one two three world'])
+  // Shift+Enter between two letters: a space; beside a space: nothing.
+  await one.send(caret('a', 4))
+  await one.send({type: 'insert.soft break'})
+  assert.deepEqual(one.texts(), ['x yH ello one two three world'])
+  await one.send(caret('a', 5))
+  await one.send({type: 'insert.soft break'})
+  assert.deepEqual(one.texts(), ['x yH ello one two three world'])
+  await one.done()
+  // Without oneLine the soft break stays a line break, so the asserts above can fail.
+  const many = await mount({}, [block('b', 'Hello world')])
+  await many.send(caret('b', 6))
+  for (const e of [{type: 'insert.text', text: 'one'}, {type: 'insert.soft break'}, {type: 'insert.text', text: 'two '}]) await many.send(e)
+  assert.deepEqual(many.texts(), ['Hello one\ntwo world'])
+  await many.done()
+})
