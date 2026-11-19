@@ -1,6 +1,8 @@
 import type {Doc, Schema} from './data'
 import {merge3, mergeList3} from './merge.ts'
 import {getPath} from './paths.ts'
+import {keptReach, keptStands} from './kept-stands.ts'
+import {isText, keyOf, textOf} from './pt-merge.ts'
 
 // B11 widen, after the canvas's kept words (D21, lib/kept-words.ts): form edits not yet
 // acknowledged by Barkpark are kept in this browser's IndexedDB as they are typed, so a
@@ -19,6 +21,11 @@ export type Pending = {
   fields: [string, unknown][]
   /** Field path → the server value it was made from (for a text merge on restore). */
   base: [string, unknown][]
+  /**
+   * List field → its block keys where a block of it kept by its key was made: a restore's run
+   * goes on only over blocks new since (restoreBlock). Absent in entries kept before it was.
+   */
+  keys?: [string, string[]][]
   /** The page that wrote it: a page still open owns it (its Web Lock is held). */
   tab: string
 }
@@ -109,13 +116,17 @@ export function combine(entries: Pending[]): Pending | null {
   if (!entries.length) return null
   const fields = new Map<string, unknown>()
   const base = new Map<string, unknown>()
+  // A key any entry knew is not new to the run (restoreBlock).
+  const keys = new Map<string, Set<string>>()
   for (const p of entries) {
     const from = new Map(p.base)
     for (const [f, v] of p.fields) fields.set(f, v), base.set(f, from.get(f))
+    for (const [root, ks] of p.keys ?? []) for (const k of ks) (keys.get(root) ?? keys.set(root, new Set()).get(root)!).add(k)
   }
   const last = entries[entries.length - 1]!
   const rev = entries.every((p) => p.rev === last.rev) ? last.rev : undefined
-  return {at: last.at, type: last.type, rev, fields: [...fields], base: [...base], tab: last.tab}
+  const known = keys.size ? {keys: [...keys].map(([root, ks]) => [root, [...ks]] as [string, string[]])} : {}
+  return {at: last.at, type: last.type, rev, fields: [...fields], base: [...base], ...known, tab: last.tab}
 }
 
 const KIND: Record<string, string> = {string: 'string', text: 'string', url: 'string', email: 'string', slug: 'object', number: 'number', boolean: 'boolean'}
@@ -169,4 +180,55 @@ export function restoreValue(p: Pending, field: string, mine: unknown, doc: Doc)
   // item by item, their words kept; whole, a restore took them out unseen.
   if (Array.isArray(base) && Array.isArray(mine) && Array.isArray(theirs)) return mergeList3(base, mine, theirs) ?? mine
   return mine
+}
+
+/**
+ * A split's blocks as the merge gave them, when their texts are what the edit makes there (each
+ * of their Enters where it was). Otherwise the texts go into the blocks as they are now, when each
+ * is one plain span; else null (cannot be told).
+ */
+function settled(merged: unknown[] | null, run: unknown[], split?: {from: number; texts: string[]}): unknown[] | null {
+  if (!split) return merged
+  const want = [...run.slice(0, split.from).map((b) => textOf(b as Parameters<typeof textOf>[0])), ...split.texts]
+  const textsOf = (bs: unknown[]) => bs.map((b) => (isText(b) ? textOf(b) : null))
+  if (merged && JSON.stringify(textsOf(merged)) === JSON.stringify(want)) return merged
+  const plain = (b: unknown) => isText(b) && b.children.length === 1 && b.children[0]!._type === 'span' && !(b.children[0]!.marks as unknown[] | undefined)?.length
+  if (!run.every(plain)) return null
+  return run.map((b, i) => ({...(b as object), children: [{...(b as {children: object[]}).children[0]!, text: want[i]}]}))
+}
+
+/**
+ * A kept block of a text field (`body[_key=="b"]`, saved by its key) put back over the field as
+ * it is now: as the field, with the block merged into the run it is there (the block and the
+ * pieces another editor's split made of it after it, and the new blocks between), task-2c01c385ce7b51d0. Put back whole
+ * at its key, it took out their paste and put its own words in again where the split moved
+ * them. The edit goes onto the server's version of the block where the text it touched still
+ * stands there, and on into the new blocks right after it (keys new since the edit was made,
+ * `p.keys`) only where they are a split of the block (lib/kept-stands.ts). Otherwise it cannot be
+ * told, and the field comes back as the server has it. A block is never a target for the letters
+ * it holds. Null: not such a block, or not there now (it goes as kept). `untold`: cannot be told,
+ * the field as it is; an edit whose result already stands there is done (the field as it is, no flag).
+ */
+export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc): [string, unknown[], untold?: true] | null {
+  const m = /^(\w+)\[_key=="([^"]+)"\]$/.exec(field)
+  if (!m) return null
+  const [, root, key] = m as unknown as [string, string, string]
+  const base = new Map(p.base).get(field)
+  const list = getPath(doc, root)
+  if (!Array.isArray(list) || !isText(base) || !isText(mine)) return null
+  const at = list.findIndex((b) => keyOf(b) === key)
+  if (at < 0 || !isText(list[at])) return null
+  // The new text blocks right after it may be its split (a paragraph pasted at its start keeps the
+  // key on its first piece: "x", "y", "zStart text"). A block that was there when the edit was
+  // made ends them; with no keys kept (an older entry), the block alone.
+  const old = new Map(p.keys ?? []).get(root)
+  let last = at + 1
+  while (old && last < list.length && isText(list[last]) && !old.includes(keyOf(list[last]) ?? '')) last++
+  const texts = list.slice(at, last).map((b) => textOf(b as Parameters<typeof textOf>[0]))
+  const untold = (): [string, unknown[], untold?: true] => (keptStands(textOf(base), textOf(mine), texts) ? [root, list] : [root, list, true])
+  const reach = keptReach(textOf(base), textOf(mine), texts)
+  if (!reach) return untold()
+  const run = list.slice(at, at + reach.to + 1)
+  const merged = settled(mergeList3([base], [mine], run), run, reach.split)
+  return merged ? [root, [...list.slice(0, at), ...merged, ...list.slice(at + reach.to + 1)]] : untold()
 }

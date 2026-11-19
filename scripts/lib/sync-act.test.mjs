@@ -31,6 +31,7 @@ const made = []
 const tmp = (prefix) => (made.push(mkdtempSync(join(tmpdir(), prefix))), made.at(-1))
 // A run's own folders (its log folder, its checkout) go as it ends, while the other runs go on; the rest at the end.
 const ownFolders = []
+/** Each removal's error, or null: one that fails is named by the case below, not left unhandled. */
 const removing = []
 const KEY = 'the deploy key'
 after(async () => {
@@ -38,7 +39,15 @@ after(async () => {
   made.forEach((d) => rmSync(d, {recursive: true, force: true}))
 })
 
-const env = {...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1'}
+// maintenance.auto off: from git 2.47, a fetch, commit or push starts `git maintenance run --auto
+// --detach`, which goes on alone after the command returns (on git 2.56 a geometric repack, writing into
+// .git). A run's checkout is removed as it ends, so a repack still writing there failed the removal (ENOTEMPTY).
+// Nothing here tests maintenance; with it off, every git process ends before the command that started it.
+// It is in the global config file, not GIT_CONFIG_COUNT: a local push clears that for origin's receive-pack,
+// which starts maintenance too.
+const GLOBAL = join(tmp('git-'), 'config')
+writeFileSync(GLOBAL, '[maintenance]\n\tauto = false\n')
+const env = {...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: GLOBAL, GIT_CONFIG_NOSYSTEM: '1'}
 const git = (cwd, ...args) => execFileSync(REAL_GIT, args, {cwd, env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']}).trim()
 const write = (dir, path, text) => (mkdirSync(join(dir, path, '..'), {recursive: true}), writeFileSync(join(dir, path), text))
 /** A child run without blocking the other cases: its status and output. */
@@ -283,7 +292,7 @@ const act = (w, runnerTemp, prs = [], urgent = false, {plant, lose} = {}) => {
     try {
       return {...(await actIn(dir, join(checkoutIn, 'repo'))), waited}
     } finally {
-      for (const d of [dir, checkoutIn]) removing.push(rm(d, {recursive: true, force: true}))
+      for (const d of [dir, checkoutIn]) removing.push(rm(d, {recursive: true, force: true}).then(() => null, (e) => e))
     }
   })
   async function actIn(dir, checkout) {
@@ -535,9 +544,13 @@ test("a key leak by a child that lost its run's log is still caught", async () =
   await assert.rejects(act(world(), await plan({action: 'close'}), [], false, {lose: true}), /a child process saw the deploy key and logged it to no run's own log \(cat\)/)
 })
 
-// Each run's own folders go as it ends, while the others go on, not all at the end.
+// Each run's own folders go as it ends, while the others go on, not all at the end: this case's own run
+// too, so it holds when it runs alone.
 test("every run's own folders are gone once it ends", async () => {
-  await Promise.all(removing)
-  assert.ok(ownFolders.length >= 30, `${ownFolders.length} folders`)
+  const before = ownFolders.length
+  await act(world(), await plan({action: 'close'}))
+  assert.equal(ownFolders.length - before, 2, "this case's run made its log folder and its checkout")
+  const failed = (await Promise.all(removing)).filter(Boolean)
+  assert.deepEqual(failed.map((e) => e.message), [], 'every removal ended without an error')
   assert.deepEqual(ownFolders.filter((d) => existsSync(d)), [])
 })
