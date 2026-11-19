@@ -700,6 +700,13 @@ export function dialogFields(field: Pick<Field, 'blocks'>, kind: PtKind, name: s
   return {fields: objectFields(field, kind, name, value, schemas), whole: null}
 }
 
+/** Do dialogFields' fields for this object come from the schemas (a named object type), with nothing declared or built in? */
+export function usesSchemas(field: Pick<Field, 'blocks'>, kind: PtKind, name: string): boolean {
+  if (kind === 'annotation' || (kind === 'block' && (name === 'image' || codeBlockOptions(field, name)))) return false
+  const entry = declaredEntry(field, kind, name)
+  return !(entry && Array.isArray(entry.fields) && entry.fields.length)
+}
+
 /** The title a dialog, a button or a menu item shows for a type: declared, else the named type's, else its name. */
 export function objectTitle(field: Pick<Field, 'blocks'>, kind: PtKind, name: string, schemas: (SchemaLike & {title?: string})[] = []): string {
   const t = declaredEntry(field, kind, name)?.title

@@ -2,13 +2,18 @@
 // hidden from them while another role sees it (now or as the paste leaves the document);
 // visibility from the data pastes as on main.
 import assert from 'node:assert/strict'
-import {readFileSync} from 'node:fs'
+import {readdirSync, readFileSync} from 'node:fs'
 import {test} from 'node:test'
 import type {Field} from './data.ts'
 import {pasteSkips, type FieldConditions} from './conditions.ts'
-import {keepLocked, pasteDocument, type PasteContext} from './paste-locked.ts'
+import {keepLocked, pasteDocument, pasteField, type PasteContext} from './paste-locked.ts'
+import {MAX_LOCKED, MAX_REACHED, maxRefusal} from './array-max.ts'
+import type {SchemaLike} from './pt-value.ts'
 
 const post = JSON.parse(readFileSync(new URL('../../../fixtures/barkpark-schema/post.json', import.meta.url), 'utf8')) as {fields: Field[]}
+const schemaDir = new URL('../../../fixtures/barkpark-schema/', import.meta.url)
+/** The shipped schemas, as the studio loads them (the Portable Text dialog's schemasQuery). */
+const schemas = readdirSync(schemaDir).filter((n) => n.endsWith('.json')).map((n) => JSON.parse(readFileSync(new URL(n, schemaDir), 'utf8')) as SchemaLike)
 const F = (name: string) => post.fields.find((f) => f.name === name)!
 const seo = {name: 'seo', type: 'composite', fields: [{name: 'metaTitle', type: 'string'}, {name: 'metaDescription', type: 'text'}]} as unknown as Field
 const links = {name: 'links', type: 'arrayOf', of: {type: 'composite', fields: [{name: 'title', type: 'string'}, {name: 'url', type: 'url'}]}} as unknown as Field
@@ -148,6 +153,51 @@ test('probing another role never logs its callback\'s error, and a throw there s
   assert.equal(errors.mock.callCount(), 1)
 })
 
+// The review's round 3 (review-1288b/attack3.test.ts tests 6 and 11), with the schemas the dialog has.
+const callout = {name: 'callout', kind: 'object', fields: [{name: 'title', type: 'string'}, {name: 'box', type: 'composite', fields: [{name: 'open', type: 'string'}, {name: 'secret', type: 'string'}, {name: 'x', type: 'string'}]}, {name: 'items', type: 'arrayOf', of: {type: 'string'}}]} as unknown as SchemaLike
+const namedPt = {name: 'ptBody', type: 'richText', format: 'portableText', blocks: {of: ['callout']}} as unknown as Field
+
+test('a block of a named object type is walked by the fields its dialog shows: a role-hidden subfield of its object keeps the document\'s value (attack3 6)', () => {
+  const rules: Record<string, FieldConditions> = {'post.ptBody.callout.box.secret': {hidden: notAdmin}}
+  const target = [{_key: 'c', _type: 'callout', box: {open: 'a', secret: 'A'}}]
+  const out = keepLocked(namedPt, 'ptBody', [{_key: 'c', _type: 'callout', box: {open: 'b', secret: 'B'}}], target, {type: 'post', doc: {ptBody: target}, user, rules, schemas: [callout]}) as {box: {open: string; secret: string}}[]
+  assert.deepEqual(out[0]!.box, {open: 'b', secret: 'A'})
+})
+
+test('a block of a named object type: its role-hidden object and array fields keep the document\'s values, the rest pastes (attack3 11)', () => {
+  const rules: Record<string, FieldConditions> = {'post.ptBody.callout.box': {hidden: notAdmin}, 'post.ptBody.callout.items': {hidden: notAdmin}}
+  const target = [{_key: 'c', _type: 'callout', title: 'a', box: {x: 'A'}, items: ['A']}]
+  const pasted = [{_key: 'c', _type: 'callout', title: 'b', box: {x: 'B'}, items: ['B']}]
+  const out = keepLocked(namedPt, 'ptBody', pasted, target, {type: 'post', doc: {ptBody: target}, user, rules, schemas: [callout]}) as Record<string, unknown>[]
+  assert.deepEqual([out[0]!.title, out[0]!.box, out[0]!.items], ['b', {x: 'A'}, ['A']])
+  assert.deepEqual(keepLocked(namedPt, 'ptBody', pasted, target, {type: 'post', doc: {ptBody: target}, user: admin, rules, schemas: [callout]}), pasted)
+})
+
+test('schemas not loaded: a paste that reaches a block of a named object type writes nothing, never guessing its fields', () => {
+  const rules: Record<string, FieldConditions> = {'post.ptBody.callout.box': {hidden: notAdmin}}
+  const target = [{_key: 'c', _type: 'callout', title: 'a', box: {x: 'A'}}]
+  const pasted = [{_key: 'c', _type: 'callout', title: 'b', box: {x: 'B'}}]
+  const fields = [{name: 'title', type: 'string'}, namedPt] as unknown as Field[]
+  const doc = {title: 'T', ptBody: target}
+  assert.deepEqual(pasteDocument(fields, {title: 'P', ptBody: pasted}, {type: 'post', doc, user, rules}), {writes: [], named: [], refused: 'schemas'})
+  assert.deepEqual(pasteField(namedPt, 'ptBody', pasted, target, {type: 'post', doc, user, rules}), {refused: 'schemas'})
+  // Loaded: the paste goes ahead.
+  assert.deepEqual(pasteDocument(fields, {title: 'P', ptBody: pasted}, {type: 'post', doc, user, rules, schemas: [callout]}).writes, [['title', 'P'], ['ptBody', [{_key: 'c', _type: 'callout', title: 'b', box: {x: 'A'}}]]])
+})
+
+test('Paste field at the max: refused as Sanity\'s, or, when only a kept locked item takes it past, with words saying so', () => {
+  const links2 = {...links, validation: {max: 2}} as unknown as Field
+  const value = [{_key: 'a', title: 'A'}, {_key: 'b', title: 'B'}]
+  const doc = {links: value}
+  const rules: Record<string, FieldConditions> = {'post.links.title': {hidden: notAdmin}}
+  const pasted = [{_key: 'x', title: 'X'}, {_key: 'y', title: 'Y'}]
+  const kept = keepLocked(links2, 'links', pasted, value, ctx(rules, doc))
+  assert.equal(maxRefusal(links2, value, pasted, kept), MAX_LOCKED)
+  assert.equal(maxRefusal(links2, value, pasted, pasted), null)
+  const three = [...pasted, {_key: 'z', title: 'Z'}]
+  assert.equal(maxRefusal(links2, value, three, three), MAX_REACHED)
+})
+
 test('a lock is what the rule does: hidden from this person and shown to another role on the same data; hidden from every role is data, and pastes as on main', () => {
   const doc = {stage: 'review', seo: {metaTitle: 'A', metaDescription: 'D A'}}
   const copy = {metaTitle: 'B', metaDescription: 'D B'}
@@ -198,7 +248,7 @@ test('no rules, every pair of shipped posts: Paste document writes what main wri
     for (const into of posts) {
       // Main's paste: every field of the copy that has a value.
       const main = Object.fromEntries(post.fields.filter((f) => !empty(from[f.name])).map((f) => [f.name, from[f.name]]))
-      const {writes} = pasteDocument(post.fields, main, {type: 'post', doc: into, user: null, rules: undefined})
+      const {writes} = pasteDocument(post.fields, main, {type: 'post', doc: into, user: null, rules: undefined, schemas})
       // reviewNote is read-only once the stage is done (post.json): skipped there, as Sanity's paste does.
       const expected = Object.entries(main).filter(([k]) => !(k === 'reviewNote' && into.stage === 'done'))
       assert.deepEqual(writes, expected, `${from._id} into ${into._id}`)

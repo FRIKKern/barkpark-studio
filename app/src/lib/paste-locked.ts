@@ -1,7 +1,7 @@
 import type {Field} from './data'
 import {fieldLock, pasteSkips, type CurrentUser, type FieldConditions} from './conditions.ts'
 import {memberFor, membersOf} from './array-members.ts'
-import {dialogFields, type PtKind} from './pt-value.ts'
+import {dialogFields, usesSchemas, type PtKind, type SchemaLike} from './pt-value.ts'
 
 // Paste document and Paste field write a whole object, array or Portable Text value at once.
 // A locked field keeps the document's value at any depth: object fields by name; array items,
@@ -14,8 +14,20 @@ import {dialogFields, type PtKind} from './pt-value.ts'
 // object the paste removes stays only while it holds a locked value. With no lock anywhere the
 // paste is the copy. Sanity's paste checks top-level read-only fields only.
 
-/** `after`: the document as the paste leaves it (Paste document works it out itself). */
-export type PasteContext = {type: string; doc: Record<string, unknown>; after?: Record<string, unknown>; user: CurrentUser | null; rules: Record<string, FieldConditions> | undefined}
+/**
+ * `after`: the document as the paste leaves it (Paste document works it out itself).
+ * `schemas`: the studio's schemas, as the Portable Text dialog has them; undefined while not loaded.
+ */
+export type PasteContext = {type: string; doc: Record<string, unknown>; after?: Record<string, unknown>; user: CurrentUser | null; rules: Record<string, FieldConditions> | undefined; schemas?: SchemaLike[]}
+
+/** A Portable Text object of a named type and the schemas not loaded: its dialog's fields are unknown, so the paste is refused. */
+export class SchemasNotLoaded extends Error {}
+export const SCHEMAS_NOT_LOADED = 'The schemas have not loaded, so nothing was pasted. Try again.'
+/** What a Portable Text object's dialog shows (pt-value.ts dialogFields), with the dialog's schemas; never a guess. */
+function dialogOf(f: Field, kind: PtKind, type: string, all: unknown[], c: PasteContext) {
+  if (!c.schemas && usesSchemas(f, kind, type)) throw new SchemasNotLoaded(type)
+  return dialogFields(f, kind, type, all, c.schemas ?? [])
+}
 type Obj = Record<string, unknown>
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -37,7 +49,7 @@ const isPt = (f: Field) => f.type === 'richText'
 function ptObject(f: Field, kind: PtKind, item: Obj, was: Obj | undefined, path: string, all: unknown[], c: PasteContext): unknown {
   const type = String(item._type)
   const at = `${path}.${type}`
-  const {fields, whole} = dialogFields(f, kind, type, all, [])
+  const {fields, whole} = dialogOf(f, kind, type, all, c)
   if (!whole) return keepLocked({name: type, type: 'composite', fields} as Field, at, item, was, c)
   if (!was) return item
   const {_key, ...own} = item
@@ -52,7 +64,7 @@ function ptObject(f: Field, kind: PtKind, item: Obj, was: Obj | undefined, path:
 function ptHoldsLocked(f: Field, kind: PtKind, b: Obj, path: string, all: unknown[], c: PasteContext): boolean {
   const type = String(b._type)
   const at = `${path}.${type}`
-  const {fields, whole} = dialogFields(f, kind, type, all, [])
+  const {fields, whole} = dialogOf(f, kind, type, all, c)
   if (!whole) return holdsLocked({name: type, type: 'composite', fields} as Field, at, b, c)
   const {_key: _k, ...own} = b
   return locked(fields[0]!, `${at}.${whole}`, {type, [whole]: own}, c) || holdsLocked(fields[0]!, `${at}.${whole}`, own, c)
@@ -156,15 +168,31 @@ function keepLockedPt(f: Field, path: string, pasted: unknown[], target: unknown
   )
 }
 
+/** Paste field's value: keepLocked, or refused while the schemas a Portable Text dialog needs are not loaded. */
+export function pasteField(f: Field, path: string, pasted: unknown, target: unknown, c: PasteContext): {value: unknown} | {refused: 'schemas'} {
+  try {
+    return {value: keepLocked(f, path, pasted, target, c)}
+  } catch (err) {
+    if (err instanceof SchemasNotLoaded) return {refused: 'schemas'}
+    throw err
+  }
+}
+
 /**
  * Paste document's writes: `values` (the copy's, field by field) less a top-level field that
  * is locked (pasteSkips), with keepLocked inside each. `named` are the read-only ones skipped
- * (Sanity's toast); one a role rule hides is never named.
+ * (Sanity's toast); one a role rule hides is never named. Refused, writing nothing, while the
+ * schemas a Portable Text dialog needs are not loaded.
  */
-export function pasteDocument(fields: Field[], values: Obj, context: PasteContext): {writes: [string, unknown][]; named: string[]} {
+export function pasteDocument(fields: Field[], values: Obj, context: PasteContext): {writes: [string, unknown][]; named: string[]; refused?: 'schemas'} {
   const c = {...context, after: {...context.doc, ...values}}
   const {skip, named} = pasteSkips(c.type, fields, c.doc, c.user, c.rules, c.after)
   const writes: [string, unknown][] = []
-  for (const f of fields) if (f.name in values && !skip.has(f.name)) writes.push([f.name, keepLocked(f, f.name, values[f.name], c.doc[f.name], c)])
+  for (const f of fields) {
+    if (!(f.name in values) || skip.has(f.name)) continue
+    const out = pasteField(f, f.name, values[f.name], c.doc[f.name], c)
+    if ('refused' in out) return {writes: [], named: [], refused: out.refused}
+    writes.push([f.name, out.value])
+  }
   return {writes, named}
 }

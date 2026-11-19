@@ -1,15 +1,15 @@
 import {createContext, lazy, memo, Suspense, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactElement, type ReactNode, type KeyboardEvent as ReactKeyboardEvent, type RefObject} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {descId, fieldAria, problemId} from '../lib/field-aria'
-import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
+import {anyDocQuery, refId, refTypesOf, schemasQuery, type Doc, type Field} from '../lib/data'
 import {refFilterOf} from '../lib/ref-filter'
 import {objectKinds} from '../lib/object-block'
 import {actions} from '../lib/array-options'
-import {MAX_REACHED, maxItems, pasteAllowed} from '../lib/array-max'
+import {maxItems, maxRefusal} from '../lib/array-max'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
 import {conditionKey, fieldState} from '../lib/conditions'
-import {keepLocked} from '../lib/paste-locked'
+import {pasteField, SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
 import {setPath} from '../lib/paths'
 import {useCurrentUser} from '../lib/session'
 import {mapCaret} from '../lib/merge'
@@ -418,6 +418,7 @@ function FieldActions({field, path, value, onChange, readOnly, titleId}: FieldPr
   const t = useT()
   const docStore = useContext(DocContext)
   const user = useCurrentUser()
+  const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
   const doc = {id: useContext(DocIdContext) ?? undefined, type: useContext(DocTypeContext) ?? undefined}
@@ -431,11 +432,16 @@ function FieldActions({field, path, value, onChange, readOnly, titleId}: FieldPr
     const pasted = transfer(item, field, value)
     if ('why' in pasted) return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: pasted.why})
     // Inside this object or its items, a field read-only, or hidden from this person but shown to another role, keeps its value (lib/paste-locked.ts).
+    // A rich-text object is walked as its dialog shows it, with the dialog's schemas: waited for, never guessed.
     const doc = docStore.doc
-    const next = doc && doc._type ? keepLocked(field, path, pasted.value, value, {type: doc._type, doc, after: setPath(doc, path, pasted.value), user, rules: studio.form?.conditions}) : pasted.value
-    // A paste that would leave an array past its max and longer than it was is refused (lib/array-max.ts).
-    if (!pasteAllowed(field, value, next)) return toast({tone: 'caution', title: tBrowser(MAX_REACHED)})
-    onChange(next)
+    const schemas = await qc.ensureQueryData(schemasQuery).catch(() => undefined)
+    const out = doc && doc._type ? pasteField(field, path, pasted.value, value, {type: doc._type, doc, after: setPath(doc, path, pasted.value), user, rules: studio.form?.conditions, schemas}) : {value: pasted.value}
+    if ('refused' in out) return toast({tone: 'critical', title: tBrowser(SCHEMAS_NOT_LOADED)})
+    // A paste that would leave an array past its max and longer than it was is refused (lib/array-max.ts);
+    // one under it that a kept locked item takes past it says so.
+    const refusal = maxRefusal(field, value, pasted.value, out.value)
+    if (refusal) return toast({tone: 'caution', title: tBrowser(refusal)})
+    onChange(out.value)
   }
   // An array's disableActions (Sanity's): 'copy' takes Copy field, 'add' Paste field, from the menu and the keys alike.
   const allow = actions(field.options)
