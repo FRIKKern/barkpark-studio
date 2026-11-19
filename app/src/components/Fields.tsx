@@ -8,7 +8,7 @@ import {actions} from '../lib/array-options'
 import {maxItems, maxRefusal} from '../lib/array-max'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
-import {conditionKey, fieldState} from '../lib/conditions'
+import {alwaysHidden, alwaysReadOnly, dependsOnDoc, fieldState} from '../lib/conditions'
 import {pasteField, SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
 import {setPath} from '../lib/paths'
 import {useCurrentUser} from '../lib/session'
@@ -189,13 +189,10 @@ export function ProblemMark({path, within, id}: {path: string; within?: boolean;
  */
 export const FieldView = memo(function FieldView(props: FieldProps) {
   // The studio config's hidden / readOnly callbacks for this field (Sanity's, with currentUser).
+  // The one rule (lib/conditions.ts fieldState): what the schema settles up front is drawn here; the rest reads the doc.
   const type = useContext(DocTypeContext)
-  const rules = studio.form?.conditions
-  const byConfig = !!rules && !!type && !!rules[conditionKey(type, props.path)]
-  // Barkpark's `hidden: true` (Sanity's): never in the form, its value kept (a manual order's orderRank).
-  if (props.field.hidden === true) return null
-  const conditional = byConfig || !!props.field.visibleWhen || (typeof props.field.readOnly === 'object' && props.field.readOnly !== null)
-  return conditional ? <ConditionalField {...props} /> : <FieldBody {...props} />
+  if (alwaysHidden(props.field)) return null
+  return dependsOnDoc(type ?? '', props.field, props.path, studio.form?.conditions) ? <ConditionalField {...props} /> : <FieldBody {...props} />
 })
 
 function ConditionalField(props: FieldProps) {
@@ -273,7 +270,7 @@ function ObjectField(props: FieldProps & {label: string; titleId: string; change
 }
 
 function FieldBody(props: FieldProps) {
-  if (props.field.readOnly === true) props = {...props, readOnly: true}
+  if (alwaysReadOnly(props.field)) props = {...props, readOnly: true}
   const changes = useContext(ChangesContext)
   const label = props.field.title ?? props.field.name
   // The field's visible title: it describes the field's action and comment buttons (one per field, same names).

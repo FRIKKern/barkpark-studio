@@ -17,12 +17,12 @@ export type CanvasBody = {schema: Schema | undefined; doc: Record<string, unknow
 
 /**
  * The fields the whole-document canvas shows and writes: its layout's, the body regions and
- * the bound field blocks. With no layout (a paper type without one in this workspace) nothing
- * says which fields its blocks hold, so every field of the type counts.
+ * the bound field blocks. With no layout (a paper type without one in this workspace) it holds
+ * the type's body: its rich-text fields.
  */
 export function canvasFields(schema: Schema): Field[] {
   const named = new Set((schema.layout ?? []).map((l) => l.name))
-  return named.size ? schema.fields.filter((f) => named.has(f.name)) : schema.fields
+  return schema.fields.filter((f) => (named.size ? named.has(f.name) : f.type === 'richText'))
 }
 
 /**

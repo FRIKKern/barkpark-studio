@@ -54,9 +54,16 @@ export function matches(c: Condition, doc: Record<string, unknown>): boolean {
 
 /** What a condition reads from: the enclosing object for scope "parent" (the document when there is none). */
 const base = (c: Condition, doc: Record<string, unknown>, parent?: Record<string, unknown>) => (c.scope === 'parent' && parent ? parent : doc)
-export const isHidden = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => f.hidden === true || (!!f.visibleWhen && !matches(f.visibleWhen, base(f.visibleWhen, doc, parent)))
-export const isReadOnly = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) =>
-  f.readOnly === true || (typeof f.readOnly === 'object' && f.readOnly !== null && matches(f.readOnly, base(f.readOnly, doc, parent)))
+/** The schema's `hidden: true` (Barkpark's, Sanity's): never in the form, whatever the document; its value kept (a manual order's orderRank). */
+export const alwaysHidden = (f: Field) => f.hidden === true
+/** The schema's `readOnly: true`, whatever the document. */
+export const alwaysReadOnly = (f: Field) => f.readOnly === true
+const readOnlyWhen = (f: Field) => (typeof f.readOnly === 'object' && f.readOnly !== null ? f.readOnly : undefined)
+export const isHidden = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => alwaysHidden(f) || (!!f.visibleWhen && !matches(f.visibleWhen, base(f.visibleWhen, doc, parent)))
+export const isReadOnly = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => {
+  const when = readOnlyWhen(f)
+  return alwaysReadOnly(f) || (!!when && matches(when, base(when, doc, parent)))
+}
 
 /** Sanity shows a group's tab only while some field in it shows (`visibleGroups`): one whose fields are all hidden has none. */
 export const groupShows = (fields: Field[], group: string, doc: Record<string, unknown>, hidden = (f: Field) => isHidden(f, doc)) => fields.some((f) => f.group === group && !hidden(f))
@@ -100,6 +107,12 @@ export function currentUserOf(me: Me | undefined): Person {
 
 /** The config key of a field path: its type, then field names with array items left out (`post.links.title`). */
 export const conditionKey = (type: string, path: string) => `${type}.${segments(path).flatMap((s) => ('name' in s ? [s.name] : [])).join('.')}`
+/**
+ * Whether fieldState for the field at `path` depends on the document or the person (a
+ * condition in the schema, or a config callback for `type.path`): the form reads the whole
+ * document only for those, and draws the rest by alwaysHidden and alwaysReadOnly.
+ */
+export const dependsOnDoc = (type: string, f: Field, path: string, rules: Record<string, FieldConditions> | undefined) => !!rules?.[conditionKey(type, path)] || !!f.visibleWhen || !!readOnlyWhen(f)
 export const sanityPath = (path: string): PathSegment[] => segments(path).map((s) => ('name' in s ? s.name : {_key: s.key}))
 
 const told = new Set<string>()

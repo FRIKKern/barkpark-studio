@@ -446,6 +446,8 @@ export default {
   'Displaying {title} in {alternativeName} GMT{offset}': 'Viser {title} i {alternativeName} GMT{offset}',
   'The selected time zone will change how dates are represented in content releases.': 'Den valgte tidssonen vil endre hvordan datoer representeres i innholdslanseringer.',
   'This document is read-only here: nothing was saved.': 'Dokumentet er skrivebeskyttet her: ingenting ble lagret.',
+  'Part of this document is read-only for you: nothing was saved.': 'Deler av dokumentet er skrivebeskyttet for deg: ingenting ble lagret.',
+  '“{field}” is read-only for you: the change was not saved.': '«{field}» er skrivebeskyttet for deg: endringen ble ikke lagret.',
   'This Barkpark does not schedule publishes yet.': 'Denne Barkpark-serveren planlegger ikke publiseringer ennå.',
   'Schedule and lock draft documents for publishing at a future date and time.': 'Planlegg og lås utkastdokumenter for publisering på en fremtidig dato og tid.',
 } satisfies Record<string, string>
