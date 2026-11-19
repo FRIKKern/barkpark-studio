@@ -1,15 +1,9 @@
 // How CI's e2e groups are planned (scripts/shard-files.mjs prints one group's spec files; the
-// unit test scripts/lib/shard-plan.test.mjs holds every group under PLAN_LINE_S).
+// unit test scripts/lib/shard-plan.test.mjs holds every group at or under AIM_S, written beside
+// the 60 s cap it comes from in e2e/time-cap.mjs).
 import {readdirSync, readFileSync} from 'node:fs'
 
-/**
- * The most seconds any e2e group may plan, by e2e/durations.json. A ratchet: it only comes down
- * as specs get faster, and is never raised. A new or slower spec that takes a group over it
- * cuts its own time or moves (split it so the planner can spread it); the line stays. CI stops
- * a group at 60 s (globalTimeout in e2e/playwright.config.ts), and a group's real time swings
- * some 10 s with the runner, so the line is what keeps that cap out of reach.
- */
-export const PLAN_LINE_S = 49
+export {AIM_S} from '../../e2e/time-cap.mjs'
 
 const DIR = new URL('../../e2e/journeys/', import.meta.url)
 export const DURATIONS = new URL('../../e2e/durations.json', import.meta.url)

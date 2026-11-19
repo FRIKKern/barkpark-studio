@@ -1,4 +1,5 @@
 import {defineConfig} from '@playwright/test'
+import {CAP_S} from './time-cap.mjs'
 
 // Two targets, same specs: `sanity` (reference/sanity, the bar) and `studio` (app/, ours).
 // Ours runs its own server on :3100 against BARKPARK_DATASET — `e2e-local` from
@@ -41,8 +42,8 @@ export default defineConfig({
   timeout: process.env.CI ? 15_000 : 30_000,
   // Fail fast: a run that can't start or hydrate stops instead of timing out test by test.
   maxFailures: process.env.CI ? 3 : 0,
-  // QUALITY.md rule 5: the whole suite fits in 60 s; in CI going over fails the run.
-  globalTimeout: process.env.CI ? 60_000 : 0,
+  // QUALITY.md rule 5: the whole suite fits in 60 s; in CI going over fails the run (e2e/time-cap.mjs).
+  globalTimeout: process.env.CI ? CAP_S * 1000 : 0,
   reporter: [['list']],
   // @baseline specs measure and @evidence specs take side-by-side stills and clips;
   // neither gates: only `pnpm baseline` / `pnpm evidence` run them. @local specs
