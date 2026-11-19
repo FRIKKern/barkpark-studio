@@ -43,7 +43,11 @@ after(async () => {
 // --detach`, which goes on alone after the command returns (on git 2.56 a geometric repack, writing into
 // .git). A run's checkout is removed as it ends, so a repack still writing there failed the removal (ENOTEMPTY).
 // Nothing here tests maintenance; with it off, every git process ends before the command that started it.
-const env = {...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'maintenance.auto', GIT_CONFIG_VALUE_0: 'false'}
+// It is in the global config file, not GIT_CONFIG_COUNT: a local push clears that for origin's receive-pack,
+// which starts maintenance too.
+const GLOBAL = join(tmp('git-'), 'config')
+writeFileSync(GLOBAL, '[maintenance]\n\tauto = false\n')
+const env = {...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: GLOBAL, GIT_CONFIG_NOSYSTEM: '1'}
 const git = (cwd, ...args) => execFileSync(REAL_GIT, args, {cwd, env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']}).trim()
 const write = (dir, path, text) => (mkdirSync(join(dir, path, '..'), {recursive: true}), writeFileSync(join(dir, path), text))
 /** A child run without blocking the other cases: its status and output. */
