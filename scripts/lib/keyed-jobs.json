@@ -21,7 +21,7 @@
       "job": "sync-pack.yml act",
       "sha256": "9a1b13f037cdaf0a4001eff5eeceadb55b9cc28ac2531b7ad2c9452c930774f6",
       "runs": {
-        "scripts/sync-act.sh": "8cb25fbef6d2324ae1b2da133ee196c13850dbe9bc6d385d240ab9d305043e28",
+        "scripts/sync-act.sh": "0d41fe5f392e043bf630b1218a2fdd1ad3af7d766ca45ebd192a7cf421c3f6c8",
         "scripts/lib/deploy-push.sh": "cb8e2bd2cdf72b5388d299e21a0db51fada431d6e9fc3160cc0605c1ae7feb1b"
       }
     },

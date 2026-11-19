@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # sync-pack.yml's `act` job runs this file from main's checkout (no credentials kept); the job and this
 # file are pinned in scripts/lib/keyed-jobs.json, and scripts/lib/sync-act.test.mjs runs these same bytes.
-# It trusts nothing from the plan job except which of the three actions to take (each re-checked against
-# GitHub's own state), the studio's report file (conformance/barkpark-studio.json) and SOURCE.md's prose.
+# It trusts nothing from `plan` except which of the three actions to take (each re-checked against
+# GitHub's own state), the studio's report file and SOURCE.md's prose. The report file is
+# conformance/barkpark-studio.json.
 # It finds the sync PR itself; checks the bundle, the commit's parent and both sides of every changed path;
 # checks that every other pack file is Barkpark's own, byte for byte, at the commit SOURCE.md names, on
 # Barkpark's main and not older than main's; and writes the commit message, PR title and body itself.
