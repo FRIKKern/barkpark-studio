@@ -1,10 +1,12 @@
 import {useEffect, useState, useSyncExternalStore} from 'react'
 import {MenuPopover} from './FocusScopes'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {copy, isEmpty, read, signature, transfer} from '../lib/clipboard'
-import type {Doc, Schema} from '../lib/data'
+import {schemasQuery, type Doc, type Schema} from '../lib/data'
 import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Transfer, EarthAmericas, JsonIcon, LaunchIcon, RestoreIcon, SyncIcon, TaskIcon} from './icons'
 import studio from '../studio.config'
+import {pasteDocument, SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
+import {useCurrentUser} from '../lib/session'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
 import {t as tt, useT} from '../lib/i18n'
@@ -76,6 +78,8 @@ export function DocHeaderMenu({doc, schema, readOnly, onEdit, onInspect, onHisto
   const close = () => setOpen(false)
   const alt = useAltName()
   const phone = usePhone()
+  const user = useCurrentUser()
+  const qc = useQueryClient()
   const previewUrl = studio.document?.productionUrl?.(doc)
   // LiveView's paper header: "Open standalone", Barkpark's reader for the paper (its slug is its id).
   const barkpark = useQuery({...barkparkInfoQuery, enabled: PAPER_TYPES.has(doc._type)}).data?.url
@@ -181,14 +185,26 @@ export function DocHeaderMenu({doc, schema, readOnly, onEdit, onInspect, onHisto
               close()
               const clip = await read()
               if (clip?.kind !== 'document') return toast({title: tt('Nothing to paste')})
-              const matching = schema.fields.flatMap((f) => {
-                const from = clip.fields.find((c) => c.name === f.name)
-                const pasted = from && !isEmpty(from.value) ? transfer(from, f, doc[f.name]) : undefined
-                return pasted && 'value' in pasted ? [[f.name, pasted.value] as const] : []
-              })
-              if (!matching.length) return toast({tone: 'critical', title: tt('Invalid clipboard item'), description: tt('Source and target schema types are not compatible')})
+              // The copy's values, field by field, as the target's schema takes them.
+              const values = Object.fromEntries(
+                schema.fields.flatMap((f) => {
+                  const from = clip.fields.find((c) => c.name === f.name)
+                  const pasted = from && !isEmpty(from.value) ? transfer(from, f, doc[f.name]) : undefined
+                  return pasted && 'value' in pasted ? [[f.name, pasted.value] as const] : []
+                }),
+              )
+              if (!Object.keys(values).length) return toast({tone: 'critical', title: tt('Invalid clipboard item'), description: tt('Source and target schema types are not compatible')})
+              // A field read-only, or hidden from this person but shown to another role, keeps its value at any depth;
+              // rich-text objects are walked with the dialog's schemas, waited for, never guessed (lib/paste-locked.ts).
+              const schemas = await qc.ensureQueryData(schemasQuery).catch(() => undefined)
+              const {writes, named, refused} = pasteDocument(schema.fields, values, {type: schema.name, doc, user, rules: studio.form?.conditions, schemas})
+              if (refused) return toast({tone: 'critical', title: tt(SCHEMAS_NOT_LOADED)})
+              // Sanity's toast: three names, then how many more.
+              const fieldNames = named.slice(0, 3).join(', ')
+              if (named.length > 3) toast({title: tt('Skipped read-only fields: {fieldNames} and {count} more', {fieldNames, count: String(named.length - 3)})})
+              else if (named.length) toast({title: tt('Skipped read-only fields: {fieldNames}', {fieldNames})})
               // The pane's edit: refused if the pane locked while the clipboard was read.
-              for (const [name, value] of matching) onEdit(name, value)
+              for (const [name, value] of writes) onEdit(name, value)
             }}
           >
             <span className="menu-icon-text">

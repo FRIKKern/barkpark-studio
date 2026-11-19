@@ -7,6 +7,8 @@ import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
 import {serviceAccess} from './token-self'
 import {headStartAllowed} from './gate-head-start'
+import {currentUserOf} from './conditions'
+import {useMemo} from 'react'
 
 // Who is editing (server/auth.ts). Server functions: the session cookie is
 // httpOnly and the token never leaves the server.
@@ -170,3 +172,9 @@ export function useBoundElsewhere(): {bound: string; here: {workspace: string; p
 
 /** The studio's own Barkpark token is refused: the reason every read and save fails. */
 export const useStudioTokenRefused = () => !!useQuery(meQuery).data?.studioTokenRefused
+
+/** Sanity's useCurrentUser: the signed-in editor with their role under Sanity's name (lib/conditions.ts), or null. */
+export function useCurrentUser() {
+  const me = useQuery(meQuery).data
+  return useMemo(() => currentUserOf(me), [me])
+}

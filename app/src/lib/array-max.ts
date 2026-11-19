@@ -6,6 +6,8 @@
 // an array already past its max (imported data); its validation says so as before (lib/validation.ts).
 
 export const MAX_REACHED = 'Maximum items reached'
+/** A paste under the max that a kept locked item (lib/paste-locked.ts) takes past it. */
+export const MAX_LOCKED = 'A locked item stays, so this would pass the maximum'
 
 const rulesOf = (validation: unknown): Record<string, unknown>[] =>
   (Array.isArray(validation) ? validation : validation ? [validation] : []).filter((r): r is Record<string, unknown> => !!r && typeof r === 'object')
@@ -41,4 +43,13 @@ export function pasteAllowed(field: PasteField, before: unknown, after: unknown)
   const max = maxItems(field.validation)
   if (max === undefined || !Array.isArray(after)) return true
   return !(after.length > max && after.length > (Array.isArray(before) ? before.length : 0))
+}
+
+/**
+ * Why Paste field is refused at the max, or null: MAX_REACHED as Sanity's, or MAX_LOCKED when the
+ * copy fits and only a locked item the paste keeps (`kept`, lib/paste-locked.ts) takes it past.
+ */
+export function maxRefusal(field: PasteField, before: unknown, pasted: unknown, kept: unknown): string | null {
+  if (pasteAllowed(field, before, kept)) return null
+  return pasteAllowed(field, before, pasted) ? MAX_LOCKED : MAX_REACHED
 }
