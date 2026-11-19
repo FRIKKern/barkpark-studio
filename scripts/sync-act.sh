@@ -46,7 +46,10 @@ asked=$(jq -r '.number // "" | tostring' "$plan/plan.json")
 case "$action" in
   close)
     [ -n "$number" ] || { echo 'no sync PR open: nothing to close'; exit 0; }
-    # The branch stays: it may carry a hand commit (accepted rows) worth keeping.
+    # Only while the PR's head holds main's pack, byte for byte. The branch stays: it may carry a hand
+    # commit (accepted rows) worth keeping.
+    git fetch -q origin "+refs/heads/main:refs/sync-pack/main" "+refs/heads/$branch:refs/sync-pack/head" || fail "#$number's head cannot be fetched"
+    git diff --quiet refs/sync-pack/main refs/sync-pack/head -- conformance/pack || fail "#$number's pack differs from main's: not closed"
     gh pr close "$number" --comment 'main already carries these files: nothing left to sync.'
     ;;
   land)

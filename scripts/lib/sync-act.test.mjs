@@ -159,6 +159,8 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
   refused('a pack file not as Barkpark holds it', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/a.json', '{"v": 666}\n'), commit(w, 'sync')), /the pack differs from Barkpark [0-9a-f]{40}: a\.json/)
   refused('a pack file Barkpark lacks', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/extra.mjs', 'x\n'), commit(w, 'sync')), /the pack differs from Barkpark [0-9a-f]{40}: extra\.mjs/)
   refused('a Barkpark commit off its main', (w) => (bark(w, '{"v": 2}\n', 'side'), commit(w, 'sync')), /is not on Barkpark's main/)
+  // Barkpark's history rewritten, so the commit main's SOURCE.md names leaves its main: every push fails safe.
+  refused('a Barkpark history rewrite', (w) => (git(w.barkpark, 'commit', '-q', '--amend', '-m', 'rewritten'), bark(w, '{"v": 2}\n'), commit(w, 'sync')), /is older than [0-9a-f]{40}, which main holds/)
   // An older Barkpark pack than main's (main's SOURCE.md names a later commit): refused.
   {
     const w = world()
@@ -223,8 +225,19 @@ test('act finds the sync PR itself: a plan naming another PR is refused for clos
     assert.deepEqual(r.writes, [])
     assert.deepEqual([r.keyWhile, r.pushedWith, r.keyLeft, r.sshCommand], [[], [], [], ''])
   }
-  // The sync PR: closed and merged by its own number.
+  // The sync PR: closed by its own number only while its head's pack is main's, byte for byte.
+  write(w.work, 'conformance/pack/a.json', '{"v": "not main"}\n')
+  git(w.work, 'push', '-q', 'origin', `${commit(w, 'pack differs')}:refs/heads/${BRANCH}`)
+  const differs = act(w, plan(w, {action: 'close', number: 9}), [syncPr(9)])
+  assert.equal(differs.status, 1, differs.err)
+  assert.match(differs.err, /#9's pack differs from main's/)
+  assert.deepEqual(differs.writes, [])
+  git(w.work, 'reset', '-q', '--hard', w.main)
+  write(w.work, 'conformance/barkpark-studio.json', '{"rows": "accepted"}\n')
+  git(w.work, 'push', '-q', '-f', 'origin', `${commit(w, 'hand: accept rows')}:refs/heads/${BRANCH}`)
   assert.deepEqual(act(w, plan(w, {action: 'close', number: 9}), [syncPr(9)]).writes, ['pr close 9 --comment main already carries these files: nothing left to sync.'], 'the branch stays')
+  git(w.work, 'reset', '-q', '--hard', w.main)
+  // And merged by its own number.
   assert.match(act(w, plan(w, {action: 'land', number: 9, head: w.main}), [syncPr(9)]).writes[0], /^pr merge 9 --squash --delete-branch --match-head-commit [0-9a-f]{40}$/)
 })
 

@@ -31,7 +31,8 @@
 - main requires `check`, `unit` and every `studio` shard (ruleset "main:
   required checks", 2026-10-09). Housekeeping pushes with a deploy key, the
   ruleset's only bypass (GitHub refuses the Actions app on a user-owned repo),
-  from a job that runs git only; the job that runs the generator has no key.
+  only in `scripts/housekeeping-push.sh` (git only, pinned with its job as in
+  [0009](0009-pack-syncs-itself.md)); the generator's job holds no key.
 - No loop: the commit carries `[skip ci]`, so its push starts no workflow runs.
 
 ## Open

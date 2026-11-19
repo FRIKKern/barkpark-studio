@@ -20,11 +20,11 @@ act (deploy key, git/gh/jq): the commit is the pack, as Barkpark holds it ─►
 - `.github/workflows/sync-pack.yml` runs daily and on demand, on main only. A source at odds with its stamp
   is refused; a stamp-only change (several a day) opens no PR, the summary names it, the next real change carries it.
 - Two jobs. `plan` installs the app and runs `scripts/pack-sync-pr.mjs`, which writes nothing to GitHub.
-  `act` checks out with no credentials and runs main's `scripts/sync-act.sh`. It trusts nothing from `plan`
-  except which of the three actions to take (each re-checked against GitHub's own state), the report file
-  and SOURCE.md's prose. It finds the sync PR itself, checks the bundle, the parent (main, or the PR's head
-  with main merged in), both sides of every path, and each other pack file against Barkpark's blob at the
-  commit SOURCE.md names (on Barkpark's main, not older than main's); it writes the message, title and body.
+  `act` checks out with no credentials and runs main's `scripts/sync-act.sh`, trusting from `plan` only the
+  action (re-checked against GitHub), the report file and SOURCE.md's prose. It finds the sync PR, checks the
+  bundle, its parent and paths, and each other pack file against Barkpark's blob at the commit SOURCE.md names
+  (on Barkpark's main, not older than main's), and writes the message, title and body. If Barkpark's history
+  is rewritten so the commit main's SOURCE.md names leaves Barkpark's main, pushes fail safe until a hand sync.
 - Conformance runs on the new pack; the report takes the new stamp only when no row moved, else `unit` fails.
   Fix the renderer, or accept the rows on the sync branch (`conformance:write`) and say why; the next sync keeps it.
 - Every workflow job holds no key or is pinned whole (`scripts/lib/keyed-jobs.json`). Pushes use
