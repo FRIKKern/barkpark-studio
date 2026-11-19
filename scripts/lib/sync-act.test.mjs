@@ -214,43 +214,62 @@ async function plan(json, head, not = [S.main], lenders = [STUDIO]) {
 }
 
 /**
- * Act's script in a fresh clone of origin (the job's checkout); gh answers `pr list` with `prs`, and every
- * child is checked for the key by this run's own shims and log (key-shims.mjs): PATH holds only those and the
- * run's own wrappers. Origin's pre-receive hook logs the key file as a push sees it.
- * `keyWhile`: each git command run while the key file exists; `keyLeft`: key files left in RUNNER_TEMP;
- * `sshCommand`: the checkout's core.sshCommand. `plant` (a folder; outside the slots): gh's first call starts
- * a command with the key in its env, makes `planted` there and waits for `go`.
+ * The commands every act run starts, written once: a new executable is slow to start the first time on
+ * macOS. The key shims, git and gh, and origin's pre-receive hook (core.hooksPath in the template). Each run
+ * gives its own folder in the env (ACT_DIR, and KEY_SEEN_LOG for the shims), so a leak is named under the
+ * run that made it; a child that lost KEY_SEEN_LOG logs to the shims' fallback, which every run reads too.
  */
-const act = (w, runnerTemp, prs = [], urgent = false, plant) =>
+const SHARED = tmp('act-bin-')
+const shim = keyShims(join(SHARED, 'shims'), KEY, {logFrom: 'KEY_SEEN_LOG'})
+const BIN = join(SHARED, 'bin')
+const HOOKS = join(SHARED, 'hooks')
+const exe = (path, text) => (mkdirSync(join(path, '..'), {recursive: true}), writeFileSync(path, text), chmodSync(path, 0o755))
+exe(join(BIN, 'git'), `#!/bin/sh\n${shim.check('git')}\n[ ! -e "$RUNNER_TEMP/deploy-key" ] || echo "$1" >> "\${ACT_DIR:?}/key-while.log"\nexec "${REAL_GIT}" "$@"\n`)
+// ACT_PLANT (a folder): gh's first call starts a command with the key in its env, makes `planted` there and
+// waits for `go`. ACT_LOSE: gh starts one with the key in its env and KEY_SEEN_LOG gone.
+exe(join(BIN, 'gh'), `#!/bin/sh
+${shim.check('gh')}
+[ -z "$ACT_PLANT" ] || [ -e "$ACT_PLANT/planted" ] || { LEAK='${KEY}' cat < /dev/null; : > "$ACT_PLANT/planted"; while [ ! -e "$ACT_PLANT/go" ]; do sleep 0.02; done; }
+[ -z "$ACT_LOSE" ] || env -u KEY_SEEN_LOG LEAK='${KEY}' cat < /dev/null
+echo "$*" >> "\${ACT_DIR:?}/calls.log"
+case "$1 $2" in
+  "pr list") cat "$ACT_DIR/prs.json" ;;
+  "pr view") echo MERGED ;;
+esac
+`)
+exe(join(HOOKS, 'pre-receive'), `#!/bin/sh\ncat "$RUNNER_TEMP/deploy-key" >> "\${ACT_DIR:?}/pushed-key.log" 2>/dev/null || echo none >> "$ACT_DIR/pushed-key.log"\n`)
+git(TEMPLATE, 'config', 'core.hooksPath', HOOKS)
+
+/**
+ * Act's script in a fresh clone of origin (the job's checkout); gh answers `pr list` with `prs`, and every
+ * child is checked for the key by the shared shims, logging to this run's own file (key-shims.mjs): PATH
+ * holds only those and the shared git and gh. Origin's pre-receive hook logs the key file as a push sees it.
+ * `keyWhile`: each git command run while the key file exists; `keyLeft`: key files left in RUNNER_TEMP;
+ * `sshCommand`: the checkout's core.sshCommand. `plant` (a folder; outside the slots) and `lose`: see gh.
+ */
+const act = (w, runnerTemp, prs = [], urgent = false, {plant, lose} = {}) =>
   (plant ? (fn) => fn() : (fn) => slot(fn, urgent))(async () => {
-    const bin = tmp('gh-')
-    const shim = keyShims(join(bin, 'shims'), KEY)
-    const log = join(bin, 'calls.log')
-    const pushed = join(bin, 'pushed-key.log')
-    writeFileSync(join(w.origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "$RUNNER_TEMP/deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
-    chmodSync(join(w.origin, 'hooks/pre-receive'), 0o755)
-    const keyWhile = join(bin, 'key-while.log')
-    writeFileSync(join(bin, 'git'), `#!/bin/sh\n${shim.check('git')}\n[ ! -e "$RUNNER_TEMP/deploy-key" ] || echo "$1" >> "${keyWhile}"\nexec "${REAL_GIT}" "$@"\n`)
-    chmodSync(join(bin, 'git'), 0o755)
-    const planting = plant ? `[ -e "${plant}/planted" ] || { LEAK='${KEY}' cat < /dev/null; : > "${plant}/planted"; while [ ! -e "${plant}/go" ]; do sleep 0.02; done; }\n` : ''
-    writeFileSync(join(bin, 'gh'), `#!/bin/sh\n${shim.check('gh')}\n${planting}echo "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
-    writeFileSync(join(bin, 'prs.json'), JSON.stringify(prs))
-    chmodSync(join(bin, 'gh'), 0o755)
+    const dir = tmp('act-')
+    const seenLog = join(dir, 'seen.log')
+    writeFileSync(join(dir, 'prs.json'), JSON.stringify(prs))
     // --no-local: the checkout holds only what origin's refs reach, never the objects origin borrows.
     const checkout = join(tmp('checkout-'), 'repo')
     await gitRun(base, ['clone', '-q', '--no-local', w.origin, checkout])
-    const out = join(bin, 'out')
-    const r = await run(BASH, [ACT], {cwd: checkout, env: {...env, PATH: `${bin}:${shim.dir}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, DEPLOY_KEY: KEY, DEPLOY_PUSH_URL: w.origin}})
-    const seen = shim.seen()
+    const out = join(dir, 'out')
+    const r = await run(BASH, [ACT], {cwd: checkout, env: {...env, PATH: `${BIN}:${shim.dir}`, ACT_DIR: dir, KEY_SEEN_LOG: seenLog, ACT_PLANT: plant ?? '', ACT_LOSE: lose ? '1' : '', RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, DEPLOY_KEY: KEY, DEPLOY_PUSH_URL: w.origin}})
+    const seen = shim.seen(seenLog)
     assert.deepEqual(seen, [], `a child process saw the deploy key (${seen.join(', ')}): ${r.stdout + r.stderr}`)
-    const calls = existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []
+    const lost = shim.seen(shim.fallback)
+    assert.deepEqual(lost, [], `a child process saw the deploy key and logged it to no run's own log (${lost.join(', ')}): ${r.stdout + r.stderr}`)
+    const lines = (f) => (existsSync(join(dir, f)) ? readFileSync(join(dir, f), 'utf8').trim().split('\n') : [])
+    const calls = lines('calls.log')
     const sshCommand = readFileSync(join(checkout, '.git/config'), 'utf8').match(/^\s*sshcommand\s*=\s*(.*)$/im)?.[1] ?? ''
     return {
       status: r.status,
       err: r.stdout + r.stderr,
       writes: calls.filter((c) => !/^pr (list|view)/.test(c)),
-      keyWhile: existsSync(keyWhile) ? readFileSync(keyWhile, 'utf8').trim().split('\n') : [],
-      pushedWith: existsSync(pushed) ? readFileSync(pushed, 'utf8').trim().split('\n') : [],
+      keyWhile: lines('key-while.log'),
+      pushedWith: lines('pushed-key.log'),
       temp: runnerTemp,
       body: existsSync(join(runnerTemp, 'sync-body.md')) ? readFileSync(join(runnerTemp, 'sync-body.md'), 'utf8') : '',
       keyLeft: readdirSync(runnerTemp).filter((f) => f.startsWith('deploy-key')),
@@ -345,9 +364,9 @@ earlyTest('act finds the sync PR itself: a plan naming another PR is refused for
     assert.match(r.err, /the sync PR is #9/)
     assert.deepEqual(r.writes, [])
   }
-  // A fork's PR from a branch of the same name is not the sync PR.
+  // A fork's PR from a branch of the same name is not the sync PR, though the branch's pack is main's.
   const fork = async () => {
-    const r = await act(world(), await plan({action: 'close', number: '41'}), [syncPr(41, {isCrossRepository: true})])
+    const r = await act(world(S.main, S.hand), await plan({action: 'close', number: '41'}), [syncPr(41, {isCrossRepository: true})])
     assert.equal(r.status, 1, r.err)
     assert.deepEqual(r.writes, [])
   }
@@ -440,7 +459,7 @@ earlyTest('act, with the sync PR open: the commit sits on its head with main mer
 earlyTest('a key leak is named under the run that made it, while another run ends, and never lost', async () => {
   const marks = tmp('plant-')
   const close = async () => plan({action: 'close'})
-  const planted = act(world(), await close(), [], false, marks)
+  const planted = act(world(), await close(), [], false, {plant: marks})
   // Polled until the leaking run plants or ends, not after: a loop left running keeps node from exiting.
   let raced = false
   const isPlanted = async () => {
@@ -455,4 +474,10 @@ earlyTest('a key leak is named under the run that made it, while another run end
     assert.doesNotMatch(e.message, /the clean run/)
     return true
   })
+})
+
+// A child whose env lost its run's log name: its leak goes to the shims' fallback log, which every run reads,
+// so it is never lost. Last, with every other run ended, so no other run reads it first.
+test("a key leak by a child that lost its run's log is still caught", async () => {
+  await assert.rejects(act(world(), await plan({action: 'close'}), [], false, {lose: true}), /a child process saw the deploy key and logged it to no run's own log \(cat\)/)
 })
