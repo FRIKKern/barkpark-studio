@@ -84,6 +84,8 @@ export type ConditionalProperty = boolean | ((context: ConditionContext) => bool
 export type FieldConditions = {hidden?: ConditionalProperty; readOnly?: ConditionalProperty}
 
 const ROLE_TITLES: Record<string, string> = {administrator: 'Administrator', editor: 'Editor', contributor: 'Contributor', viewer: 'Viewer'}
+/** A role's title: Sanity's for the built-in four (own keys only, so `constructor` is no title), else its name. */
+const roleTitle = (name: string) => (Object.hasOwn(ROLE_TITLES, name) ? ROLE_TITLES[name] : name)
 
 /**
  * A Barkpark seat's role under Sanity's name: owner and admin are `administrator`, member
@@ -102,7 +104,7 @@ export function currentUserOf(me: Me | undefined): Person {
   if (!me || me.provisional) return undefined
   if (!me.email) return null
   const role = sanityRole(me.role, me.canWrite)
-  return {id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles: role ? [{name: role, title: ROLE_TITLES[role] ?? role}] : []}
+  return {id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles: role ? [{name: role, title: roleTitle(role)}] : []}
 }
 
 /** The config key of a field path: its type, then field names with array items left out (`post.links.title`). */
@@ -230,7 +232,7 @@ export function roleHidden(type: string, doc: Record<string, unknown>, currentUs
   const ask = (user: CurrentUser, log = false) => resolveConditional(hidden, {currentUser: user, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)}, `form.conditions['${key}'].hidden`, log)
   if (!ask(currentUser, true)) return false
   const probes = new Set([...KNOWN_ROLES, ...currentUser.roles.map((r) => r.name), ...roles.flatMap((r) => sanityRole(r) ?? [])])
-  return [...probes].some((name) => !ask({...currentUser, roles: [{name, title: ROLE_TITLES[name] ?? name}]}))
+  return [...probes].some((name) => !ask({...currentUser, roles: [{name, title: roleTitle(name)}]}))
 }
 
 /**
