@@ -11,8 +11,8 @@ test.use({video: 'on'})
 
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
-  await target(info).resetDoc('post-05', 'post')
-  await target(info).resetDoc('post-06', 'post')
+  // Each a different doc: both at once.
+  await Promise.all([target(info).resetDoc('post-05', 'post'), target(info).resetDoc('post-06', 'post')])
 })
 
 test('@evidence J30: conditional fields', async ({page}, info) => {
