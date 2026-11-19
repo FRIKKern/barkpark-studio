@@ -97,10 +97,14 @@ case "$action" in
     git -C "$bp" config remote.origin.promisor true
     git -C "$bp" config remote.origin.partialclonefilter blob:none
     git -C "$bp" fetch -q --filter=blob:none origin main
-    git -C "$bp" merge-base --is-ancestor "$at" FETCH_HEAD || fail "Barkpark $at is not on Barkpark's main"
+    bpmain=$(git -C "$bp" rev-parse FETCH_HEAD)
+    git -C "$bp" merge-base --is-ancestor "$at" "$bpmain" || fail "Barkpark $at is not on Barkpark's main"
     if [[ $(git cat-file blob origin/main:conformance/pack/SOURCE.md 2>/dev/null || true) =~ $re_source ]]; then
       was=${BASH_REMATCH[1]}
-      git -C "$bp" merge-base --is-ancestor "$was" "$at" || fail "Barkpark $at is older than $was, which main holds"
+      # Not on Barkpark's main any more: its history was rewritten; only a hand sync moves on from here.
+      git -C "$bp" merge-base --is-ancestor "$was" "$bpmain" 2>/dev/null ||
+        fail "Barkpark $was, which main's SOURCE.md names, is not on Barkpark's main (history rewritten?): sync by hand"
+      git -C "$bp" merge-base --is-ancestor "$was" "$at" || fail "Barkpark $at is not a descendant of main's SOURCE commit $was"
     fi
     while IFS= read -r -d '' entry; do
       oid=${entry%%$'\t'*}

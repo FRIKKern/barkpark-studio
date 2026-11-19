@@ -167,7 +167,7 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
   refused('a pack file Barkpark lacks', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/extra.mjs', 'x\n'), commit(w, 'sync')), /the pack differs from Barkpark [0-9a-f]{40}: extra\.mjs/)
   refused('a Barkpark commit off its main', (w) => (bark(w, '{"v": 2}\n', 'side'), commit(w, 'sync')), /is not on Barkpark's main/)
   // Barkpark's history rewritten, so the commit main's SOURCE.md names leaves its main: every push fails safe.
-  refused('a Barkpark history rewrite', (w) => (git(w.barkpark, 'commit', '-q', '--amend', '-m', 'rewritten'), bark(w, '{"v": 2}\n'), commit(w, 'sync')), /is older than [0-9a-f]{40}, which main holds/)
+  refused('a Barkpark history rewrite', (w) => (git(w.barkpark, 'commit', '-q', '--amend', '-m', 'rewritten'), bark(w, '{"v": 2}\n'), commit(w, 'sync')), /Barkpark [0-9a-f]{40}, which main's SOURCE\.md names, is not on Barkpark's main \(history rewritten\?\): sync by hand/)
   // An older Barkpark pack than main's (main's SOURCE.md names a later commit): refused.
   {
     const w = world()
@@ -180,7 +180,7 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
     commit(w, 'sync')
     const r = act(w, plan(w, {action: 'push', main}, [main]))
     assert.equal(r.status, 1, r.err)
-    assert.match(r.err, new RegExp(`Barkpark ${old} is older than [0-9a-f]{40}, which main holds`))
+    assert.match(r.err, new RegExp(`Barkpark ${old} is not a descendant of main's SOURCE commit [0-9a-f]{40}$`, 'm'))
     assert.equal(branchAt(w), '')
   }
   refused('SOURCE.md naming no commit', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/SOURCE.md', 'hand-written\n'), commit(w, 'sync')), /SOURCE\.md names no Barkpark commit/)

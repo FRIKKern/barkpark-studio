@@ -38,7 +38,7 @@ jobs:
 
   # main requires its checks (ruleset "main: required checks"); this push alone goes past them, with the
   # repo's housekeeping deploy key (the ruleset's only bypass). It runs main's scripts/housekeeping-push.sh,
-  # which runs git only; the job and that file are pinned in scripts/lib/keyed-jobs.json.
+  # which runs git and scripts/lib/svg-check.py; the job and those files are pinned in scripts/lib/keyed-jobs.json.
   push:
     needs: refresh
     if: needs.refresh.outputs.changed == 'true'
@@ -70,11 +70,21 @@ jobs:
       - name: Delete merged branches left on the remote
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          # Only a branch of this repo whose merged PR's head SHA is still its tip, matched by full ref.
+          # Only a branch of this repo (no fork's PR) whose merged PR's head SHA is still its tip, looked up by
+          # its full ref, with no open PR. A name outside [A-Za-z0-9._/-] never reaches the API (gh reads # ? { }
+          # in a path): it is skipped and listed in the run summary for a person.
+          open_heads=$(gh pr list --state open --limit 500 --json headRefName --jq '.[].headRefName')
           gh pr list --state merged --limit 200 --json headRefName,headRefOid,isCrossRepository \
             --jq '.[] | select((.isCrossRepository | not) and .headRefName != "main") | "\(.headRefName) \(.headRefOid)"' |
           while read -r branch sha; do
-            tip=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
+            case "$branch" in
+              '' | *[!A-Za-z0-9._/-]*)
+                echo "::warning::not deleting branch $branch: a name outside [A-Za-z0-9._/-]; delete it by hand if it is done"
+                echo "- \`$branch\` merged but not deleted: its name is outside [A-Za-z0-9._/-]; delete it by hand" >> "$GITHUB_STEP_SUMMARY"
+                continue ;;
+            esac
+            grep -qxF "$branch" <<<"$open_heads" && continue # an open PR still has it
+            tip=$(git ls-remote origin "refs/heads/$branch" | awk -v ref="refs/heads/$branch" '$2 == ref { print $1 }')
             [ "$tip" = "$sha" ] || continue # gone, or reused with new commits
             echo "deleting merged branch $branch"
             gh api -X DELETE "repos/$GH_REPO/git/refs/heads/$branch" --silent
