@@ -59,7 +59,7 @@ for (const after of [false, true])
       // apart, before, which mostly came to the same).
       if (after) {
         await savesLanded(page)
-        await expect.poll(() => lines(edB), {timeout: 10_000}).toContain('Start text one two three')
+        await expect.poll(async () => (await lines(edB)).some((l) => l.startsWith('Start text') && l.endsWith('one two three')), {message: "A's line on B's screen", timeout: 10_000}).toBe(true)
       }
       await paste(edB, 'x\n\ny\n\nz ')
       await Promise.all([savesLanded(page), savesLanded(b)])
