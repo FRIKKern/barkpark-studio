@@ -122,7 +122,7 @@ const importLater = async (dir, commits, borrowing) => {
   return f.read()
 }
 
-// Barkpark: api/priv/portable_doc with a.json and conformance/conformance.mjs. Main runs b0 to b5; `side` is
+// Barkpark: api/priv/portable_doc with a.json and conformance/conformance.mjs. Main runs b0 to b6; `side` is
 // off it; `rewritten` starts a second history, as an amend and force push on Barkpark's main would.
 const BARK = join(base, 'barkpark.git')
 git(base, 'init', '-q', '--bare', '-b', 'main', BARK)
@@ -130,11 +130,13 @@ const barkFiles = (text) => ({'api/priv/portable_doc/a.json': text, 'api/priv/po
 const B = importNow(BARK, [
   {name: 'b0', files: barkFiles('{}\n')},
   ...[2, 3, 4, 5].map((v) => ({name: `b${v}`, from: v === 2 ? 'b0' : `b${v - 1}`, files: barkFiles(`{"v": ${v}}\n`)})),
+  // b6 adds entries that are not plain files: a symlink whose target text is a file's bytes, and an executable.
+  {name: 'b6', from: 'b5', files: {'api/priv/portable_doc/link.json': ['120000', '{"v": 6}\n'], 'api/priv/portable_doc/run.mjs': ['100755', 'x\n']}},
   {name: 'side', from: 'b0', files: barkFiles('{"v": 2}\n')},
   {name: 'rewritten', files: barkFiles('{}\n')},
   {name: 'rewritten-2', from: 'rewritten', files: barkFiles('{"v": 2}\n')},
 ])
-const BARKPARK = borrower([BARK], {'refs/heads/main': B.b5})
+const BARKPARK = borrower([BARK], {'refs/heads/main': B.b6})
 const BARKPARK_REWRITTEN = borrower([BARK], {'refs/heads/main': B['rewritten-2']})
 
 /** The pack as the sync writes it from Barkpark commit `at`, a.json = `text`. */
@@ -158,6 +160,9 @@ const REFUSED = [
   // The pack's bytes: Barkpark's own at the commit SOURCE.md names, on Barkpark's main.
   ['a pack file not as Barkpark holds it', {...pack('{"v": 2}\n', B.b2), 'conformance/pack/a.json': '{"v": 666}\n'}, /the pack differs from Barkpark [0-9a-f]{40}: a\.json/],
   ['a pack file Barkpark lacks', {...pack('{"v": 2}\n', B.b2), 'conformance/pack/extra.mjs': 'x\n'}, /the pack differs from Barkpark [0-9a-f]{40}: extra\.mjs/],
+  // Barkpark's entry must be a plain file (100644): the same bytes from a symlink or an executable are refused.
+  ['a pack file that is a symlink in Barkpark', {...pack('{"v": 5}\n', B.b6), 'conformance/pack/link.json': '{"v": 6}\n'}, /the pack differs from Barkpark [0-9a-f]{40}: link\.json; $/m],
+  ['a pack file that is an executable in Barkpark', {...pack('{"v": 5}\n', B.b6), 'conformance/pack/run.mjs': 'x\n'}, /the pack differs from Barkpark [0-9a-f]{40}: run\.mjs; $/m],
   ["a Barkpark commit off its main", pack('{"v": 2}\n', B.side), /is not on Barkpark's main/],
   // Barkpark's history rewritten, so the commit main's SOURCE.md names leaves its main: every push fails safe.
   ['a Barkpark history rewrite', pack('{"v": 2}\n', B['rewritten-2']), /Barkpark [0-9a-f]{40}, which main's SOURCE\.md names, is not on Barkpark's main \(history rewritten\?\): sync by hand/, {barkpark: BARKPARK_REWRITTEN}],

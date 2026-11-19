@@ -23,7 +23,7 @@ act (deploy key, git/gh/jq): the commit is the pack, as Barkpark holds it ─►
   keeps no credentials and runs main's `scripts/sync-act.sh`. It trusts nothing from `plan` except which of
   the three actions to take (each re-checked against GitHub's own state), the studio's report file and
   SOURCE.md's prose. It finds the sync PR itself, checks the bundle, its parent (main, or the PR's head with
-  main merged in), both sides of every path, and each other pack file against Barkpark's blob at the commit
+  main merged in), both sides of every path, and each other pack file as Barkpark's plain file at the commit
   SOURCE.md names (on Barkpark's main, not older than main's); it writes the message, title and body. If a
   Barkpark history rewrite drops main's SOURCE.md commit, pushes fail safe until a hand sync.
 - Conformance runs on the new pack; the report takes the new stamp only when no row moved, else `unit` fails.
