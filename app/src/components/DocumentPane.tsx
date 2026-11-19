@@ -43,7 +43,7 @@ import {InspectDialog, storedValue} from './InspectDialog'
 import {CompareVersions, useCompareVersions} from './CompareVersions'
 import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {useNow, useZone} from '../lib/now'
-import {LoadedAtContext, madeJustBefore} from '../lib/pane-clock'
+import {LoadedAtContext, madeJustBefore, noteEdit, unedited} from '../lib/pane-clock'
 import {CommentsContext, CommentsPanel} from './Comments'
 import {commentsQuery, threadsOf} from '../lib/comments'
 import {historyQuery, revisionQuery} from '../lib/history'
@@ -178,14 +178,15 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // just made. Publishing still checks everything (the errors below are unchanged).
   // Made here: not saved yet, or created a moment ago (an Expectation's prefill saves at once),
   // judged against the page's load time, never the clock: the server's page and the browser's
-  // first paint decide alike (task-96c28256661a6179, lib/pane-clock.ts).
+  // first paint decide alike (task-96c28256661a6179, lib/pane-clock.ts). And not edited yet, by
+  // the doc as held now and this page's edits: a cached route's load time is as old as its first open.
   const [made, setMade] = useState<{id: string; acted: boolean}>()
   const loadedAt = useContext(LoadedAtContext)
-  const justMade = !!doc && (pristine || madeJustBefore(doc, loadedAt))
+  const justMade = !!doc && (pristine || (madeJustBefore(doc, loadedAt) && unedited(doc, pane.id)))
   if (justMade && made?.id !== pane.id) setMade({id: pane.id, acted: false})
   const quiet = made?.id === pane.id && !made.acted
   // After the keystroke lands: re-rendering the form inside its input event drops it.
-  const acted = () => quiet && setTimeout(() => setMade((m) => (m?.id === pane.id ? {...m, acted: true} : m)))
+  const acted = () => quiet && (noteEdit(pane.id), setTimeout(() => setMade((m) => (m?.id === pane.id ? {...m, acted: true} : m))))
   const checked = doc && schemaForPane && !viewingPublished && !gone && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
   // J28: a slug another document of this type has (a duplicate's copied slug) is taken, as Sanity says.
   const slugTaken = useSlugInUse(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !gone && !pristine, t)
