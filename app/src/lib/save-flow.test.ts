@@ -13,7 +13,8 @@ import {QueryClient} from '@tanstack/react-query'
 
 register('./save-flow.hooks.mjs', import.meta.url)
 const {freshItems} = await import('./pt-value.ts')
-const {applyPaths, setPath} = await import('./paths.ts')
+const {applyPaths, getPath, setPath} = await import('./paths.ts')
+const {applyPatches, makePatches, parsePatch} = await import('@sanity/diff-match-patch')
 
 type Doc = Record<string, unknown> & {_rev: string; _updatedAt: string}
 type Block = {_type: string; _key: string; style: string; markDefs: unknown[]; children: {_type: string; _key: string; text: string; marks: string[]}[]}
@@ -81,16 +82,19 @@ class Server {
     this.onRead?.()
     return d
   }
-  async fetch(page: string, _url: string, init: {body: string}) {
+  async fetch(page: string, url: string, init: {body?: string}) {
     // A page that is gone writes nothing more (signed out there: no retry timers left behind).
     if (this.gone.has(page)) return answer(401, {error: {code: 'session_lost', message: 'The page is gone'}})
+    // History reads (lib/edits.ts valuesBefore): newest first; a revision's content by its id.
+    if (url.includes('/v1/data/history/')) return answer(200, {revisions: [...this.history].reverse().map((h) => ({id: h._rev, rev: h._rev, status: 'draft'}))})
+    if (url.includes('/v1/data/revision/')) return answer(200, {revision: {content: clone(this.history.find((h) => h._rev === url.split('/').at(-1)))}})
     const fault = this.faults.shift()
     if (fault === 'hold') await new Promise<void>((go) => (this.release = go))
     if (fault === '500') return answer(500, {error: {code: 'internal_error', message: 'Internal Server Error'}})
     let doc: Record<string, unknown> = this.doc
-    for (const m of JSON.parse(init.body).mutations as {patch: {ifRevisionID?: string; fence?: string; set?: Record<string, unknown>; unset?: string[]; diffMatchPatch?: unknown}}[]) {
+    const warnings: {code: string}[] = []
+    for (const m of JSON.parse(init.body!).mutations as {patch: {ifRevisionID?: string; fence?: string; set?: Record<string, unknown>; unset?: string[]; diffMatchPatch?: Record<string, string>}}[]) {
       const p = m.patch
-      assert.equal(p.diffMatchPatch, undefined, 'span patches are not used here')
       if (p.ifRevisionID) {
         const at = this.history.find((h) => h._rev === p.ifRevisionID)
         const roots = [...Object.keys(p.set ?? {}), ...(p.unset ?? [])].map((f) => f.split(/[.[]/)[0]!)
@@ -100,17 +104,23 @@ class Server {
       }
       doc = applyPaths(doc, Object.entries(p.set ?? {}))
       for (const u of p.unset ?? []) doc = setPath(doc, u, undefined)
+      // A span patch goes onto the text there now (not fenced); a span that is gone: unmatched.
+      for (const [path, patch] of Object.entries(p.diffMatchPatch ?? {})) {
+        const now = getPath(doc, path)
+        if (typeof now !== 'string') warnings.push({code: 'patch.path_unmatched'})
+        else doc = setPath(doc, path, applyPatches(parsePatch(patch), now, {allowExceedingIndices: true})[0])
+      }
     }
     const saved = this.stamp(doc, page)
     if (fault === 'lost') throw new TypeError('fetch failed')
-    return answer(200, {transactionId: saved._rev, results: [{id: ID, operation: 'update', document: saved}]})
+    return answer(200, {transactionId: saved._rev, results: [{id: ID, operation: 'update', document: saved}], ...(warnings.length ? {warnings} : {})})
   }
 }
 const answer = (status: number, body: unknown) => ({ok: status < 300, status, json: async () => body})
 
 let server: Server
 ;(globalThis as Record<string, unknown>).saveFlowServer = {
-  fetch: (page: string, ...a: [string, {body: string}]) => server.fetch(page, ...a),
+  fetch: (page: string, ...a: [string, {body?: string}]) => server.fetch(page, ...a),
   read: (page: string) => server.read(page),
 }
 const merges = () => ((globalThis as Record<string, unknown>).saveFlowMerges ??= []) as {page: string; rev: string; field: string; base: string}[]
@@ -133,7 +143,12 @@ async function open(name: string) {
     }
     assert.fail(`${name}: still saving`)
   }
-  return {name, E, qc, held, save, drain, frame: (d: Doc) => E.applyServer(qc, clone(d) as never)}
+  // Typing in a span (PortableTextInput's text save): its own patch, onto the span as held then.
+  const type = (key: string, from: string, to: string) => {
+    const own = makePatches(from, to)
+    E.edit(qc, held() as never, `ptBody[_key=="${key}"].children[_key=="${key}s"].text`, (now: unknown) => applyPatches(own, typeof now === 'string' ? now : '')[0])
+  }
+  return {name, E, qc, held, save, type, drain, frame: (d: Doc) => E.applyServer(qc, clone(d) as never)}
 }
 
 const paste = (drawn: Block[]) => drawn.flatMap((b) => (b._key === 'b1' ? [blk('b1', 'XX', 'p1'), blk('y', 'yy'), blk('z', `zz ${b.children[0]!.text}`)] : [b]))
@@ -240,3 +255,36 @@ test('a retry after a reload', () =>
     await next.drain()
     return {again: replay(next)}
   }))
+
+// Typing sent as a span patch while another editor's paste split that block
+// (task-30946f2255a30d93, task-ab6d751fa53fbda5): Barkpark puts the patch on the span as it is
+// now, where its words are no longer. The span's field as it was before the patch is read
+// and this editor's typing merged onto it through the merge exit and its net: every word once,
+// deleted letters deleted, and this page's copy is what is stored.
+async function spanSave(name: string, typing: [string, string][], want: string[]) {
+  server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'Start text'), blk('c', 'Below')]})
+  const page = await open(name)
+  // The other paste: "QQ¶rr " after "Start ", the block split there (its tail keyed anew).
+  const split = (now: unknown) => (now as Block[]).flatMap((b) => (b._key === 'b1' ? [blk('b1', 'Start QQ'), blk('r', `rr ${b.children[0]!.text.slice(6)}`)] : [b]))
+  const [[from, to], ...more] = typing
+  server.faults.push('hold')
+  page.type('b1', from!, to!)
+  page.E.flush(page.qc, ID)
+  await tick(5)
+  page.frame(server.theirs('ptBody', split))
+  // Typing goes on while the first patch is on its way.
+  for (const [f, t] of more) page.type('b1', f, t)
+  server.release()
+  await page.drain()
+  for (const d of server.history) page.frame(d)
+  await page.drain()
+  if (process.env.FLOW_LOG) console.log(name, J({stored: texts(server.doc.ptBody), held: texts(page.held().ptBody)}))
+  assert.deepEqual(texts(server.doc.ptBody), want, `${name}: stored`)
+  assert.deepEqual(texts(page.held().ptBody), want, `${name}: this page's copy`)
+}
+
+test('typing sent as a span patch, and more after it, while another paste split the block', () =>
+  spanSave('spanType', [['Start text', 'Start text four'], ['Start text four', 'Start text four five']], ['Above', 'Start QQ', 'rr text four five', 'Below']))
+
+test('letters deleted as a span patch while another paste split the block stay deleted', () =>
+  spanSave('spanDelete', [['Start text', 'Start tt']], ['Above', 'Start QQ', 'rr tt', 'Below']))
