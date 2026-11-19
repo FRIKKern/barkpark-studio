@@ -754,8 +754,13 @@ async function send(qc: QueryClient, id: string) {
     // What we sent is now the server's: a spot still being typed builds on it (lib/edit-bases.ts).
     answered(e, saved)
     e.inflight = null
-    // The fields put right go whole, fenced, measured from the answer.
-    for (const root of putRight) e.base.set(root, getPath(saved, root))
+    // The fields put right go whole, fenced, measured from the answer. A span typed only
+    // since keeps no base of its own: its next key builds on the field's (else it is measured
+    // from before the merge and sends the earlier words again).
+    for (const root of putRight) {
+      e.base.set(root, getPath(saved, root))
+      for (const k of [...e.base.keys()]) if (k !== root && within(k, root)) (e.base.delete(k), e.notes?.delete(k))
+    }
     // The save went through: what it answered is newer than a frame held for it, unless that
     // frame came from a write after ours (it holds ours and theirs): that one folds in next.
     const later = e.missed && e.missed._updatedAt > saved._updatedAt ? e.missed : undefined

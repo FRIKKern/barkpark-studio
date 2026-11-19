@@ -144,10 +144,10 @@ async function open(name: string) {
     assert.fail(`${name}: still saving`)
   }
   // Typing in a span (PortableTextInput's text save): its own patch, onto the span as held then.
-  const type = (key: string, from: string, to: string) => {
+  const type = (key: string, from: string, to: string, at = 0) => {
     const own = makePatches(from, to)
     // The span's key as the page holds it (a merge may give a moved text its own span's key).
-    const span = (held().ptBody as Block[]).find((b) => b._key === key)!.children[0]!._key
+    const span = (held().ptBody as Block[]).find((b) => b._key === key)!.children.at(at)!._key
     E.edit(qc, held() as never, `ptBody[_key=="${key}"].children[_key=="${span}"].text`, (now: unknown) => applyPatches(own, typeof now === 'string' ? now : '')[0])
   }
   return {name, E, qc, held, save, type, drain, frame: (d: Doc) => E.applyServer(qc, clone(d) as never)}
@@ -288,6 +288,7 @@ async function spanSave(name: string, {before, after = []}: {before: Typed[]; af
   if (process.env.FLOW_LOG) console.log(name, J({stored: texts(server.doc.ptBody), held: texts(page.held().ptBody)}))
   assert.deepEqual(texts(server.doc.ptBody), want, `${name}: stored`)
   assert.deepEqual(texts(page.held().ptBody), want, `${name}: this page's copy`)
+  return page
 }
 
 const end = (w: string) => (t: string) => `${t} ${w}`
@@ -305,3 +306,20 @@ test('typing, the last of it not yet sent when the frame of another paste that s
 
 test('letters deleted, the last not yet sent when the frame of another paste that split the block comes', () =>
   spanSave('spanFrameDelete', deleting, ['Above', 'Start QQ', 'rr tt', 'Below'], false))
+
+// The field put right goes whole; a span typed only since (the tail's first span here) keeps
+// no base from before, or its next key sends the earlier words again.
+for (const at of [0, -1])
+  test(`typing again in the tail's ${at ? 'last' : 'first'} span after the field was put right: every word once`, async () => {
+    const page = await spanSave(`spanAgain${at}`, typing, ['Above', 'Start QQ', 'rr text four five six', 'Below'])
+    const tail = () => (page.held().ptBody as Block[]).find((b) => b._key === 'r')!.children.at(at)!.text
+    for (const w of ['X', 'Y']) {
+      page.type('r', tail(), `${tail()}${w}`, at)
+      await page.drain()
+      for (const d of server.history) page.frame(d)
+      await page.drain()
+    }
+    const all = texts(server.doc.ptBody).join('|')
+    for (const w of ['four', 'five', 'six', 'X', 'Y']) assert.equal(all.split(w).length - 1, 1, `${w} once in ${all}`)
+    assert.deepEqual(texts(page.held().ptBody), texts(server.doc.ptBody), 'this page equals stored')
+  })
