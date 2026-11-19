@@ -2,7 +2,7 @@
 // ones, then custom and global roles A-Z). A paste lock asks a role rule for each of them
 // (lib/conditions.ts roleHidden), so a field shown only to a custom role the person lacks is
 // kept. Per workspace, the same for every dataset. Read with the signed-in person's own token,
-// never the studio's (lib/session.ts workspaceRolesQuery).
+// never the studio's (lib/workspace-roles-query.ts).
 export const ROLES_PATH = '/v1/workspace/roles'
 
 /**
@@ -24,7 +24,7 @@ export async function readWorkspaceRoles(get: (path: string) => Promise<Response
 
 /**
  * The roles as the signed-in person may read them: with their own token, never the studio's
- * (lib/session.ts passes bpFetch and currentEditor()). No one signed in: null, today's roles.
+ * (lib/workspace-roles-query.ts passes bpFetch and currentEditor()). No one signed in: null, today's roles.
  */
 export async function rolesFor(editor: {token: string} | null | undefined, fetch: (path: string, init: RequestInit, token: string) => Promise<Response>): Promise<string[] | null> {
   return editor ? readWorkspaceRoles((path) => fetch(path, {}, editor.token)) : null
