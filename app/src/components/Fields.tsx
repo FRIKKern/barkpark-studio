@@ -5,6 +5,7 @@ import {anyDocQuery, refId, refTypesOf, type Doc, type Field} from '../lib/data'
 import {refFilterOf} from '../lib/ref-filter'
 import {objectKinds} from '../lib/object-block'
 import {actions} from '../lib/array-options'
+import {MAX_REACHED, maxItems, pasteAllowed} from '../lib/array-max'
 import {useQueryClient} from '@tanstack/react-query'
 import {usePaneNavigate} from './PaneLink'
 import {conditionKey, fieldState} from '../lib/conditions'
@@ -431,7 +432,10 @@ function FieldActions({field, path, value, onChange, readOnly, titleId}: FieldPr
     if ('why' in pasted) return toast({tone: 'critical', title: tBrowser('Invalid clipboard item'), description: pasted.why})
     // Inside this object or its items, a field read-only, or hidden from this person but shown to another role, keeps its value (lib/paste-locked.ts).
     const doc = docStore.doc
-    onChange(doc && doc._type ? keepLocked(field, path, pasted.value, value, {type: doc._type, doc, after: setPath(doc, path, pasted.value), user, rules: studio.form?.conditions}) : pasted.value)
+    const next = doc && doc._type ? keepLocked(field, path, pasted.value, value, {type: doc._type, doc, after: setPath(doc, path, pasted.value), user, rules: studio.form?.conditions}) : pasted.value
+    // A paste that would leave an array past its max and longer than it was is refused (lib/array-max.ts).
+    if (!pasteAllowed(field, value, next)) return toast({tone: 'caution', title: tBrowser(MAX_REACHED)})
+    onChange(next)
   }
   // An array's disableActions (Sanity's): 'copy' takes Copy field, 'add' Paste field, from the menu and the keys alike.
   const allow = actions(field.options)
@@ -622,7 +626,7 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
         return (field.options as {layout?: string} | undefined)?.layout === 'tags' ? (
           <TagsInput id={path} value={value} onChange={onChange} readOnly={readOnly} />
         ) : (
-          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} options={field.options} />
+          <StringArrayInput id={path} value={value} onChange={onChange} readOnly={readOnly} options={field.options} max={maxItems(field.validation)} />
         )
       if (field.of?.type === 'composite' || field.of?.type === 'image') return <ObjectArrayInput id={path} field={field} value={value} onChange={onChange} readOnly={readOnly} openRef={openRef} />
       return (

@@ -12,7 +12,7 @@ import {sent, settle, shown, type Pending} from '../lib/pending-list'
 // value, an item "…" menu, and "Add item" below. Strings carry no _key in either
 // studio, so every change writes the whole array.
 
-type Props = {id: string; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; options?: unknown}
+type Props = {id: string; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; options?: unknown; /** Rule.max(n) (lib/array-max.ts). */ max?: number}
 const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : [])
 
 export function TagsInput({id, value, onChange, readOnly}: Props) {
@@ -55,7 +55,7 @@ export function TagsInput({id, value, onChange, readOnly}: Props) {
   )
 }
 
-export function StringArrayInput({id, value, onChange, readOnly, options}: Props) {
+export function StringArrayInput({id, value, onChange, readOnly, options, max}: Props) {
   const t = useT()
   const items = list(value)
   return (
@@ -65,6 +65,7 @@ export function StringArrayInput({id, value, onChange, readOnly, options}: Props
       onChange={onChange}
       readOnly={readOnly}
       options={options}
+      max={max}
       blank={() => ''}
       // Sanity's: the caret goes into the new item, so what is typed next lands there (it was
       // left on Add item, and the empty item saved). The row is drawn a frame or two later.
