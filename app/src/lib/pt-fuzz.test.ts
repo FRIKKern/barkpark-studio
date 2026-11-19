@@ -178,25 +178,32 @@ function spanCase(rnd: () => number, n: number) {
   const lost = added.filter((ch) => all.some((t) => count(t, ch) === 0))
   const twice = [...added, ...baseLetters].filter((ch) => all.some((t) => count(t, ch) > 1))
   const back = deleted.filter((ch) => all.some((t) => count(t, ch) > 0))
+  // B has the letter outside its own base block (a new block, or its base block gone): the merge
+  // cannot tell it from a letter typed again, and keeps it (task-07ae5617e9cb054f). A letter
+  // still in its own base block it can tell: back, that is a failure.
+  const home = (ch: string) => BASE.find((x) => x.text.includes(ch))?.key
+  const untold = (ch: string) => Bv.blocks.some((x) => x.text.includes(ch) && x.key !== home(ch))
   if (lost.length) why.push(`(b) lost ${lost.join('')}`)
   if (twice.length) why.push(`(c) twice ${twice.join('')}`)
-  if (back.length) why.push(`deleted back ${back.join('')}`)
+  if (back.some((ch) => !untold(ch))) why.push(`deleted back ${back.filter((ch) => !untold(ch)).join('')}`)
+  if (back.some(untold)) why.push(`kept, cannot tell ${back.filter(untold).join('')}`)
   return {why, line: `#${n} A ${key} ${A.did} ${JSON.stringify(A.text)} B ${Bv.did.join(',')} ${JSON.stringify(texts(b))} -> ${JSON.stringify(first)} / ${JSON.stringify(second)}: ${why.join('; ')}`}
 }
 
-test(`seeded fuzz of the span-text save (seed ${SEED}, ${CASES} pairs): typing sent as a patch while the other edits the field, either order gives each block the same letters (where in its block a patch put them is Barkpark's), every added letter once, no base letter twice, no deleted letter back`, () => {
+test(`seeded fuzz of the span-text save (seed ${SEED}, ${CASES} pairs): typing sent as a patch while the other edits the field, either order gives each block the same letters (where in its block a patch put them is Barkpark's), every added letter once, no base letter twice, a deleted letter back only where the merge cannot tell it from one typed again (counted, task-07ae5617e9cb054f)`, () => {
   const rnd = prng(SEED + 1)
   const fails: string[] = []
-  const tally = {a: 0, b: 0, c: 0, back: 0}
-  const tag = {a: '(a)', b: '(b)', c: '(c)', back: 'deleted back'} as const
+  const tally = {a: 0, b: 0, c: 0, back: 0, cannotTell: 0}
+  const tag = {a: '(a)', b: '(b)', c: '(c)', back: 'deleted back', cannotTell: 'kept, cannot tell'} as const
   for (let n = 0; n < CASES; n++) {
     const {why, line} = spanCase(rnd, n)
     for (const k of Object.keys(tally) as (keyof typeof tally)[]) if (why.some((w) => w.startsWith(tag[k]))) tally[k]++
     if (why.length && fails.length < 8) fails.push(line)
   }
-  const report = `span save: fails ${JSON.stringify(tally)}\n${fails.join('\n')}`
+  const report = `span save: ${JSON.stringify(tally)}\n${fails.join('\n')}`
   if (process.env.FUZZ_LOG) console.log(report)
-  assert.deepEqual(tally, {a: 0, b: 0, c: 0, back: 0}, report)
+  // Cannot-tell cases are a count (report), not a failure.
+  assert.deepEqual({...tally, cannotTell: 0}, {a: 0, b: 0, c: 0, back: 0, cannotTell: 0}, report)
 })
 
 // task-39ac4770a54b587a: the other deletes a block break with letters around it and pastes or
@@ -216,7 +223,7 @@ test('task-39ac4770a54b587a: span fuzz seed 3 case 113 keeps a deleted letter de
 test('task-39ac4770a54b587a: span fuzz seed 7 case 2631 and seed 8 case 532: where the merge cannot tell a moved letter from a new one, the letter is kept', () => {
   for (const [seed, at, ch] of [[7, 2631, 'p'], [8, 532, 'h']] as const) {
     const {why, line} = spanAt(seed, at)
-    assert.deepEqual(why, [`deleted back ${ch}`], `seed ${seed}: ${line}`)
+    assert.deepEqual(why, [`kept, cannot tell ${ch}`], `seed ${seed}: ${line}`)
   }
 })
 
