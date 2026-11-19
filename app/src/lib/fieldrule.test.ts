@@ -1,13 +1,10 @@
 // task-4f9ffd240c94a270: one rule (conditions.ts fieldState) answers whether this person may
 // see or edit a field, and every surface that shows or edits one asks it: the form, paste, the
 // Freeform canvas with or without a layout and its bound field blocks, the save, the Presentation
-// page. The first tests show what each surface does with it; the last ones list the surfaces
-// from the source and fail when one does not ask, a new one included.
+// page. These tests show what each surface does with it; fieldrule-scan.test.ts lists the
+// surfaces from the source, and fieldrule-writes.test.ts what the writes around the save do.
 import assert from 'node:assert/strict'
-import {readdirSync, readFileSync, statSync} from 'node:fs'
-import {join, relative} from 'node:path'
 import {test} from 'node:test'
-import {fileURLToPath} from 'node:url'
 import type {Field, Schema} from './data.ts'
 import {currentUserOf, fieldState, pasteSkips, pathReadOnly, type FieldConditions, type Person} from './conditions.ts'
 import {canvasAccess, freeformCanvas, paneFieldLock} from './form-lock.ts'
@@ -127,82 +124,4 @@ test('the save: an undo of a field that went read-only mid-session is refused an
   assert.deepEqual(told, ['label'])
   assert.deepEqual(written, {label: 'mine'})
   hideDoc('n3', pane)
-})
-
-// ── Every surface asks ─────────────────────────────────────────────────────────────────────────
-const SRC = fileURLToPath(new URL('..', import.meta.url))
-const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? files(join(dir, n)) : /\.tsx?$/.test(n) && !/\.test\.tsx?$/.test(n) ? [join(dir, n)] : []))
-const tree = () => Object.fromEntries(files(SRC).map((f) => [relative(SRC, f), readFileSync(f, 'utf8')]))
-
-/** What makes a source file a surface: it draws a field's input, or writes a field. */
-const MARKERS: [string, RegExp][] = [
-  ['draws a field', /<(FieldView|FieldBody|FieldInput|PortableDocEditor)\b/],
-  ['writes a field (edit)', /import\s*\{[^}]*\bedit\b[^}]*\}\s*from\s*'[^']*\/edits'/],
-  ['writes a field (edits.ts itself)', /^export const edit = /m],
-  ['writes blocks (a canvas batch)', /\bapplyBlockOps\(/],
-  ['pastes into a field', /\bpaste(Field|Document)\(/],
-]
-
-/**
- * Every surface, what it is, and how it asks the one rule: each pattern must be in the file.
- * A file that draws fields only through FieldView asks through it (Fields.tsx: ConditionalField).
- */
-const SURFACES: Record<string, {what: string; asks: RegExp[]}> = {
-  'components/Fields.tsx': {
-    what: 'the form, every field at any depth; Paste field; a richText field’s canvas',
-    asks: [/dependsOnDoc\(/, /fieldState\(type, props\.field, doc, user/, /<FieldBody \{\.\.\.props\} readOnly=\{props\.readOnly \|\| readOnly\} \/>/, /pasteField\(/, /<PortableDocEditor [^>]*editable=\{!readOnly\}/],
-  },
-  'components/DocumentPane.tsx': {
-    what: 'the group tabs; the Freeform canvas with or without a layout, its bound field blocks; the pane’s word to the save; a document action’s set',
-    asks: [/fieldState\(schema\.name, f, doc, user/, /freeformCanvas\(lockState, \{schema, doc, user/, /editable=\{canvasMode === 'editable'\}/, /paneFieldLock\(/, /showDoc\(pane\.id, lockHolder, locked, fieldLock\)/, /<FieldView /],
-  },
-  'components/DocHeaderMenu.tsx': {what: 'Paste document', asks: [/pasteDocument\(/]},
-  'lib/paste-locked.ts': {what: 'what Paste field and Paste document keep, at any depth', asks: [/fieldLock\(c\.type, sub, c\.doc, c\.user/, /pasteSkips\(c\.type, fields, c\.doc, c\.user/]},
-  'components/ObjectArrayInput.tsx': {what: 'an array item’s fields', asks: [/<FieldView /]},
-  'components/BlockObjectDialog.tsx': {what: 'a rich-text object’s dialog', asks: [/<FieldView /]},
-  'components/ImageInput.tsx': {what: 'an image’s own fields', asks: [/<FieldView /]},
-  'components/PortableDocEditor.tsx': {what: 'the canvas’s save', asks: [/canvasLocked\(id, field\)/]},
-  'components/TranslationsMenu.tsx': {what: 'the language field, set from the menu: judged at the save (edits.ts)', asks: [/\bedit\(qc, /]},
-  'lib/edits.ts': {what: 'the save of every field edit', asks: [/^export const edit = unlessDocLocked\(\(\[, doc\]\) => doc\._publishedId, write, \(\[, , field\]\) => field\)$/m]},
-  'lib/presentation-overlay.ts': {what: 'a change made on the Presentation page (no pane need show the doc)', asks: [/pathReadOnly\(/]},
-}
-
-/** The rule's own parts: nowhere but conditions.ts. */
-const COPIES = /\.hidden === true|\.readOnly === true|\.visibleWhen\b|\bresolveConditional\(|\bisHidden\(|\bisReadOnly\(/
-
-function judge(src: Record<string, string>, surfaces = SURFACES) {
-  const problems: string[] = []
-  for (const [file, text] of Object.entries(src)) {
-    const marks = MARKERS.filter(([, re]) => re.test(text)).map(([m]) => m)
-    if (marks.length && !surfaces[file]) problems.push(`${file} ${marks.join(', ')} and is no listed surface: list it in fieldrule.test.ts SURFACES with how it asks the rule`)
-    if (file !== 'components/Fields.tsx' && /<(FieldBody|FieldInput)\b/.test(text)) problems.push(`${file} draws a field input past FieldView, which asks the rule`)
-    if (file !== 'lib/conditions.ts' && COPIES.test(text)) problems.push(`${file} decides a field's hidden or read-only itself: ask lib/conditions.ts`)
-  }
-  for (const [file, {asks}] of Object.entries(surfaces)) {
-    if (!(file in src)) problems.push(`${file} is listed and gone: take it off`)
-    else for (const re of asks) if (!re.test(src[file]!)) problems.push(`${file} no longer asks the rule: ${re}`)
-  }
-  return problems
-}
-
-test('every surface that shows or edits a field asks the one rule; none decides it itself', () => {
-  assert.deepEqual(judge(tree()), [])
-  // The helpers the surfaces ask are built on fieldState, the one rule.
-  const src = tree()
-  assert.match(src['lib/form-lock.ts']!, /canvasFields\(schema\)\.map\(\(f\) => fieldState\(/)
-  assert.match(src['lib/form-lock.ts']!, /pathReadOnly\(schema\.name, schema\.fields, doc, user, rules, path\)/)
-  assert.match(src['lib/conditions.ts']!, /if \(fieldState\(type, f, doc, person, rules, \{path: at/)
-  assert.match(src['lib/conditions.ts']!, /const readOnly = fieldState\(type, f, doc, currentUser, rules, at\)\.readOnly/)
-})
-
-test('a new surface that does not ask fails, as does a listed one that stops asking', () => {
-  const src = tree()
-  const added = {...src, 'components/QuickEdit.tsx': "import {edit} from '../lib/edits'\nexport const QuickEdit = () => null\n"}
-  assert.match(judge(added).join('\n'), /components\/QuickEdit\.tsx writes a field \(edit\) and is no listed surface/)
-  const drawn = {...src, 'components/Peek.tsx': 'export const Peek = (p: never) => <FieldBody {...p} />\n'}
-  assert.match(judge(drawn).join('\n'), /Peek\.tsx draws a field input past FieldView/)
-  const own = {...src, 'components/Badge.tsx': 'export const shows = (f: {hidden?: boolean}) => !(f.hidden === true)\n'}
-  assert.match(judge(own).join('\n'), /Badge\.tsx decides a field's hidden or read-only itself/)
-  const stopped = {...src, 'components/PortableDocEditor.tsx': src['components/PortableDocEditor.tsx']!.replace('canvasLocked(id, field)', 'false')}
-  assert.match(judge(stopped).join('\n'), /PortableDocEditor\.tsx no longer asks the rule/)
 })

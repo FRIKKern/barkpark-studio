@@ -318,7 +318,7 @@ function FieldBody(props: FieldProps) {
       </label>
       <FieldZone field={props.field} path={props.path} value={props.value} />
       {props.field.description && <p className="field-desc" id={descId(props.path)}>{props.field.description}</p>}
-      <FieldClashCard path={props.path} />
+      <FieldClashCard path={props.path} readOnly={!!props.readOnly} />
       {changes?.inline && changes.changed.has(props.path) && INLINE_DIFF_TYPES.has(props.field.type) ? (
         <InlineDiff before={changes.published?.[props.path]} after={props.value} multiline={props.field.type === 'text' || props.field.type === 'markdown'}>
           <CustomOrDefault {...props} />

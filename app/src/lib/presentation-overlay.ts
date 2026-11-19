@@ -214,7 +214,7 @@ export function overlayEditing({visual, qc, perspective, pageDocs, read, panelDo
     if (!schema || pathReadOnly(type, schema.fields, doc, person, studio.form?.conditions, path)) return notSaved('the field is read-only for this person'), false
     const result = applyArrayOp(getPath(doc, path), op, field)
     if ('refused' in result) return notSaved(result.refused), false
-    if (!result.same) edit(qc, doc, path, result.next)
+    if (!result.same && edit(qc, doc, path, result.next) === false) return notSaved('the document is read-only here'), false
     return true
   }
   /**

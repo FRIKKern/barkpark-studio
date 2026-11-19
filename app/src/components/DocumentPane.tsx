@@ -13,7 +13,7 @@ import {errorsOf, formOrder, validate, worst, type Problem} from '../lib/validat
 import {advisoryProblems} from '../lib/findings'
 import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
-import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
+import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setByAction, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {choiceById} from '../lib/templates'
 import {reportFocus} from '../lib/presence'
@@ -373,6 +373,14 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     [pane.id],
   )
   useLayoutEffect(() => showDoc(pane.id, lockHolder, locked, fieldLock), [pane.id, locked, fieldLock])
+  // Kept edits to fields read-only for this person now: not put back, named, and still kept in this browser.
+  const notPutBack = (refused: string[], date: string, others: boolean) => {
+    const fields = refused.map((f) => fieldTitle(judged.current.schema?.fields ?? [], f) ?? f).join(', ')
+    const title = others
+      ? tt('Unsaved changes from {date} were put back, except to {fields}: read-only for you. Those are kept in this browser.', {fields, date})
+      : tt('Unsaved changes to {fields} from {date} were not put back: read-only for you. They are kept in this browser.', {fields, date})
+    toast({tone: 'caution', title})
+  }
   useLayoutEffect(() => () => hideDoc(pane.id, lockHolder), [pane.id])
   const freeform = mode !== 'none' && canvasMode !== 'hidden' && (mode === 'main' || Array.isArray(doc?.blocks))
   const view: View = viewOf(pane.view, mode) === 'freeform' && !freeform ? 'classic' : viewOf(pane.view, mode)
@@ -419,7 +427,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // name, and context values that change only when their content does.
   const latestDoc = useRef(doc)
   latestDoc.current = doc
-  const onEdit = useCallback(unlessLocked(() => lockedNow.current, (field: string, value: unknown) => latestDoc.current && edit(qc, latestDoc.current, field, value)), [qc])
+  const onEdit = useCallback(unlessLocked(() => lockedNow.current, (field: string, value: unknown): boolean => !!latestDoc.current && edit(qc, latestDoc.current, field, value) !== false), [qc])
   // F7's undo and redo write the draft too: refused while locked (a revision shows another version).
   const undoDoc = useCallback(unlessLocked(() => lockedNow.current, (back: boolean) => undo(qc, pane.id, back)), [qc, pane.id])
   const onChangeOf = useMemo(() => {
@@ -447,8 +455,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     let live = true
     void recoverPending(qc, draftQ.data, schema).then((r) => {
       if (!live || !r) return
-      if ('ask' in r) setRecovered(r.ask)
-      else toast({title: tt('Unsaved changes from {date} were put back.', {date: longDate(new Date(r.replayed).toISOString(), locale)})})
+      if ('ask' in r) return setRecovered(r.ask)
+      const date = longDate(new Date(r.replayed).toISOString(), locale)
+      if (!r.refused.length) return toast({title: tt('Unsaved changes from {date} were put back.', {date})})
+      notPutBack(r.refused, date, r.put > 0)
     })
     return () => void (live = false)
   }, [keepScope, pane.id, editable, !!schema, user === undefined])
@@ -823,7 +833,11 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             </span>
             <span className="pane-banner-actions">
               {recovered.fields.length > 0 && (
-                <button type="button" className="btn-text" onClick={() => (restorePending(qc, doc, recovered), setRecovered(null))}>
+                <button type="button" className="btn-text" onClick={() => {
+                  const refused = restorePending(qc, doc, recovered)
+                  if (refused?.length) notPutBack(refused, longDate(new Date(recovered.pending.at).toISOString(), locale), refused.length < recovered.fields.length)
+                  setRecovered(null)
+                }}>
                   {t('Restore')}
                 </button>
               )}
@@ -1201,7 +1215,8 @@ function DocFooter({doc, closeHref, blocked, validating = false, checkRules, sin
   const paused = schedule?.status === 'paused'
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
-  const set = (field: string, value: unknown) => edit(qc, doc, field, value)
+  // An action's set is the action's code, not an edit by hand: the document lock only (lib/doc-lock.ts).
+  const set = (field: string, value: unknown) => setByAction(qc, doc, field, value) !== false
   const actions = (studio.document?.actions?.(doc._type) ?? []).flatMap((action) => action({doc, set}) ?? [])
   const schemaActions = useSchemaActions(doc, () => setMenu(false), menu)
   const alt = useAltName()
