@@ -546,7 +546,11 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     if (event.type === 'invalid value') return onInvalid()
     // The editor's own reading of the stored value, before any edit: what an untouched block looks like.
     if (event.type === 'ready') (seen.current = (editor.getSnapshot().context.value ?? []) as PtBlock[]), onReady()
-    if (event.type === 'patch') (typing.current = Date.now()), (unsent.current ||= Date.now()) // each keystroke as it lands; `mutation` comes batched
+    // Each keystroke as it lands; `mutation` comes batched. A change other than typing (a paste,
+    // a split: its mutation comes up to a second late) holds their frames until it is emitted;
+    // typing does not: held while a word is typed, their frames came as one, this editor's own
+    // words (echoed back) in it, and those went onto the screen again.
+    if (event.type === 'patch') (typing.current = Date.now()), event.patch.type !== 'diffMatchPatch' && (unsent.current ||= Date.now())
     if (event.type !== 'mutation') return
     unsent.current = 0
     seen.current ??= stored
