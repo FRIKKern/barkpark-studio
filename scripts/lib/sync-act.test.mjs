@@ -364,9 +364,9 @@ earlyTest('act finds the sync PR itself: a plan naming another PR is refused for
     assert.match(r.err, /the sync PR is #9/)
     assert.deepEqual(r.writes, [])
   }
-  // A fork's PR from a branch of the same name is not the sync PR.
+  // A fork's PR from a branch of the same name is not the sync PR, though the branch's pack is main's.
   const fork = async () => {
-    const r = await act(world(), await plan({action: 'close', number: '41'}), [syncPr(41, {isCrossRepository: true})])
+    const r = await act(world(S.main, S.hand), await plan({action: 'close', number: '41'}), [syncPr(41, {isCrossRepository: true})])
     assert.equal(r.status, 1, r.err)
     assert.deepEqual(r.writes, [])
   }
