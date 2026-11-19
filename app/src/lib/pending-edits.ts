@@ -1,7 +1,8 @@
 import type {Doc, Schema} from './data'
 import {merge3, mergeList3} from './merge.ts'
 import {getPath} from './paths.ts'
-import {basedOn, isText, keyOf} from './pt-merge.ts'
+import {keptReach} from './kept-stands.ts'
+import {isText, keyOf, textOf} from './pt-merge.ts'
 
 // B11 widen, after the canvas's kept words (D21, lib/kept-words.ts): form edits not yet
 // acknowledged by Barkpark are kept in this browser's IndexedDB as they are typed, so a
@@ -184,9 +185,11 @@ export function restoreValue(p: Pending, field: string, mine: unknown, doc: Doc)
  * it is now: as the field, with the block merged into the run it is there (the block and the
  * pieces another editor's split made of it after it, and the new blocks between), task-2c01c385ce7b51d0. Put back whole
  * at its key, it took out their paste and put its own words in again where the split moved
- * them. The run goes on only over blocks whose key is new since the edit was made (`p.keys`): a
- * paragraph that was there then is never part of it, whatever letters it shares with the block.
- * Null: not such a block, or not there now (it goes as kept).
+ * them. The edit goes onto the server's version of the block where the text it touched still
+ * stands there, and on into the new blocks right after it (keys new since the edit was made,
+ * `p.keys`) only where they are a split of the block (lib/kept-stands.ts). Otherwise it cannot be
+ * told, and the field comes back as the server has it. A block is never a target for the letters
+ * it holds. Null: not such a block, or not there now (it goes as kept).
  */
 export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc): [string, unknown[]] | null {
   const m = /^(\w+)\[_key=="([^"]+)"\]$/.exec(field)
@@ -196,16 +199,14 @@ export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc)
   const list = getPath(doc, root)
   if (!Array.isArray(list) || !isText(base) || !isText(mine)) return null
   const at = list.findIndex((b) => keyOf(b) === key)
-  if (at < 0) return null
-  const from = basedOn([base], list)
-  // The run goes on to the last new text block holding the block's letters, the new blocks
-  // between with it (a paragraph pasted at its start keeps the key on its first piece: "x", "y",
-  // "zStart text"). It stops at a block that was there when the edit was made; with no keys kept
-  // (an older entry), the block alone.
+  if (at < 0 || !isText(list[at])) return null
+  // The new text blocks right after it may be its split (a paragraph pasted at its start keeps the
+  // key on its first piece: "x", "y", "zStart text"). A block that was there when the edit was
+  // made ends them; with no keys kept (an older entry), the block alone.
   const old = new Map(p.keys ?? []).get(root)
-  const isNew = (b: unknown) => !!old && !old.includes(keyOf(b) ?? '')
-  let end = at + 1
-  for (let i = at + 1; i < list.length && isText(list[i]) && isNew(list[i]); i++) if (from.get(keyOf(list[i]) ?? '')?.has(key)) end = i + 1
-  const merged = mergeList3([base], [mine], list.slice(at, end))
-  return merged && [root, [...list.slice(0, at), ...merged, ...list.slice(end)]]
+  let last = at + 1
+  while (old && last < list.length && isText(list[last]) && !old.includes(keyOf(list[last]) ?? '')) last++
+  const reach = keptReach(textOf(base), textOf(mine), list.slice(at, last).map((b) => textOf(b as Parameters<typeof textOf>[0])))
+  const merged = reach === null ? null : mergeList3([base], [mine], list.slice(at, at + reach + 1))
+  return [root, merged ? [...list.slice(0, at), ...merged, ...list.slice(at + reach! + 1)] : list]
 }

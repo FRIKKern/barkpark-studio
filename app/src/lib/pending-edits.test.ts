@@ -37,8 +37,9 @@ test('restore over a rewrite that cannot merge puts mine back whole', () => {
   assert.equal(restoreValue(kept, 'title', 'Hello brave world', doc('r2', 'Goodbye', 3)), 'Hello brave world')
 })
 
-// task-2c01c385ce7b51d0 review: a kept block's run goes on only over blocks new since the edit
-// was made. A paragraph that was there then keeps every letter, whatever it shares with the block.
+// task-2c01c385ce7b51d0 review, the lead's cannot-tell rule: a kept block's edit goes onto the
+// server's version of the same block where the text it touched still stands, and into the new
+// blocks right after it only where they are its split. Otherwise every server block stays as it is.
 const blk = (key: string, text: string) => ({_type: 'block', _key: key, style: 'normal', markDefs: [], children: [{_type: 'span', _key: `${key}s`, text, marks: []}]})
 const texts = (v: unknown) => (v as {children: {text: string}[]}[]).map((b) => b.children.map((c) => c.text).join(''))
 const restored = (base: string, mine: string, now: unknown[], keys?: string[]) => {
@@ -46,22 +47,30 @@ const restored = (base: string, mine: string, now: unknown[], keys?: string[]) =
   const r = restoreBlock(p, 'body[_key=="b"]', blk('b', mine), {_id: 'x', _type: 'post', body: now} as unknown as Doc)
   return r && texts(r[1])
 }
-for (const [name, base, mine, now, want] of [
-  ['C11: they rewrote the block, mine deletes " world": "wonder world" stays whole', 'Hello world', 'Hello', [blk('b', 'Hi'), blk('c', 'Other'), blk('d', 'wonder world')], ['Hi', 'Other', 'wonder world']],
-  ['C12: they rewrote the block, mine deletes "cat ": "my cat is here" stays whole', 'the cat sat', 'the sat', [blk('b', 'A dog'), blk('d', 'my cat is here')], ['Adog', 'my cat is here']],
-  ['C14: they shortened the block, mine adds "!": it stays in the block, not after a later "text"', 'Start text', 'Start text!', [blk('b', 'Start'), blk('c', 'Middle para'), blk('d', 'Last para with text')], ['Start!', 'Middle para', 'Last para with text']],
-  ['C2: they emptied the block: mine stays in it, not in a later paragraph sharing its letters', 'Start text', 'Start text one two three', [blk('a', 'Above'), blk('b', ''), blk('c', 'Stars at night'), blk('d', 'Extra text here')], ['Above', ' one two three', 'Stars at night', 'Extra text here']],
-  ['C3: they shortened the block to "H": mine\'s "big" stays in it', 'Hello world', 'Hello big world', [blk('b', 'H'), blk('c', 'Other people'), blk('d', 'wonder world')], ['Hbig ', 'Other people', 'wonder world']],
-  ['C8: a later paragraph quoting the block\'s text: mine stays in the block', 'Start text', 'Start text one', [blk('b', 'Start'), blk('c', 'Quote: Start text')], ['Start one', 'Quote: Start text']],
-  ['C9: a one-letter block replaced: mine stays in it, not in "gamma a"', 'a', 'ab', [blk('b', 'x'), blk('c', 'alpha'), blk('d', 'gamma a')], ['xb', 'alpha', 'gamma a']],
-] as [string, string, string, unknown[], string[]][])
-  test(`restore of a kept block, ${name}`, () => assert.deepEqual(restored(base, mine, now, (now as {_key: string}[]).map((b) => b._key)), want))
-
-test('restore of a kept block: the new blocks of their paste at its start are the run, the paragraph after them is not; with no keys kept, the block alone', () => {
-  const now = [blk('a', 'Above'), blk('b', 'x'), blk('ny', 'y'), blk('nz', 'zStart text'), blk('c', 'Below')]
-  assert.deepEqual(restored('Start text', 'Start text one two three', now, ['a', 'b', 'c']), ['Above', 'x', 'y', 'zStart text one two three', 'Below'])
-  assert.deepEqual(restored('Start text', 'Start text one two three', now), ['Above', 'x one two three', 'y', 'zStart text', 'Below'])
-})
+const all = (now: unknown[]) => (now as {_key: string}[]).map((b) => b._key)
+const SERVER = 'the server\'s blocks'
+for (const [name, base, mine, now, keys, want] of [
+  // Applied: the touched text stands in the same block, or in its split.
+  ['a deletion whose run stands, their edit elsewhere in the block: applied', 'the cat sat', 'the sat', [blk('b', 'The cat sat down')], ['b'], ['The sat down']],
+  ['their Enter splits the block, mine deletes in the second half: applied there', 'Start text here now', 'Start text now', [blk('b', 'Start text'), blk('r', ' here now')], ['b'], ['Start text', ' now']],
+  ['their paste at its start (x, y, zStart text): the line goes after the block\'s text', 'Start text', 'Start text one two three', [blk('a', 'Above'), blk('b', 'x'), blk('ny', 'y'), blk('nz', 'zStart text'), blk('c', 'Below')], ['a', 'b', 'c'], ['Above', 'x', 'y', 'zStart text one two three', 'Below']],
+  ['their new quote of the text after it, mine deletes: applied in the block, the quote as theirs', 'Start text', 'Start', [blk('b', 'Start text'), blk('q', 'Quote: Start text')], ['b'], ['Start', 'Quote: Start text']],
+  ['their new quote of the text after it, mine inserts: applied in the block, the quote as theirs', 'Start text', 'Start text one', [blk('b', 'Start text'), blk('q', 'Quote: Start text')], ['b'], ['Start text one', 'Quote: Start text']],
+  // Cannot tell: the server's blocks stay byte-equal.
+  ['a: they rewrote it to "A dog", mine deletes "cat ": "A dog" stays', 'the cat sat', 'the sat', [blk('b', 'A dog'), blk('d', 'my cat is here')], ['b', 'd'], SERVER],
+  ['c: an insertion whose neighbours are gone: the block stays', 'Hello world', 'Hello big world', [blk('b', 'Hello there')], ['b'], SERVER],
+  ['K1: their NEW paragraph holds the deleted "cat ": it keeps it', 'the cat sat', 'the sat', [blk('b', 'A dog'), blk('d', 'my cat is here')], ['b'], SERVER],
+  ['K2: their NEW paragraph ends in the text mine appends to: it stays', 'Start text', 'Start text!', [blk('b', 'Start'), blk('d', 'Last para with text')], ['b'], SERVER],
+  ['C8: they shortened it and pasted a NEW quote of its text: the quote stays', 'Start text', 'Start text one', [blk('b', 'Start'), blk('c', 'Quote: Start text')], ['b'], SERVER],
+  ['C11: they rewrote it, mine deletes " world": "wonder world" stays whole', 'Hello world', 'Hello', [blk('b', 'Hi'), blk('c', 'Other'), blk('d', 'wonder world')], undefined, SERVER],
+  ['C14: they shortened it, mine adds "!": no block takes it', 'Start text', 'Start text!', [blk('b', 'Start'), blk('c', 'Middle para'), blk('d', 'Last para with text')], undefined, SERVER],
+  ['C2: they emptied it: no later paragraph takes mine', 'Start text', 'Start text one two three', [blk('a', 'Above'), blk('b', ''), blk('c', 'Stars at night'), blk('d', 'Extra text here')], undefined, SERVER],
+  ['C3: they shortened it to "H": "big" goes nowhere', 'Hello world', 'Hello big world', [blk('b', 'H'), blk('c', 'Other people'), blk('d', 'wonder world')], undefined, SERVER],
+  ['C9: a one-letter block replaced: "gamma a" stays', 'a', 'ab', [blk('b', 'x'), blk('c', 'alpha'), blk('d', 'gamma a')], undefined, SERVER],
+  ['a block there when the edit was made ends the run: the paste\'s piece after it is not reached', 'Start text', 'Start text one', [blk('b', 'x'), blk('c', 'Below'), blk('nz', 'zStart text')], ['b', 'c'], SERVER],
+  ['no keys kept (an older entry): the block alone', 'Start text', 'Start text one', [blk('b', 'x'), blk('ny', 'y'), blk('nz', 'zStart text')], null, SERVER],
+] as [string, string, string, unknown[], string[] | undefined | null, string[] | string][])
+  test(`restore of a kept block, ${name}`, () => assert.deepEqual(restored(base, mine, now, keys === null ? undefined : (keys ?? all(now))), want === SERVER ? texts(now) : want))
 
 test('two dead pages combine their block keys: a key either knew is not new', () => {
   const a: Pending = {at: 1, type: 'post', fields: [['body[_key=="b"]', 1]], base: [['body[_key=="b"]', 0]], keys: [['body', ['a', 'b']]], tab: 'a'}

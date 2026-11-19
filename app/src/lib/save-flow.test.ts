@@ -494,8 +494,8 @@ for (const fault of ['500', 'lost', 'hold'] as const)
   })
 
 // A paragraph that was there when the line was kept is never part of its run (task-2c01c385ce7b51d0
-// review, C12): they rewrite the block, this page's deletion of "cat " goes back into the block
-// only, and "my cat is here", which nobody edited, keeps its "cat".
+// review, C12): they rewrite the block, so this page's deletion of "cat " cannot be told a place
+// and everything stays as they have it: "A dog", and "my cat is here" keeps its "cat".
 for (const fault of ['500', 'lost'] as const)
   test(`a deletion kept while this page reloads mid-save (${fault}), the other rewriting the block: a later paragraph sharing the word keeps it`, async () => {
     server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'the cat sat'), blk('c', 'my cat is here')]})
@@ -519,8 +519,8 @@ for (const fault of ['500', 'lost'] as const)
     for (const d of server.history) next.frame(d)
     await next.drain()
     const stored = texts(server.doc.ptBody)
-    assert.equal(stored.length, 3, J(stored))
-    assert.deepEqual([stored[0], stored[2]], ['Above', 'my cat is here'])
+    // Cannot be told (their rewrite took the run it deleted): their text stays as it is.
+    assert.deepEqual(stored, ['Above', 'A dog', 'my cat is here'])
     assert.deepEqual(texts(next.held().ptBody), stored, 'the page shows what is stored')
     server.gone.add(`?page=${name}2`)
   })

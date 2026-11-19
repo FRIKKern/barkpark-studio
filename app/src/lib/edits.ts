@@ -1168,6 +1168,8 @@ export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys
     const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
     // A block kept by its key goes back as its field, merged with the field as it is now.
     const [at, value] = restoreBlock(pending, f, v, now) ?? [f, restoreValue(pending, f, v, now)]
+    // Cannot be told where it goes (lib/kept-stands.ts): the server's text stays, nothing is written.
+    if (same(value, getPath(now, at))) return
     ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(at)
     edit(qc, now, at, value)
   })
