@@ -460,3 +460,35 @@ for (const fault of ['500', 'lost', 'hold'] as const)
     assert.deepEqual(texts(next.held().ptBody), stored, 'the page shows what is stored')
     server.gone.add(`?page=${name}2`)
   })
+
+// As the browser does it: the other pastes paragraphs at the block's start. The block's key
+// stays on the first piece ("x"), a middle paragraph holds none of its letters ("y"), and the
+// block's text goes on in a new block ("zStart text"). This page's line kept at the key goes
+// back at the end of that text, not after "x".
+for (const fault of ['500', 'lost', 'hold'] as const)
+  test(`a line kept while this page reloads mid-save (${fault}), the other pasting paragraphs at the block's start: the line goes back after the block's text`, async () => {
+    server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'Start text'), blk('c', 'Below')]})
+    const name = `pasteReloadStart${fault}`
+    const page = await open(name)
+    page.E.setKeepScope('s')
+    const drawn = page.held().ptBody as Block[]
+    server.faults.push(fault)
+    const line = blk('b1', 'Start text one two three')
+    page.E.edit(page.qc, page.held() as never, 'ptBody[_key=="b1"]', (now: unknown) => mergeBlock(drawn[1]!, line, now) ?? line)
+    await (fault === 'hold' ? server.held() : tick(250))
+    if (fault === 'hold') await tick(250)
+    server.theirs('ptBody', (now) => (now as Block[]).flatMap((b) => (b._key === 'b1' ? [blk('b1', 'x'), blk('ny', 'y'), blk('nz', `z${b.children[0]!.text}`)] : [b])))
+    server.gone.add(`?page=${name}`)
+    if (fault === 'hold') server.release()
+    await tick(20)
+    const next = await open(`${name}2`)
+    next.E.setKeepScope('s')
+    const got = await next.E.recoverPending(next.qc, next.held() as never)
+    if (got && 'ask' in got) next.E.restorePending(next.qc, next.held() as never, got.ask)
+    await next.drain()
+    for (const d of server.history) next.frame(d)
+    await next.drain()
+    assert.deepEqual(texts(server.doc.ptBody), ['Above', 'x', 'y', 'zStart text one two three', 'Below'])
+    assert.deepEqual(texts(next.held().ptBody), texts(server.doc.ptBody), 'the page shows what is stored')
+    server.gone.add(`?page=${name}2`)
+  })

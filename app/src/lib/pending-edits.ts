@@ -173,7 +173,7 @@ export function restoreValue(p: Pending, field: string, mine: unknown, doc: Doc)
 /**
  * A kept block of a text field (`body[_key=="b"]`, saved by its key) put back over the field as
  * it is now: as the field, with the block merged into the run it is there (the block and the
- * pieces another editor's split made of it after it), task-2c01c385ce7b51d0. Put back whole
+ * pieces another editor's split made of it after it, and the new blocks between), task-2c01c385ce7b51d0. Put back whole
  * at its key, it took out their paste and put its own words in again where the split moved
  * them. Null: not such a block, or not there now (it goes as kept).
  */
@@ -187,8 +187,10 @@ export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc)
   const at = list.findIndex((b) => keyOf(b) === key)
   if (at < 0) return null
   const from = basedOn([base], list)
+  // The run goes on to the last text block holding the block's letters, the new blocks between
+  // with it (a paragraph pasted at its start keeps the key on its first piece: "x", "y", "zStart text").
   let end = at + 1
-  while (end < list.length && from.get(keyOf(list[end]) ?? '')?.has(key)) end++
+  for (let i = at + 1; i < list.length && isText(list[i]); i++) if (from.get(keyOf(list[i]) ?? '')?.has(key)) end = i + 1
   const merged = mergeList3([base], [mine], list.slice(at, end))
   return merged && [root, [...list.slice(0, at), ...merged, ...list.slice(end)]]
 }
