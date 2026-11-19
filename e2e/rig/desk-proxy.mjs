@@ -57,9 +57,11 @@ const fullPath = new RegExp(`^(${AT})/structure(?=$|[/;?#])`)
 const fullUp = new RegExp(`(${esc(LOCAL)}|["'])(${AT})/structure(?=$|["'/;?#])`, 'g')
 const fullUpEncoded = new RegExp(`${esc(encodeURIComponent(LOCAL))}(%2Fw%2F[^%&]+%2Fp%2F[^%&]+%2Fd%2Fe2e-[a-z0-9][a-z0-9-]*)%2Fstructure(?=$|&|%2F|%3B|%3F|%23)`, 'g')
 const fullDown = new RegExp(`(${AT})/studio/_desk`, 'g')
-// Vision's own URL, and no longer one (…/_tools/visionary, /visions): each ends at its own end.
-const visionLocal = new RegExp(`${esc(LOCAL + VISION)}(?=$|[;?#"'\\s<>&])`, 'g')
-const visionDown = new RegExp(`${esc(VISION_AT)}(?=$|[;?#"'\\s<>&])`, 'g')
+// Vision's own URL, and no longer one (…/_tools/visionary, /visions): each ends at its own end,
+// a quote (in a frame's JSON, an escaped one: `\"`), a space or a tag's end.
+const END = String.raw`(?=$|[;?#"'\\\s<>&])`
+const visionLocal = new RegExp(esc(LOCAL + VISION) + END, 'g')
+const visionDown = new RegExp(esc(VISION_AT) + END, 'g')
 const visionEncoded = new RegExp(`${esc(encodeURIComponent(LOCAL + VISION))}(?=$|&|%3B|%3F|%23)`, 'g')
 /** A request path as the browser has it → the desk's own. */
 const pathUp = (path) => (path === VISION || (path.startsWith(VISION) && ';?#'.includes(path[VISION.length])) ? VISION_AT + path.slice(VISION.length) : path === ALIAS || (path.startsWith(ALIAS) && '/;?#'.includes(path[ALIAS.length])) ? BASE + path.slice(ALIAS.length) : path.replace(fullPath, '$1/studio/_desk'))

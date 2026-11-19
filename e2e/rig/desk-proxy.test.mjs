@@ -54,7 +54,7 @@ desk.on('upgrade', (req, socket) => {
       if (n === 126) (n = buf.readUInt16BE(2)), (at = 4)
       if (buf.length < at + 4 + n) return
       const payload = Buffer.from(buf.subarray(at + 4, at + 4 + n)).map((b, i) => b ^ buf[at + (i & 3)])
-      if ((buf[0] & 15) === 1) seen.texts.push(payload.toString()), socket.write(Buffer.concat([REPLY_HEAD, REPLY, REPLY_HEAD, REPLY]))
+      if ((buf[0] & 15) === 1) seen.texts.push(payload.toString()), socket.write(payload.includes('/_tools/vision') ? Buffer.concat([VISION_HEAD, VISION_REPLY]) : Buffer.concat([REPLY_HEAD, REPLY, REPLY_HEAD, REPLY]))
       buf = buf.subarray(at + 4 + n)
     }
   })
@@ -64,6 +64,9 @@ desk.on('upgrade', (req, socket) => {
 // The desk answers every text frame twice with a diff that carries its own hrefs.
 const REPLY = Buffer.from(JSON.stringify({diff: `<a href="${BASE}/post">a post</a>`.repeat(20)}))
 const REPLY_HEAD = Buffer.from([0x81, 126, REPLY.length >> 8, REPLY.length & 255])
+/** What the desk answers a join to its Vision: the desk's links in a diff, so their quotes are JSON's. */
+const VISION_REPLY = Buffer.from(JSON.stringify({diff: `<a href="${BASE}/_tools/vision">Vision</a> <a href="${BASE}/_tools/visionary">not</a> <a href="${BASE}/post">a post</a>`}))
+const VISION_HEAD = Buffer.from([0x81, 126, VISION_REPLY.length >> 8, VISION_REPLY.length & 255])
 const freePort = () => new Promise((resolve) => {
   const s = net.createServer().listen(0, '127.0.0.1', () => {
     const {port} = s.address()
@@ -277,8 +280,14 @@ test('/vision is the desk\'s Vision, both ways: the page, its links, a join, a p
   assert.equal(await get('/visions'), 200)
   assert.deepEqual(seen.requests, [vision, `${vision}?perspective=drafts`, '/visions'])
   const up = `http://127.0.0.1:${desk.address().port}${vision}`
-  const got = await send('2.0.0', ['4', '4', 'lv:phx-1', 'phx_join', {url: at('http://localhost:PORT/vision'), params: {}}])
-  assert.deepEqual(got.map((m) => JSON.parse(m)[4].url), [up], 'the join reached the desk as Vision\'s URL')
+  const ws = new WebSocket(`ws://localhost:${port}/live/websocket?vsn=2.0.0`)
+  await new Promise((resolve) => ws.addEventListener('open', resolve, {once: true}))
+  const heard = new Promise((resolve) => ws.addEventListener('message', (e) => resolve(e.data), {once: true}))
+  ws.send(JSON.stringify(['4', '4', 'lv:phx-1', 'phx_join', {url: at('http://localhost:PORT/vision'), params: {}}]))
+  const answer = JSON.parse(await heard)
+  ws.close()
+  assert.deepEqual(seen.texts.map((m) => JSON.parse(m)[4].url), [up], 'the join reached the desk as Vision\'s URL')
+  assert.equal(answer.diff, '<a href="/vision">Vision</a> <a href="/structure/_tools/visionary">not</a> <a href="/structure/post">a post</a>', "the desk's links in a frame")
   const patch = await send('2.0.0', ['4', '5', 'lv:phx-1', 'live_patch', {url: at('http://localhost:PORT/vision')}])
   assert.deepEqual(patch.map((m) => JSON.parse(m)[4].url), [up], 'a patch from Structure to Vision')
   seen.upgrades.length = 0
