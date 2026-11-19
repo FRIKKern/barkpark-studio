@@ -7,7 +7,9 @@
 //   one is a listed SURFACE, and says how it asks the rule;
 // - nothing outside conditions.ts decides a field's hidden or read-only itself;
 // - the pastes that take the workspace's roles (PASTES) are imported only by lib/paste-reads.ts,
-//   which reads them from Barkpark: no menu hands a paste roles of its own.
+//   which reads them from Barkpark: no menu hands a paste roles of its own;
+// - paste-reads.ts, and each ALLOWED file that defines no writer, exports only the values listed
+//   here, whatever the form of any other export.
 import assert from 'node:assert/strict'
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import {dirname, join, normalize, relative} from 'node:path'
@@ -34,31 +36,37 @@ const SAVES: Record<string, string[]> = {'lib/edits.ts': ['edit', 'setByAction']
 /** The pastes that are handed the roles read, or the roles (task-fcedb95f343c738b): only paste-reads.ts takes them, with Barkpark's. */
 const PASTES: Record<string, string[]> = {'lib/paste-locked.ts': ['pasteDocument', 'pasteField', 'pasteDocumentReading', 'pasteFieldReading', 'keepLocked', 'holdsLocked']}
 const PASTE_READS = 'lib/paste-reads.ts'
+/** All paste-reads.ts may export: any other export fails, whatever its form. */
+const PASTE_READS_EXPORTS = ['pasteDocumentWith', 'pasteFieldWith']
 /** Barkpark's write endpoints, called straight: only where ALLOWED says. */
 const ENDPOINTS = /\/v1\/data\/mutate\b|\/api\/mutate\b|\/ops\b|\}\/actions`/
 
-/** Who may import a writer below the save (or call a write endpoint), and why. */
-const ALLOWED: Record<string, string> = {
-  'lib/edits.ts': 'the save itself',
-  'lib/blocks.ts': 'defines applyBlockOps',
-  'lib/order-save.ts': 'defines saveRanks',
-  'routes/api/mutate.ts': 'the page-unload beacon’s route (edits.ts sends what edit() kept)',
-  'lib/doc-actions.ts': 'a schema’s server actions: code, run by Barkpark',
-  'components/PortableDocEditor.tsx': 'the canvas’s batch, behind docLocked and canvasLocked; a paper’s linked masters (insert, pin, detach), behind editable: the canvas’s field rule',
-  'components/OrderableRows.tsx': 'a manual order’s rank, a field never in the form',
-  'routeTree.gen.ts': 'the generated route list names the /api/mutate route',
-  'components/DocumentPane.tsx': 'a new document’s initial values (draftNew, createDoc): code, the template’s',
-  'lib/templates.ts': 'a new document from a template (draftNew, createDoc): the template’s initial values',
-  'components/RefInput.tsx': 'a new document made from a reference field (createDoc): the template’s initial values',
-  'components/IncomingReferencesInput.tsx': 'a new document made to refer here (createDoc): the template’s initial values',
-  'components/HistoryPanel.tsx': 'Restore of a deleted document puts back the edits the delete lost (reapply): a document action',
-  'components/PaneBanners.tsx': 'Restore of a deleted document (reapply): a document action',
-  'lib/translations.ts': 'a new translation and its metadata document: document actions',
-  'lib/bulk-run.ts': 'a list’s bulk actions (duplicate, delete): document actions',
-  'lib/live.ts': 'the server’s own frames (applyServer): not this person’s edits',
-  'lib/comments.ts': 'comments, their own documents',
-  'lib/tasks.ts': 'tasks, their own documents',
-  'lib/vision-shared.ts': 'shared Vision queries, their own documents',
+/**
+ * Who may import a writer below the save (or call a write endpoint), and why; and, for each file that
+ * defines no writer, the values it may export: any other export fails, whatever its form, so a writer it
+ * holds is never passed on in a form the scan does not read.
+ */
+const ALLOWED: Record<string, {why: string; exports?: string[]}> = {
+  'lib/edits.ts': {why: 'the save itself'},
+  'lib/blocks.ts': {why: 'defines applyBlockOps'},
+  'lib/order-save.ts': {why: 'defines saveRanks'},
+  'routes/api/mutate.ts': {why: 'the page-unload beacon’s route (edits.ts sends what edit() kept)', exports: ['Route']},
+  'lib/doc-actions.ts': {why: 'a schema’s server actions: code, run by Barkpark', exports: ['docActionsQuery', 'runDocAction']},
+  'components/PortableDocEditor.tsx': {why: 'the canvas’s batch, behind docLocked and canvasLocked; a paper’s linked masters (insert, pin, detach), behind editable: the canvas’s field rule', exports: ['PortableDocEditor']},
+  'components/OrderableRows.tsx': {why: 'a manual order’s rank, a field never in the form', exports: ['copyRank', 'useOrderableRows']},
+  'routeTree.gen.ts': {why: 'the generated route list names the /api/mutate route', exports: ['routeTree']},
+  'components/DocumentPane.tsx': {why: 'a new document’s initial values (draftNew, createDoc): code, the template’s', exports: ['DocumentPane']},
+  'lib/templates.ts': {why: 'a new document from a template (draftNew, createDoc): the template’s initial values', exports: ['choicesFor', 'templateChoice', 'choiceById', 'startNew']},
+  'components/RefInput.tsx': {why: 'a new document made from a reference field (createDoc): the template’s initial values', exports: ['RefInput', 'hasPublished', 'Unavailable', 'RefSearch']},
+  'components/IncomingReferencesInput.tsx': {why: 'a new document made to refer here (createDoc): the template’s initial values', exports: ['IncomingReferencesInputs']},
+  'components/HistoryPanel.tsx': {why: 'Restore of a deleted document puts back the edits the delete lost (reapply): a document action', exports: ['ago', 'HistoryPanel', 'Row', 'rangeDate', 'revisionDate', 'RevisionFooter']},
+  'components/PaneBanners.tsx': {why: 'Restore of a deleted document (reapply): a document action', exports: ['useDeleted', 'DeletedBanner', 'valueAtRefPath', 'ReferenceBanner']},
+  'lib/translations.ts': {why: 'a new translation and its metadata document: document actions', exports: ['groupQuery', 'translationsIn', 'createTranslation', 'unlinkTranslation', 'deleteTranslated']},
+  'lib/bulk-run.ts': {why: 'a list’s bulk actions (duplicate, delete): document actions', exports: ['runBulkRow']},
+  'lib/live.ts': {why: 'the server’s own frames (applyServer): not this person’s edits', exports: ['onDocFrame', 'resumeLive', 'useLive']},
+  'lib/comments.ts': {why: 'comments, their own documents', exports: ['COMMENT_TYPE', 'threadsOf', 'readerCommentsQuery', 'commentsQuery', 'taskCommentsQuery', 'postComment', 'setThreadStatus', 'moveCommentSelections', 'editComment', 'deleteComment', 'reactToComment']},
+  'lib/tasks.ts': {why: 'tasks, their own documents', exports: ['TASK_TYPE', 'tasksQuery', 'createTask', 'saveTaskDraft', 'updateTask', 'followTask', 'taskHistoryQuery', 'deleteTask']},
+  'lib/vision-shared.ts': {why: 'shared Vision queries, their own documents', exports: ['SHARED_TYPE', 'listSharedQueries', 'shareQuery', 'updateSharedQuery', 'deleteSharedQuery']},
 }
 
 /**
@@ -89,6 +97,80 @@ function imports(file: string, text: string, src: Record<string, string>): Impor
   for (const m of c.matchAll(/\bimport\s+(type\s+)?([^'";]*?)\s*from\s*['"]([^'"]+)['"]/g)) if (!m[1]) out.push({to: resolve(m[3]!), ...named(m[2]!), reexport: false})
   for (const m of c.matchAll(/\bexport\s+(type\s+)?(\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*['"]([^'"]+)['"]/g)) if (!m[1]) out.push({to: resolve(m[3]!), ...named(m[2]!), reexport: true})
   for (const m of c.matchAll(/\bimport\(\s*(['"`])([^'"`$]+)\1\s*\)/g)) out.push({to: resolve(m[2]!), names: '*', locals: [], reexport: false})
+  return out
+}
+/**
+ * The statement at `at` (to a `;`, or a line at column 0, outside brackets, strings, templates and
+ * regexes): its text, its parts split at the commas outside brackets, and whether its brackets close.
+ */
+function statement(c: string, at: number): {text: string; parts: string[]; closed: boolean} {
+  const stack: string[] = []
+  const parts: string[] = []
+  const pairs: Record<string, string> = {')': '(', ']': '[', '}': '{'}
+  let closed = true
+  let from = at
+  let prev = ''
+  let i = at
+  // From inside a template to its closing backtick, or into a `${`.
+  const template = () => {
+    for (; i < c.length && c[i] !== '`'; i++) {
+      if (c[i] === '\\') i++
+      else if (c[i] === '$' && c[i + 1] === '{') return void (stack.push('${'), i++)
+    }
+  }
+  for (; i < c.length; i++) {
+    const ch = c[i]!
+    if (ch === "'" || ch === '"') for (i++; i < c.length && c[i] !== ch && c[i] !== '\n'; i++) c[i] === '\\' && i++
+    else if (ch === '`') i++, template()
+    else if (ch === '/' && /^$|[=(,:[!&|?{};]/.test(prev)) for (let cls = false, i0 = i++; i < c.length && c[i] !== '\n' && (cls || c[i] !== '/' || i === i0); i++) c[i] === '\\' ? i++ : c[i] === '[' ? (cls = true) : c[i] === ']' && (cls = false)
+    else if ('([{'.includes(ch)) stack.push(ch)
+    else if (ch in pairs) {
+      const open = stack.pop()
+      if (open === '${') i++, template()
+      else if (open !== pairs[ch]) closed = false
+    } else if (!stack.length && ch === ',') parts.push(c.slice(from, i)), (from = i + 1)
+    else if (!stack.length && (ch === ';' || (ch === '\n' && /[^\s)\]}.]/.test(c[i + 1] ?? '')))) break
+    if (!/\s/.test(ch)) prev = c[i]!
+  }
+  parts.push(c.slice(from, i))
+  return {text: c.slice(at, i), parts, closed: closed && !stack.length}
+}
+/**
+ * The values `text` exports, by name, whatever the form (a type exports no value); `default`, and `*`
+ * for an `export * from`. A form the scan cannot read is named `?` and its start, which no list holds.
+ */
+function exportsOf(text: string): string[] {
+  const c = code(text)
+  const out: string[] = []
+  for (const m of c.matchAll(/\bexport\b/g)) {
+    const line = `? (${c.slice(m.index, m.index + 48).replace(/\s+/g, ' ').trim()}…)`
+    if (m.index && c[m.index - 1] !== '\n') {
+      out.push(line)
+      continue
+    }
+    const {text: s, parts, closed} = statement(c, m.index)
+    const head = s.replace(/\s+/g, ' ')
+    const one = (re: RegExp) => re.exec(head)?.[1]
+    const declared = one(/^export (?:declare )?(?:async )?function\b ?\*? ?([\w$]+)/) ?? one(/^export (?:declare )?(?:abstract )?class ([\w$]+)/) ?? one(/^export (?:declare )?(?:const )?enum ([\w$]+)/) ?? one(/^export (?:declare )?(?:namespace|module) ([\w$]+)/) ?? one(/^export import ([\w$]+)/)
+    // A declaration is named by its head; JSX in its body is not read.
+    if (declared) out.push(declared)
+    else if (!closed) out.push(line)
+    else if (/^export (declare )?(type|interface)\b/.test(head)) continue
+    else if (/^export default\b/.test(head)) out.push('default')
+    else if (/^export \{/.test(head)) out.push(...(/^export \{([^}]*)\}/.exec(head)?.[1] ?? '').split(',').map((x) => x.trim()).filter((x) => x && !x.startsWith('type ')).map((x) => x.split(/\s+as\s+/).at(-1)!))
+    else if (/^export \* as /.test(head)) out.push(one(/^export \* as ([\w$]+) from\b/) ?? line)
+    else if (/^export \* from\b/.test(head)) out.push('*')
+    else if (/^export (declare )?(const|let|var|using) /.test(head)) {
+      // Each declarator: the first part, and each part after a comma outside brackets that binds a name
+      // (a comma inside a type's angle brackets binds none).
+      parts.forEach((p, i) => {
+        const part = (i ? p : p.replace(/^\s*export\s+(declare\s+)?(const|let|var|using)\s+/, '')).trim()
+        const name = /^([\w$]+)\s*(?::[\s\S]*?)?(=(?![=>])|$)/.exec(part)?.[1]
+        if (name) out.push(name)
+        else if (i === 0 || /^[[{][\s\S]*[\]}]\s*(?::[\s\S]*?)?=(?![=>])/.test(part)) out.push(line)
+      })
+    } else out.push(line)
+  }
   return out
 }
 /** Whether `file` passes on a writer it imported under `local` (export {local}, export const x = local, export default local). */
@@ -152,6 +234,16 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
     if (!(file in src)) problems.push(`${file} is allowed and gone: take it off`)
     else if (!WRITERS[file] && !ENDPOINTS.test(code(src[file]!)) && !imports(file, src[file]!, src).some(({to, names}) => takes(names, WRITERS[to] ?? []).length)) problems.push(`${file} is allowed and writes below the save no more: take it off`)
   }
+  for (const [file, list] of [[PASTE_READS, PASTE_READS_EXPORTS] as const, ...Object.entries(ALLOWED).map(([file, a]) => [file, a.exports] as const)]) {
+    if (!(file in src)) continue
+    if (!list) {
+      if (!WRITERS[file]) problems.push(`${file} is allowed and lists no exports: list the values it may export`)
+      continue
+    }
+    const has = exportsOf(src[file]!)
+    for (const name of has) if (!list.includes(name)) problems.push(`${file} exports ${name}, which is not on its list (${list.join(', ')}): fieldrule-scan.test.ts names all it may export`)
+    for (const name of list) if (!has.includes(name)) problems.push(`${file} no longer exports ${name}: take it off its list`)
+  }
   return problems
 }
 
@@ -197,6 +289,33 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
   // paste-reads.ts passing a raw paste on, re-exported or as a value of its own.
   fails(src, PASTE_READS, `${src[PASTE_READS]}\nexport {pasteDocumentReading} from './paste-locked'\n`, /lib\/paste-reads\.ts passes on pasteDocumentReading from lib\/paste-locked\.ts/)
   fails(src, PASTE_READS, `${src[PASTE_READS]}\nexport const raw = pasteDocumentReading\n`, /lib\/paste-reads\.ts passes on pasteDocumentReading/)
+  // paste-reads.ts and each allowed file export only their lists: a second alias, a wrapper, an object
+  // property, and every other form, each named.
+  const planted = (file: string, list: string, more: [string, string][]) => {
+    for (const [added, name] of more) fails(src, file, `${src[file]}\n${added}\n`, new RegExp(`${file.replace(/[./]/g, '\\$&')} exports ${name.replace(/[?()*.]/g, '\\$&')}, which is not on its list \\(${list}\\)`))
+  }
+  planted(PASTE_READS, 'pasteDocumentWith, pasteFieldWith', [
+    ['const again = pasteDocumentReading\nexport const raw = again', 'raw'],
+    ['export const pasteRaw = (r: never, f: never, v: never, c: never) => pasteDocumentReading(r, f, v, c)', 'pasteRaw'],
+    ['export const pastes = {pasteDocumentWith, raw: pasteDocumentReading}', 'pastes'],
+    ['export const ok = 1,\n  raw = pasteFieldReading', 'raw'],
+    ['export let ok = 1, later\nlater = pasteFieldReading', 'later'],
+    ['export const {raw} = {raw: pasteFieldReading}', '? (export const {raw} = {raw: pasteFieldReading}…)'],
+    ['export default pasteDocumentReading', 'default'],
+    ['export function wrap(...a: Parameters<typeof pasteFieldReading>) {\n  return pasteFieldReading(...a)\n}', 'wrap'],
+    ['export {pasteDocumentWith as again}', 'again'],
+    ['const raw = pasteDocumentReading; export {raw}', '? (export {raw}…)'],
+  ])
+  planted('lib/templates.ts', 'choicesFor, templateChoice, choiceById, startNew', [
+    ['const again = createDoc\nexport const make = again', 'make'],
+    ['export const makeDoc = (...a: Parameters<typeof createDoc>) => createDoc(...a)', 'makeDoc'],
+    ['export const writers = {make: createDoc}', 'writers'],
+    ['export class Maker {\n  make = draftNew\n}', 'Maker'],
+  ])
+  // A type exports no value; a listed export gone is named too.
+  assert.deepEqual(judge({...src, [PASTE_READS]: `${src[PASTE_READS]}\nexport type Raw = typeof pasteDocumentReading\nexport interface R {\n  r: Raw\n}\n`}), [])
+  fails(src, PASTE_READS, src[PASTE_READS]!.replace('export const pasteFieldWith', 'const pasteFieldWith'), /lib\/paste-reads\.ts no longer exports pasteFieldWith/)
+  fails(src, 'lib/bulk-run.ts', src['lib/bulk-run.ts']!.replace('export async function runBulkRow', 'export async function runBulkRow2'), /lib\/bulk-run\.ts exports runBulkRow2, which is not on its list \(runBulkRow\)/)
   fails(src, 'components/Later2.tsx', "export const p = async () => (await import('../lib/paste-locked.ts')).pasteField\n", /Later2\.tsx imports pasteDocument, pasteField, .* from lib\/paste-locked\.ts/)
   // A paper's linked masters (insert, pin, detach) write its body.
   fails(src, 'components/Masters.tsx', "import {pinMaster} from '../lib/paper-masters'\nexport const pin = pinMaster\n", /components\/Masters\.tsx imports pinMaster \(below the save\)/)
