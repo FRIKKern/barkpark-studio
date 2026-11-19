@@ -5,6 +5,7 @@ import {useT} from '../lib/i18n'
 import {combine, docKeyOfEntry, readDocPending} from '../lib/pending-edits'
 import {bannerShows, personCheck, SLOW_CHECK_MS} from '../lib/person-check'
 import {madeBySession, meQuery} from '../lib/session'
+import {useHydrated} from '../lib/use-hydrated'
 
 /**
  * task-4ffed14fbf52dc47: the studio could not learn who the person is (whoAmI failed, Barkpark
@@ -17,7 +18,9 @@ export function PersonCheckBanner({docId, ruled, dateOf}: {docId: string; ruled:
   const t = useT()
   const qc = useQueryClient()
   const me = useQuery(meQuery)
-  const unknown = !me.data || !!me.data.provisional || !!me.data.unchecked || !madeBySession(me.data)
+  // Drawn as the server drew it until the page has hydrated: unknown, and nothing said yet.
+  const hydrated = useHydrated()
+  const unknown = !hydrated || !me.data || !!me.data.provisional || !!me.data.unchecked || !madeBySession(me.data)
   // Since when the person has been unknown (again from a retry), to say when it is late.
   const [since, setSince] = useState(() => Date.now())
   const [, wake] = useState(0)
@@ -31,7 +34,7 @@ export function PersonCheckBanner({docId, ruled, dateOf}: {docId: string; ruled:
   // Said once the check failed, and through a retry until it answers (no flicker while it asks).
   const [retried, setRetried] = useState(false)
   useEffect(() => void (!unknown && setRetried(false)), [unknown])
-  const failed = check === 'failed' || (retried && unknown)
+  const failed = hydrated && (check === 'failed' || (retried && unknown))
   // Kept edits from an earlier page for this doc: named, so they are not left unsaid while they wait.
   const [keptAt, setKeptAt] = useState<number | null>(null)
   const own = keepKeyOf(docId)

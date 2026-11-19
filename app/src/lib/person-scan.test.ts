@@ -377,9 +377,14 @@ function judge(src: Record<string, string>) {
   // The maker's one taker: once, at load, in a module the server loads once.
   const source = code(src[SOURCE] ?? '')
   if (!/^const currentUserOf = takeMint\(\)$/m.test(source) || /\bcreateServerFn\b/.test(source)) problems.push(`${SOURCE}: no longer takes the maker once as it loads, in a module with no server function`)
-  // Believed: only an answer the session made; the page's client held once.
-  if ((source.match(/currentUserOf\(madeBySession\(me\) \? me : undefined\)/g) ?? []).length !== 2 || /\bcurrentUserOf\((?!madeBySession\(me\) \? me : undefined\))/.test(source))
-    problems.push(`${SOURCE}: makes a person from an answer the session may not have made (only currentUserOf(madeBySession(me) ? me : undefined))`)
+  // Believed: only an answer the session made (in a component, once the page has hydrated, so the
+  // first frame is the server's); the page's client held once.
+  const made = /currentUserOf\(madeBySession\(me\) \? me : undefined\)/g
+  const hydratedMade = /currentUserOf\(hydrated && madeBySession\(me\) \? me : undefined\)/g
+  if ((source.match(made) ?? []).length !== 1 || (source.match(hydratedMade) ?? []).length !== 1 || /\bcurrentUserOf\((?!(hydrated && )?madeBySession\(me\) \? me : undefined\))/.test(source))
+    problems.push(`${SOURCE}: makes a person from an answer the session may not have made (only currentUserOf(madeBySession(me) ? me : undefined), and in useCurrentUser once hydrated)`)
+  if (!/^  const hydrated = useHydrated\(\)$/m.test(source) || !/^import \{useHydrated\} from '\.\/use-hydrated'$/m.test(source) || code(src['lib/use-hydrated.ts'] ?? '').match(/^export .*$/gm)?.join('\n') !== 'export const useHydrated = (): boolean => useSyncExternalStore(none, () => true, () => false)')
+    problems.push(`${SOURCE}: believes who-am-I's answer while the page hydrates (useCurrentUser waits for lib/use-hydrated.ts's useHydrated, false on the server and while hydrating)`)
   if (!/^  if \(appClient\) throw /m.test(source)) problems.push(`${SOURCE}: holds the page's client more than once`)
   // Believed: the latest ask's answer, set only in the browser in who-am-I's own queryFn (and kept
   // by an equal answer), cleared by a failed ask; the latest in no export.
@@ -546,6 +551,9 @@ test('fails cases: what a rule call is handed, and how the person goes on', () =
   red(swap(src, 'routes/__root.tsx', 'asksAgain(qc.getQueryData(meQuery.queryKey), madeBySession, studio.form?.conditions)', 'qc.getQueryData<{provisional?: boolean}>(meQuery.queryKey)?.provisional'), /__root\.tsx no longer asks who-am-I again/)
   red(swap(src, SOURCE, '  if (appClient) throw ', '  if (!qc) throw '), /person-source\.ts: holds the page's client more than once/)
   red(swap(src, SOURCE, 'return currentUserOf(madeBySession(me) ? me : undefined)', 'return currentUserOf(me)'), /person-source\.ts: makes a person from an answer the session may not have made/)
+  red(swap(src, SOURCE, 'currentUserOf(hydrated && madeBySession(me) ? me : undefined)', 'currentUserOf(madeBySession(me) ? me : undefined)'), /person-source\.ts: makes a person from an answer the session may not have made/)
+  red(swap(src, SOURCE, '  const hydrated = useHydrated()', '  const hydrated = true'), /person-source\.ts: believes who-am-I's answer while the page hydrates/)
+  red(swap(src, 'lib/use-hydrated.ts', '() => true, () => false)', '() => true, () => true)'), /person-source\.ts: believes who-am-I's answer while the page hydrates/)
   // Around the type: as, any, @ts-.
   red(swap(src, DP, 'keptEditsWait(user)', 'keptEditsWait(user as never)'), /DocumentPane\.tsx writes `as` on a line with the person/)
   red(swap(src, HM, TAKEN, `${TAKEN}\n  const any0: any = user`), /DocHeaderMenu\.tsx writes `any` on a line with the person/)

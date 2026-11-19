@@ -5,6 +5,7 @@
 import {useQuery, type QueryClient} from '@tanstack/react-query'
 import {useMemo} from 'react'
 import {giveMintBack, takeMint} from './conditions'
+import {useHydrated} from './use-hydrated'
 import {madeBySession, meQuery} from './session'
 
 const currentUserOf = takeMint()
@@ -15,11 +16,13 @@ import.meta.hot?.dispose(() => giveMintBack(currentUserOf))
  * Sanity's useCurrentUser: the person a field is judged for: known, nobody, or unknown. With
  * personOf, the only source of a person (person-scan.test.ts): a lock site takes it whole and
  * hands it to the rule. Only the session's latest who-am-I answer (lib/me-query.ts) is believed;
- * any other (the server render's, an older one, a cache write, a look-alike) gives unknown.
+ * any other (the server render's, an older one, a cache write, a look-alike) gives unknown. Not
+ * while the page hydrates: the server drew the person unknown, so the first frame is the same.
  */
 export function useCurrentUser() {
   const me = useQuery(meQuery).data
-  return useMemo(() => currentUserOf(madeBySession(me) ? me : undefined), [me])
+  const hydrated = useHydrated()
+  return useMemo(() => currentUserOf(hydrated && madeBySession(me) ? me : undefined), [me, hydrated])
 }
 /** The page's own query client, as router.tsx makes it (in the browser: one per page), held once. */
 let appClient: QueryClient | undefined
