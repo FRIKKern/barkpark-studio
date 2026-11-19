@@ -3,6 +3,7 @@ import {merge3, mergeList3, mergeText} from './merge.ts'
 import {mergeBlock} from './pt-keep.ts'
 import {answeredInto, anyInside, applyPaths, getPath, mergePending, setInside, within} from './paths.ts'
 import {SPAN_TEXT} from './pt-dmp.ts'
+import {spanRoot, spansLifted} from './pt-span.ts'
 import {columnsOf, mergeTablePart, waitsWithTable} from './table-merge.ts'
 import {keepCell, keepOnShapeChange, type TableKept} from './table-keep.ts'
 
@@ -83,6 +84,14 @@ export function rebase(e: Spots, d: Doc, was?: Doc | null): string[] {
       continue
     }
     const mine = e.dirty.get(f)
+    // A span typed in, under their change that split its block (or added or removed blocks):
+    // its field merges whole, every span typed in it with it (lib/pt-span.ts).
+    const lifted = liftSpans(e, f, before, d)
+    if (lifted) {
+      for (const k of lifted.spans) e.dirty.delete(k), e.base.delete(k)
+      e.dirty.set(lifted.root, lifted.merged as Json), e.base.set(lifted.root, getPath(d, lifted.root))
+      continue
+    }
     if (typeof base === 'string' && typeof mine === 'string' && typeof theirs === 'string') {
       // A Portable Text span's text (two editors typing in one block): never held, never a
       // word dropped (mergeText); other text fields hold a clash for the editor to settle.
@@ -208,4 +217,14 @@ export function answered(e: Spots, saved: unknown) {
     e.unsure?.delete(f)
   }
   e.sentNotes = undefined
+}
+
+/** A span's field, merged whole when their frame added or removed its blocks (lib/pt-span.ts spansLifted). */
+function liftSpans(e: Spots, f: string, before: unknown, d: Doc) {
+  const root = spanRoot(f)?.root
+  if (!root || !before || e.dirty.has(root) || (e.inflight && anyInside(e.inflight.keys(), root))) return null
+  const spans = [...e.dirty.keys()].filter((k) => spanRoot(k)?.root === root)
+  if ([...e.dirty.keys()].some((k) => k !== root && within(k, root) && !spans.includes(k))) return null
+  const merged = spansLifted(getPath(before, root), getPath(d, root), spans.map((k) => [spanRoot(k)!.inner, e.base.get(k) as string, e.dirty.get(k) as string]))
+  return merged && {root, spans, merged}
 }

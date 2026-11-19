@@ -19,9 +19,10 @@ import {answered, rebase, same, sentNotesOf, takeBase, unsent, type Spots} from 
 import {applyPaths, getPath, keyedRoots, setInside, setPath, within} from './paths'
 import {setTableKeptScope, takeTableKept} from './table-kept'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
+import {spanAnswer, spanRoot, type Typed} from './pt-span'
 import {clientGone} from '../server/client-gone'
 import {gated, putBackKept, writeAllowed} from './doc-lock'
-import {combine, dropPending, judge, keepPlan, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
+import {combine, dropPending, judge, keepPlan, ownedElsewhere, pendingKey, putPending, readDocPending, restoreBlock, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
 import {paceMs, paced} from './write-pace'
 
@@ -150,6 +151,8 @@ type DocEdits = Spots & {
   forks?: boolean
   /** For each field with edits in dirty or inflight: the server value they were made from. */
   base: Map<string, unknown>
+  /** For each list field with a block edited by its key: the field's block keys then (Pending `keys`). */
+  keys?: Map<string, string[]>
   /** Rebases in a row (a guard against a write that never gets through). */
   conflicts: number
   /** Text of ours someone rewrote meanwhile (clash): held, unsent, until the editor types on. */
@@ -316,7 +319,8 @@ function keepUnsaved(id: string, e: DocEdits) {
   if (e.pendingCreate || (!e.dirty.size && !e.inflight)) return void dropPending(key)
   e.keepTimer = setTimeout(() => {
     const fields = [...(e.inflight ?? []), ...e.dirty]
-    if (fields.length) void putPending(key, {at: Date.now(), type: e.type, rev: e.rev, fields, base: [...e.base], tab: TAB})
+    const keys = [...(e.keys ?? [])].filter(([root]) => fields.some(([f]) => within(f, root)))
+    if (fields.length) void putPending(key, {at: Date.now(), type: e.type, rev: e.rev, fields, base: [...e.base], ...(keys.length && {keys}), tab: TAB})
   }, KEEP_GAP_MS)
 }
 
@@ -458,6 +462,13 @@ function write(qc: QueryClient, doc: Doc, field: string, value: unknown, record 
   }
   // What this edit is made against: the server's value (and rev) as this browser has it.
   if (!e.dirty.size && !e.inflight) (e.rev = held._rev || undefined), (e.forks = held._draft === false && !e.pendingCreate)
+  // A block edited by its key: the field's block keys as this browser has them, when nothing
+  // in the field is pending yet (a restore's run stops at these, lib/pending-edits.ts restoreBlock).
+  const block = /^(\w+)\[_key=="[^"]+"\]$/.exec(field)?.[1]
+  if (block && ![...e.base.keys()].some((k) => within(k, block))) {
+    const list = getPath(held, block)
+    if (Array.isArray(list)) (e.keys ??= new Map()).set(block, list.map((b) => (b as {_key?: string})?._key ?? '').filter(Boolean))
+  }
   // What this spot is made from (lib/edit-bases.ts).
   takeBase(e, field, held, value)
   // One pending write per spot: a path inside an object already pending whole goes
@@ -717,12 +728,30 @@ async function send(qc: QueryClient, id: string) {
     // text the patch was applied to says: one read, and this save counts as on its way
     // until it is back. A read that fails is asked again (askUntilAnswered): settled without
     // it, a skipped hunk's letters were gone with no word said.
+    // A span whose answer is not what was sent (the other editor typed there, or split its
+    // block meanwhile): its field as it was just before this patch is read too, and the field
+    // as this editor means it is merged from that (lib/pt-span.ts: the one merge exit and net).
     const open = patched.filter((f) => landingUnsure(sentBase.get(f) as string, e.inflight!.get(f) as string, getPath(saved, f)))
+    const roots = [...new Set(patched.filter((f) => getPath(saved, f) !== e.inflight!.get(f)).flatMap((f) => spanRoot(f)?.root ?? []))]
+    const asked = [...open, ...roots]
     const sent = e.inflight
-    const before = open.length ? await askUntilAnswered(() => valuesBefore({data: {type: e.type, id, rev: saved._rev, paths: open}}), () => e.inflight === sent) : null
+    const before = asked.length ? await askUntilAnswered(() => valuesBefore({data: {type: e.type, id, rev: saved._rev, paths: asked}}), () => e.inflight === sent) : null
     if (!e.inflight) return // the edits were dropped meanwhile (signed out, discarded)
     const sentPaths = [...e.inflight.keys()]
+    const putRight = new Set<string>()
+    for (const root of roots) {
+      const was = before?.[asked.indexOf(root)]
+      // Its spans as sent, and as typed since (a span typed only since: from its own base).
+      const keys = new Set([...patched, ...e.dirty.keys()].filter((f) => spanRoot(f)?.root === root))
+      const mine = [...keys].map((f) => [spanRoot(f)!.inner, (sentBase.get(f) ?? e.base.get(f)) as string, (e.dirty.get(f) ?? e.inflight!.get(f)) as string, e.inflight!.get(f) as string | undefined] as Typed)
+      const field = was === undefined || was === null ? null : spanAnswer(getPath(sentFrom, root), mine, was, getPath(saved, root))
+      if (!field || [...e.dirty.keys()].some((k) => !SPAN_TEXT.test(k) && within(k, root))) continue
+      for (const k of [...e.dirty.keys()]) if (within(k, root)) e.dirty.delete(k)
+      e.dirty.set(root, field)
+      putRight.add(root)
+    }
     for (const f of patched) {
+      if (putRight.has(spanRoot(f)?.root ?? '')) continue
       const fix = settleDmp(sentBase.get(f) as string, e.inflight.get(f) as string, getPath(saved, f), e.dirty.get(f), before?.[open.indexOf(f)])
       // Its block is pending whole (a mark toggled meanwhile): that set carries this editor's text.
       if (!fix || [...e.dirty.keys()].some((k) => k !== f && within(f, k))) continue
@@ -735,6 +764,13 @@ async function send(qc: QueryClient, id: string) {
     // What we sent is now the server's: a spot still being typed builds on it (lib/edit-bases.ts).
     answered(e, saved)
     e.inflight = null
+    // The fields put right go whole, fenced, measured from the answer. A span typed only
+    // since keeps no base of its own: its next key builds on the field's (else it is measured
+    // from before the merge and sends the earlier words again).
+    for (const root of putRight) {
+      e.base.set(root, getPath(saved, root))
+      for (const k of [...e.base.keys()]) if (k !== root && within(k, root)) (e.base.delete(k), e.notes?.delete(k))
+    }
     // The save went through: what it answered is newer than a frame held for it, unless that
     // frame came from a write after ours (it holds ours and theirs): that one folds in next.
     const later = e.missed && e.missed._updatedAt > saved._updatedAt ? e.missed : undefined
@@ -755,6 +791,7 @@ async function send(qc: QueryClient, id: string) {
     // input says what it means (onKeyedMiss); else the doc as it was sent.
     if (hasWarning(r, 'patch.path_unmatched'))
       for (const root of keyedRoots(sentPaths)) {
+        if (putRight.has(root)) continue // merged above, from the field before this save
         const own = keyedMisses.get(`${id}\n${root}`)
         const now = qc.getQueryData<Doc>(['doc', id])
         if (own) own()
@@ -1118,22 +1155,36 @@ export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema)
   return {replayed: pending.at, put: verdict.fields.length - refused.length, refused}
 }
 
-/** The dead pages' kept edits go, but those to a refused field stay kept (keepPlan: kept first, then the rest dropped). */
-function keepRefused(id: string, keys: string[], pending: Pending, refused: string[]) {
+/** The dead pages' kept edits go, but those to a refused field stay kept (keepPlan: kept first, then the rest dropped). The key they stay under. */
+function keepRefused(id: string, keys: string[], pending: Pending, refused: string[]): string | undefined {
   const {keep, drop} = keepPlan(docKeyOf(id) || undefined, keys, pending, refused)
   void (keep ? putPending(...keep) : Promise.resolve()).then(() => Promise.all(drop.map((k) => dropPending(k))))
+  return keep?.[0]
 }
 
-/** Restore kept edits over the document as it is now (text merges with what changed since). Returns the fields not put back (read-only for this person), still kept. */
-export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys}: Recovered): string[] | null {
+/**
+ * Restore kept edits over the document as it is now (text merges with what changed since).
+ * Returns the fields not put back (read-only for this person), still kept; and `left`, the
+ * edits whose place cannot be told (lib/kept-stands.ts): not put back, still kept, still offered.
+ */
+export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys, gone}: Recovered): {refused: string[]; left: Recovered | null} | null {
   if (!writeAllowed('replay', doc._publishedId)) return null
+  const untold: string[] = []
   const refused = putBackKept(doc._publishedId, fields, (f, v) => {
     const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
-    ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(f)
-    edit(qc, now, f, restoreValue(pending, f, v, now))
+    // A block kept by its key goes back as its field, merged with the field as it is now.
+    const [at, value, cannotTell] = restoreBlock(pending, f, v, now) ?? [f, restoreValue(pending, f, v, now)]
+    // Cannot be told where it goes (lib/kept-stands.ts): the server's text stays, nothing is
+    // written, and the edit stays kept, offered as before (task-28470f0d0ace566c says why).
+    if (cannotTell) return void untold.push(f)
+    // Its result already stands there (it landed; they edited on top): done, nothing to write.
+    if (same(value, getPath(now, at))) return
+    ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(at)
+    edit(qc, now, at, value)
   })
-  keepRefused(doc._publishedId, keys, pending, refused)
-  return refused
+  const kept = keepRefused(doc._publishedId, keys, pending, [...refused, ...untold])
+  const left = untold.length && kept ? {pending, fields: fields.filter(([f]) => untold.includes(f)), gone, keys: [kept]} : null
+  return {refused, left}
 }
 
 export function discardPending({keys}: Recovered) {
