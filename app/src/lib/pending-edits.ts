@@ -181,6 +181,21 @@ export function restoreValue(p: Pending, field: string, mine: unknown, doc: Doc)
 }
 
 /**
+ * A split's blocks as the merge gave them, when their texts are what the edit makes there (each
+ * of their Enters where it was). Otherwise the texts go into the blocks as they are now, when each
+ * is one plain span; else null (cannot be told).
+ */
+function settled(merged: unknown[] | null, run: unknown[], split?: {from: number; texts: string[]}): unknown[] | null {
+  if (!split) return merged
+  const want = [...run.slice(0, split.from).map((b) => textOf(b as Parameters<typeof textOf>[0])), ...split.texts]
+  const textsOf = (bs: unknown[]) => bs.map((b) => (isText(b) ? textOf(b) : null))
+  if (merged && JSON.stringify(textsOf(merged)) === JSON.stringify(want)) return merged
+  const plain = (b: unknown) => isText(b) && b.children.length === 1 && b.children[0]!._type === 'span' && !(b.children[0]!.marks as unknown[] | undefined)?.length
+  if (!run.every(plain)) return null
+  return run.map((b, i) => ({...(b as object), children: [{...(b as {children: object[]}).children[0]!, text: want[i]}]}))
+}
+
+/**
  * A kept block of a text field (`body[_key=="b"]`, saved by its key) put back over the field as
  * it is now: as the field, with the block merged into the run it is there (the block and the
  * pieces another editor's split made of it after it, and the new blocks between), task-2c01c385ce7b51d0. Put back whole
@@ -207,6 +222,8 @@ export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc)
   let last = at + 1
   while (old && last < list.length && isText(list[last]) && !old.includes(keyOf(list[last]) ?? '')) last++
   const reach = keptReach(textOf(base), textOf(mine), list.slice(at, last).map((b) => textOf(b as Parameters<typeof textOf>[0])))
-  const merged = reach === null ? null : mergeList3([base], [mine], list.slice(at, at + reach + 1))
-  return [root, merged ? [...list.slice(0, at), ...merged, ...list.slice(at + reach! + 1)] : list]
+  if (!reach) return [root, list]
+  const run = list.slice(at, at + reach.to + 1)
+  const merged = settled(mergeList3([base], [mine], run), run, reach.split)
+  return [root, merged ? [...list.slice(0, at), ...merged, ...list.slice(at + reach.to + 1)] : list]
 }

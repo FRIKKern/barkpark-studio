@@ -1155,26 +1155,34 @@ export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema)
   return {replayed: pending.at, put: verdict.fields.length - refused.length, refused}
 }
 
-/** The dead pages' kept edits go, but those to a refused field stay kept (keepPlan: kept first, then the rest dropped). */
-function keepRefused(id: string, keys: string[], pending: Pending, refused: string[]) {
+/** The dead pages' kept edits go, but those to a refused field stay kept (keepPlan: kept first, then the rest dropped). The key they stay under. */
+function keepRefused(id: string, keys: string[], pending: Pending, refused: string[]): string | undefined {
   const {keep, drop} = keepPlan(docKeyOf(id) || undefined, keys, pending, refused)
   void (keep ? putPending(...keep) : Promise.resolve()).then(() => Promise.all(drop.map((k) => dropPending(k))))
+  return keep?.[0]
 }
 
-/** Restore kept edits over the document as it is now (text merges with what changed since). Returns the fields not put back (read-only for this person), still kept. */
-export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys}: Recovered): string[] | null {
+/**
+ * Restore kept edits over the document as it is now (text merges with what changed since).
+ * Returns the fields not put back (read-only for this person), still kept; and `left`, the
+ * edits whose place cannot be told (lib/kept-stands.ts): not put back, still kept, still offered.
+ */
+export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys, gone}: Recovered): {refused: string[]; left: Recovered | null} | null {
   if (!writeAllowed('replay', doc._publishedId)) return null
+  const untold: string[] = []
   const refused = putBackKept(doc._publishedId, fields, (f, v) => {
     const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
     // A block kept by its key goes back as its field, merged with the field as it is now.
     const [at, value] = restoreBlock(pending, f, v, now) ?? [f, restoreValue(pending, f, v, now)]
-    // Cannot be told where it goes (lib/kept-stands.ts): the server's text stays, nothing is written.
-    if (same(value, getPath(now, at))) return
+    // Cannot be told where it goes (lib/kept-stands.ts): the server's text stays, nothing is
+    // written, and the edit stays kept, offered as before (task-28470f0d0ace566c says why).
+    if (same(value, getPath(now, at))) return void (same(v, new Map(pending.base).get(f)) || untold.push(f))
     ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(at)
     edit(qc, now, at, value)
   })
-  keepRefused(doc._publishedId, keys, pending, refused)
-  return refused
+  const kept = keepRefused(doc._publishedId, keys, pending, [...refused, ...untold])
+  const left = untold.length && kept ? {pending, fields: fields.filter(([f]) => untold.includes(f)), gone, keys: [kept]} : null
+  return {refused, left}
 }
 
 export function discardPending({keys}: Recovered) {

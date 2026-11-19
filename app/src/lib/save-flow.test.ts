@@ -453,14 +453,19 @@ for (const fault of ['500', 'lost', 'hold'] as const)
     const next = await open(`${name}2`)
     next.E.setKeepScope('s')
     const got = await next.E.recoverPending(next.qc, next.held() as never)
-    if (got && 'ask' in got) next.E.restorePending(next.qc, next.held() as never, got.ask)
+    const done = got && 'ask' in got ? next.E.restorePending(next.qc, next.held() as never, got.ask) : null
     await next.drain()
     for (const d of server.history) next.frame(d)
     await next.drain()
     const stored = texts(server.doc.ptBody)
     if (process.env.FLOW_LOG) console.log(name, J({got: got && Object.keys(got), stored, held: texts(next.held().ptBody)}))
     const all = stored.join('|')
-    if (mine === 'line' && fault !== 'lost') assert.deepEqual(stored, ['Above', 'Start QQ', 'rr text', 'Below'])
+    if (mine === 'line' && fault !== 'lost') {
+      assert.deepEqual(stored, ['Above', 'Start QQ', 'rr text', 'Below'])
+      // Not placed, so still kept and offered (the lead's condition).
+      assert.deepEqual(done?.left?.fields.map(([f]) => f), ['ptBody[_key=="b1"]'], 'the card stays up for it')
+      assert.ok([...idb.values()].some((p) => (p as {fields?: [string, unknown][]}).fields?.some(([f]) => f === 'ptBody[_key=="b1"]')), 'the kept line is still in the store')
+    }
     else for (const w of ['Above', ...(mine === 'paragraphs' ? ['XX', 'yy', 'zz'] : ['one two three']), 'QQ', 'rr', 'Start', 'text', 'Below']) assert.equal(all.split(w).length - 1, 1, `"${w}" once in ${J(stored)}`)
     assert.deepEqual(texts(next.held().ptBody), stored, 'the page shows what is stored')
     server.gone.add(`?page=${name}2`)
@@ -528,4 +533,53 @@ for (const fault of ['500', 'lost'] as const)
     assert.deepEqual(stored, ['Above', 'A dog', 'my cat is here'])
     assert.deepEqual(texts(next.held().ptBody), stored, 'the page shows what is stored')
     server.gone.add(`?page=${name}2`)
+  })
+
+// The lead's condition on the cannot-tell rule (task-2c01c385ce7b51d0): when a kept block's edit
+// cannot be told a place, Restore writes nothing, and the edit stays kept and offered: the entry
+// stays in this browser's store, and the card stays up for it (task-28470f0d0ace566c says why).
+const img = (key: string) => ({_type: 'image', _key: key})
+for (const [name, base, mine, now, old] of [
+  ['K8 both typed at the same spot', 'ab cd', 'ab Y cd', [blk('b', 'ab X cd')], ['b']],
+  ['K9 their Enter at the insertion point', 'Start text', 'Start big text', [blk('b', 'Start '), blk('r', 'text')], ['b']],
+  ['K13 they deleted part of the deleted run', 'one two three', 'one three', [blk('b', 'one tw three')], ['b']],
+  ['K14 their Enter and their typing in the second piece', 'Start text', 'Start text one', [blk('b', 'Start'), blk('r', 'XX text')], ['b']],
+  ['K16 they emptied it', 'Start text', 'Start text!', [blk('b', '')], ['b']],
+  ['C1 their base block moved past an older one', 'Start text', 'Start text one two three', [blk('b', 'Start'), blk('c', 'Below'), blk('n', 'text')], ['b', 'c']],
+  ['C2 they emptied it, later paragraphs share its letters', 'Start text', 'Start text one two three', [blk('a', 'Above'), blk('b', ''), blk('c', 'Stars at night'), blk('d', 'Extra text here')], ['a', 'b', 'c', 'd']],
+  ['C3 they shortened it to "H"', 'Hello world', 'Hello big world', [blk('b', 'H'), blk('c', 'Other people'), blk('d', 'wonder world')], ['b', 'c', 'd']],
+  ['C4 an image between the pieces', 'Start text', 'Start text one two three', [blk('b', 'x'), img('i'), blk('nz', 'zStart text'), blk('c', 'Below')], ['b', 'c']],
+  ['C8 they shortened it and pasted a NEW quote of it', 'Start text', 'Start text one', [blk('b', 'Start'), blk('c', 'Quote: Start text')], ['b']],
+  ['C9 a one-letter block replaced', 'a', 'ab', [blk('b', 'x'), blk('c', 'alpha'), blk('d', 'gamma a')], ['b', 'c', 'd']],
+  ['K4 an older block between the new pieces', 'Start text', 'Start text one', [blk('b', 'x'), blk('c', 'Below'), blk('nz', 'zStart text')], ['b', 'c']],
+  ['C10 a deletion across their Enter', 'one two three', 'one three', [blk('b', 'one tw'), blk('r', 'o three')], ['b']],
+  ['C12 they rewrote it to "A dog"', 'the cat sat', 'the sat', [blk('b', 'A dog'), blk('d', 'my cat is here')], ['b', 'd']],
+  ['K1 their NEW paragraph holds the deleted word', 'the cat sat', 'the sat', [blk('b', 'A dog'), blk('d', 'my cat is here')], ['b']],
+  ['K2 their NEW paragraph ends in the appended-to text', 'Start text', 'Start text!', [blk('b', 'Start'), blk('d', 'Last para with text')], ['b']],
+] as [string, string, string, {_key: string}[], string[]][])
+  test(`a kept block that cannot be told a place on Restore (${name}): nothing written, the edit still kept and offered`, async () => {
+    // The field when the edit was made: the block, and the blocks of now that were there then.
+    server = new Server({title: 'Save flow', ptBody: now.filter((b) => old.includes(b._key)).map((b) => (b._key === 'b' ? blk('b', base) : b))})
+    const page = await open(`untold${name.split(' ')[0]}`)
+    page.E.setKeepScope('s')
+    const drawn = (page.held().ptBody as Block[]).find((b) => b._key === 'b')!
+    server.faults.push('500')
+    const line = blk('b', mine)
+    page.E.edit(page.qc, page.held() as never, 'ptBody[_key=="b"]', (v: unknown) => mergeBlock(drawn, line, v) ?? line)
+    await tick(250) // kept in this browser (KEEP_GAP_MS)
+    server.theirs('ptBody', () => clone(now))
+    server.gone.add(`?page=untold${name.split(' ')[0]}`)
+    await tick(20)
+    const next = await open(`untold${name.split(' ')[0]}2`)
+    next.E.setKeepScope('s')
+    const got = await next.E.recoverPending(next.qc, next.held() as never)
+    assert.ok(got && 'ask' in got, 'offered')
+    const done = next.E.restorePending(next.qc, next.held() as never, got.ask)
+    await next.drain()
+    await tick(20)
+    assert.deepEqual(server.doc.ptBody, now, 'their blocks byte-equal')
+    assert.deepEqual(done?.left?.fields.map(([f]) => f), ['ptBody[_key=="b"]'], 'the card stays up for it')
+    const stored = [...idb.values()].some((p) => (p as {fields?: [string, unknown][]}).fields?.some(([f, v]) => f === 'ptBody[_key=="b"]' && J(v) === J(line)))
+    assert.ok(stored, 'the kept edit is still in the store')
+    server.gone.add(`?page=untold${name.split(' ')[0]}2`)
   })

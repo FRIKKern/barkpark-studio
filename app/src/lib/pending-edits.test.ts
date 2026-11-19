@@ -56,6 +56,12 @@ for (const [name, base, mine, now, keys, want] of [
   ['their paste at its start (x, y, zStart text): the line goes after the block\'s text', 'Start text', 'Start text one two three', [blk('a', 'Above'), blk('b', 'x'), blk('ny', 'y'), blk('nz', 'zStart text'), blk('c', 'Below')], ['a', 'b', 'c'], ['Above', 'x', 'y', 'zStart text one two three', 'Below']],
   ['their new quote of the text after it, mine deletes: applied in the block, the quote as theirs', 'Start text', 'Start', [blk('b', 'Start text'), blk('q', 'Quote: Start text')], ['b'], ['Start', 'Quote: Start text']],
   ['their new quote of the text after it, mine inserts: applied in the block, the quote as theirs', 'Start text', 'Start text one', [blk('b', 'Start text'), blk('q', 'Quote: Start text')], ['b'], ['Start text one', 'Quote: Start text']],
+  ['K7: their edit elsewhere in it, mine inserts: applied', 'the cat sat', 'the big cat sat', [blk('b', 'the cat sat down')], ['b'], ['the big cat sat down']],
+  ['K10: their Enter splits it, mine appends: at the end of the second piece', 'Start text', 'Start text!', [blk('b', 'Start '), blk('r', 'text')], ['b'], ['Start ', 'text!']],
+  ['K12: their Enter splits repeated letters, mine appends', 'aaa b', 'aaa bc', [blk('b', 'a'), blk('r', 'aa b')], ['b'], ['a', 'aa bc']],
+  // Their text only before the block's text, as C0's paste: allowed, so it lands in their new block.
+  ['K11: they rewrote it to "Hi" and pasted a NEW "Quote: Start text": mine goes after that text', 'Start text', 'Start text one', [blk('b', 'Hi'), blk('nq', 'Quote: Start text')], ['b'], ['Hi', 'Quote: Start text one']],
+  ['their Enter in the second of two equal words, mine deletes one: the deletion that leaves their boundary\'s letters', 'one two two three', 'one two three', [blk('b', 'one t'), blk('r', 'wo two three')], ['b'], ['one t', 'wo three']],
   // Cannot tell: the server's blocks stay byte-equal.
   ['a: they rewrote it to "A dog", mine deletes "cat ": "A dog" stays', 'the cat sat', 'the sat', [blk('b', 'A dog'), blk('d', 'my cat is here')], ['b', 'd'], SERVER],
   ['c: an insertion whose neighbours are gone: the block stays', 'Hello world', 'Hello big world', [blk('b', 'Hello there')], ['b'], SERVER],
@@ -69,6 +75,14 @@ for (const [name, base, mine, now, keys, want] of [
   ['C9: a one-letter block replaced: "gamma a" stays', 'a', 'ab', [blk('b', 'x'), blk('c', 'alpha'), blk('d', 'gamma a')], undefined, SERVER],
   ['a block there when the edit was made ends the run: the paste\'s piece after it is not reached', 'Start text', 'Start text one', [blk('b', 'x'), blk('c', 'Below'), blk('nz', 'zStart text')], ['b', 'c'], SERVER],
   ['no keys kept (an older entry): the block alone', 'Start text', 'Start text one', [blk('b', 'x'), blk('ny', 'y'), blk('nz', 'zStart text')], null, SERVER],
+  ['C10: mine deletes "two " across their Enter in "tw|o": no placement keeps their boundary', 'one two three', 'one three', [blk('b', 'one tw'), blk('r', 'o three')], ['b'], SERVER],
+  ['K3: mine deletes "cat " across their Enter in "c|at"', 'the cat sat', 'the sat', [blk('b', 'the c'), blk('r', 'at sat'), blk('d', 'my cat')], ['b'], SERVER],
+  ['K8: both typed at the same spot', 'ab cd', 'ab Y cd', [blk('b', 'ab X cd')], ['b'], SERVER],
+  ['K9: their Enter at mine\'s insertion point', 'Start text', 'Start big text', [blk('b', 'Start '), blk('r', 'text')], ['b'], SERVER],
+  ['K13: they deleted part of the run mine deletes', 'one two three', 'one three', [blk('b', 'one tw three')], ['b'], SERVER],
+  ['K14: their Enter, and their typing in the second piece', 'Start text', 'Start text one', [blk('b', 'Start'), blk('r', 'XX text')], ['b'], SERVER],
+  ['K16: they emptied it, mine appends', 'Start text', 'Start text!', [blk('b', '')], ['b'], SERVER],
+  ['K11 with the NEW quote holding only part of its text ("Quote: Start")', 'Start text', 'Start text one', [blk('b', 'Hi'), blk('nq', 'Quote: Start')], ['b'], SERVER],
 ] as [string, string, string, unknown[], string[] | undefined | null, string[] | string][])
   test(`restore of a kept block, ${name}`, () => assert.deepEqual(restored(base, mine, now, keys === null ? undefined : (keys ?? all(now))), want === SERVER ? texts(now) : want))
 

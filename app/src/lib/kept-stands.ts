@@ -48,29 +48,63 @@ function asSplit(base: string, texts: string[]): (Where & {from: number; to: num
   return null
 }
 
-/** This side's edits to the base: [from, to) of the base it changes (to = from: an insertion there). */
-function edits(base: string, mine: string): [number, number][] {
-  const out: [number, number][] = []
-  let open: [number, number] | null = null
+/** One edit of this side to the base: [from, to) of the base it takes out (to = from: none), and what it puts there. */
+type Edit = {from: number; to: number; text: string}
+function edits(base: string, mine: string): Edit[] {
+  const out: Edit[] = []
+  let open: Edit | null = null
   let i = 0
   for (const [op, text] of makeDiff(base, mine)) {
     if (op === DIFF_EQUAL) ((open = null), (i += text.length))
     else {
-      if (!open) out.push((open = [i, i]))
-      if (op === DIFF_DELETE) (i += text.length), (open[1] = i)
+      if (!open) out.push((open = {from: i, to: i, text: ''}))
+      if (op === DIFF_DELETE) (i += text.length), (open.to = i)
+      else open.text += text
     }
   }
   return out
 }
 
-/** A deletion: the run it deletes is all there, at its place (cut by Enter at most). An insertion: the text on both sides of the caret, or the block's edge, is still right there. */
-function stands({kept, before}: Where, [from, to]: [number, number]): boolean {
+/**
+ * Where an edit goes on their side, or null when that cannot be told. A deletion: the run it
+ * deletes is all there, at its place, with nothing of theirs inside it. An Enter of theirs inside
+ * it, or at either end, is a block boundary: the run is slid to a place that deletes the same
+ * text and leaves the letters on both sides of each boundary (as "two " out of "one tw|o three"
+ * cannot), or it cannot be told. An insertion:
+ * the text on both sides of the caret, or the block's edge, is still right there.
+ */
+function placed({kept, before}: Where, base: string, e: Edit): Edit | null {
   const len = kept.length
-  if (to > from) {
-    for (let k = from; k < to; k++) if (!kept[k] || (k > from && !/^\n*$/.test(before[k]!))) return false
+  // Nothing of theirs inside the run, and no Enter of theirs at either end: the letters on both
+  // sides of each of their block boundaries stay.
+  const clear = (from: number, to: number) => {
+    if (before[from]!.includes('\n') || before[to]!.includes('\n')) return false
+    for (let k = from; k < to; k++) if (!kept[k] || (k > from && before[k] !== '')) return false
     return true
   }
-  return (from === 0 ? before[0] === '' : kept[from - 1]!) && (from === len ? before[len] === '' : kept[from]!) && before[from] === ''
+  if (e.to === e.from) return (e.from === 0 ? before[0] === '' : kept[e.from - 1]!) && (e.from === len ? before[len] === '' : kept[e.from]!) && before[e.from] === '' ? e : null
+  if (clear(e.from, e.to)) return e
+  if (e.text) return null
+  const n = e.to - e.from
+  for (let f = e.from; f > 0 && base[f - 1] === base[f - 1 + n]; ) if (clear(--f, f + n)) return {from: f, to: f + n, text: ''}
+  for (let f = e.from; f + n < len && base[f] === base[f + n]; ) if (clear(++f, f + n)) return {from: f, to: f + n, text: ''}
+  return null
+}
+
+/** The texts of the split's blocks once the edits are in: their text before and after it as it is, each Enter of theirs where it was. */
+function splitTexts({before}: Where, base: string, done: Edit[]): string[] {
+  let out = ''
+  let e = 0
+  for (let i = 0; i <= base.length; i++) {
+    const at = done[e]
+    if (at && at.from === i) (out += at.text), e++
+    if (i === base.length) out += before[i]
+    else {
+      out += before[i]
+      if (!done.some((d) => d.from <= i && i < d.to)) out += base[i]
+    }
+  }
+  return out.split('\n')
 }
 
 /** Some three letters of the base in a row are in `text` (all of it, for a shorter base). */
@@ -82,13 +116,23 @@ function shares(base: string, text: string): boolean {
 
 /**
  * How far into `texts` (the server's same block, then the new blocks right after it) a kept edit
- * of the block from `base` to `mine` goes: the index of the last block it may reach, or null when
- * that cannot be told. Their paste at the block's start leaves the same block none of its text,
+ * of the block from `base` to `mine` goes, or null when that cannot be told. `to`: the index of
+ * the last block it may reach. `texts`, for a split: what those blocks' texts are once it is in,
+ * from the first holding a piece of it (`from`) to `to`. Their paste at the block's start leaves the same block none of its text,
  * and the text goes on in a new block (C0). A same block that still holds some of it, with the
  * text again in a new block after it, is a copy or a quote, not a split: only the same block counts.
  */
-export function keptReach(base: string, mine: string, texts: string[]): number | null {
+export function keptReach(base: string, mine: string, texts: string[]): {to: number; split?: {from: number; texts: string[]}} | null {
   const split = asSplit(base, texts)
   const where = split && (split.from === 0 || !shares(base, texts[0]!)) ? split : {...inBlock(base, texts[0] ?? ''), to: 0}
-  return edits(base, mine).every((e) => stands(where, e)) ? where.to : null
+  const done: Edit[] = []
+  for (const e of edits(base, mine)) {
+    const at = placed(where, base, e)
+    if (!at) return null
+    done.push(at)
+  }
+  if (!('from' in where)) return {to: 0}
+  // The edits' text with their side's text around it, cut where their blocks are cut.
+  const all = splitTexts(where, base, done)
+  return {to: where.to, split: {from: where.from, texts: all.slice(-(where.to - where.from + 1))}}
 }
