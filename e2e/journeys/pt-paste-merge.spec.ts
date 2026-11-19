@@ -86,6 +86,25 @@ test('@local Portable Text: a paste kept while its page reloads mid-save, the ot
     await paste(edB, 'x\n\ny\n\nz ')
     await savesLanded(b)
     await expect.poll(() => held, {timeout: 10_000}).toBeGreaterThan(0)
+    // …and kept in this browser (edits.ts writes it KEEP_GAP_MS after the edit): the reload comes after that.
+    const keptHere = () =>
+      page.evaluate(
+        () =>
+          new Promise<number>((res) => {
+            const q = indexedDB.open('bp-pending-edits')
+            q.onsuccess = () => {
+              try {
+                const c = q.result.transaction('docs').objectStore('docs').count()
+                c.onsuccess = () => res(c.result)
+                c.onerror = () => res(0)
+              } catch {
+                res(0)
+              }
+            }
+            q.onerror = () => res(0)
+          }),
+      )
+    await expect.poll(keptHere, {timeout: 5_000}).toBeGreaterThan(0)
     await page.reload()
     await page.unroute('**/_serverFn/**', slow)
     await target(info).settle(page)
