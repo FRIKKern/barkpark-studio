@@ -200,13 +200,23 @@ test(`seeded fuzz of the span-text save (seed ${SEED}, ${CASES} pairs): typing s
 })
 
 // task-39ac4770a54b587a: the other deletes a block break with letters around it and pastes or
-// splits there; the letters that stayed read as the break moved, so a deletion of them holds.
-test('task-39ac4770a54b587a: span fuzz seed 3 case 113, seed 7 case 2631 and seed 8 case 532 keep a deleted letter deleted', () => {
-  for (const [seed, at] of [[3, 113], [7, 2631], [8, 532]] as const) {
-    const rnd = prng(seed + 1)
-    for (let n = 0; n < at; n++) spanCase(rnd, n)
-    const {why, line} = spanCase(rnd, at)
-    assert.deepEqual(why, [], `seed ${seed}: ${line}`)
+// splits there. Letters that stayed in their own base block read as the break moved, so a
+// deletion of them holds. In a new block (seed 8: a paste before "h" moved it to the paste's
+// last paragraph) or with their base block gone (seed 7), the same text is a letter typed again
+// after a paste over it: the merge cannot tell, so the letter is kept (pt-moved-letters.test.ts).
+const spanAt = (seed: number, at: number) => {
+  const rnd = prng(seed + 1)
+  for (let n = 0; n < at; n++) spanCase(rnd, n)
+  return spanCase(rnd, at)
+}
+test('task-39ac4770a54b587a: span fuzz seed 3 case 113 keeps a deleted letter deleted (it stayed in its own base block)', () => {
+  const {why, line} = spanAt(3, 113)
+  assert.deepEqual(why, [], line)
+})
+test('task-39ac4770a54b587a: span fuzz seed 7 case 2631 and seed 8 case 532: where the merge cannot tell a moved letter from a new one, the letter is kept', () => {
+  for (const [seed, at, ch] of [[7, 2631, 'p'], [8, 532, 'h']] as const) {
+    const {why, line} = spanAt(seed, at)
+    assert.deepEqual(why, [`deleted back ${ch}`], `seed ${seed}: ${line}`)
   }
 })
 
