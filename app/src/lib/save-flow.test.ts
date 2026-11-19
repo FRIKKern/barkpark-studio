@@ -344,3 +344,35 @@ test('both typing in one span, no split: no write but the span patch, one span',
   // checked against the field just before the patch, one history read per such save.
   assert.equal(reads, 3, 'history reads')
 })
+
+// Two typing in one span, this page's typing going on while its save is out and the other's
+// words land first (portable-text.spec "two editors typing in one block at once").
+for (const frameFirst of [false, true])
+  test(`both typing in one span, typing on while the save is out${frameFirst ? ', their frame here first' : ''}: every word once, in place`, async () => {
+    server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'Pour slowly'), blk('c', 'Below')]})
+    const page = await open(`sameSpanOn${frameFirst}`)
+    const now = () => (page.held().ptBody as Block[])[1]!.children[0]!.text
+    const add = (w: string) => page.type('b1', now(), `${now()}${w}`)
+    const mine = [' from', ' a', ' height', ' up']
+    const theirs = [' gently', ' and', ' so']
+    for (let i = 0; i < 4; i++) {
+      server.faults.push('hold')
+      add(mine[i]!)
+      page.E.flush(page.qc, ID)
+      await tick(5)
+      if (i < 3) {
+        // Their word after "Pour …" (where their caret is), as Barkpark merges their span patch.
+        const d = server.theirs('ptBody', (v) => (v as Block[]).map((b) => (b._key === 'b1' ? blk('b1', b.children[0]!.text.replace(/^(Pour(?: \w+)*?)( slowly)/, `$1${theirs[i]}$2`)) : b)))
+        if (frameFirst) page.frame(d)
+      }
+      if (i % 2 === 0) add('!')
+      server.release()
+      await page.drain()
+      for (const d of server.history) page.frame(d)
+      await page.drain()
+    }
+    const stored = texts(server.doc.ptBody)
+    if (process.env.FLOW_LOG) console.log(J({stored, held: texts(page.held().ptBody)}))
+    assert.equal(stored[1], 'Pour gently and so slowly from! a height! up')
+    assert.deepEqual(texts(page.held().ptBody), stored)
+  })
