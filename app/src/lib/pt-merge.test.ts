@@ -126,3 +126,14 @@ test('a block saved by its key that they split meanwhile: the field goes whole, 
   assert.deepEqual([...e.dirty.keys()], ['ptBody'])
   assert.deepEqual(texts(e.dirty.get('ptBody')), ['Above', 'x', 'y', 'z Start text one two three', 'Below'])
 })
+
+test('their new block before the block (a paste that split it at its start): its text once, before mine', () => {
+  const theirs = [blk('n1', ['n1s', 'Header']), blk('b1', ['b1s', 'Start text'])]
+  const mine = [blk('b1', ['b1s', 'Start text one'])]
+  // Their run reads "Header¶Start text": the new block's text goes in front, as a block of its own.
+  const split = mergeList3(base, mine, [blk('n1', ['n1s', 'Header']), blk('b1', ['b1s', 'X Start text'])]) as {_key: string}[]
+  assert.deepEqual(texts(split), ['Header', 'X Start text one'])
+  assert.deepEqual(split.map((b) => b._key), ['n1', 'b1'])
+  assert.deepEqual(texts(mergeList3(base, mine, theirs)), ['Header', 'Start text one'])
+  assert.deepEqual(texts(freshItems(base, mine, theirs)), ['Header', 'Start text one'])
+})

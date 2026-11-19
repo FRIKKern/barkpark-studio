@@ -60,7 +60,7 @@ function put(base: string, theirs: string, text: string): string | null {
 }
 
 type Run = {from: [block: number, child: number] | null; text: string; obj?: boolean}
-type Segment = {who: Obj; runs: Run[]}
+type Segment = {who: Obj; runs: Run[]; theirs?: boolean}
 
 /**
  * `mine` (the blocks of one run, as this editor has them) with the text changed to `merged`.
@@ -89,7 +89,7 @@ function cut(mine: (Obj & {children: Obj[]})[], text: string, merged: string, th
   for (const [op, chunk] of makeDiff(text, merged)) {
     for (const ch of chunk) {
       if (op === DIFF_INSERT) {
-        if (ch === SEP) segments.push({who: theirs[++theirSep] ?? {_type: 'block', style: 'normal', markDefs: []}, runs: []})
+        if (ch === SEP) segments.push({who: theirs[++theirSep] ?? {_type: 'block', style: 'normal', markDefs: []}, runs: [], theirs: true})
         else if (ch !== OBJ) add(null, ch)
         continue
       }
@@ -99,6 +99,9 @@ function cut(mine: (Obj & {children: Obj[]})[], text: string, merged: string, th
       else add([o.block, o.child], ch, true) // an inline object stays
     }
   }
+  // Text of theirs alone, then a block break of theirs: their block before the one they share
+  // with mine (a paste that split it at its start), and mine's first block is the next one.
+  if (segments[1]?.theirs && segments[0]!.runs.every((r) => !r.from) && theirs[0]) segments[0]!.who = theirs[0]
   const used = new Set<string>()
   return segments.map(({who, runs}) => {
     // A letter of theirs joins the span before it in the block, else the one after it.
