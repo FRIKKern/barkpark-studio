@@ -17,7 +17,8 @@ export type Tool = {name: string; title: string; component: ComponentType}
 export type InputProps = {field: Field; path: string; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean; renderDefault: () => ReactNode}
 
 /** An action in the footer's "…" menu. `set` edits the draft, like typing in a field. */
-export type DocumentAction = (ctx: {doc: Doc; set: (field: string, value: unknown) => void}) => {label: string; onHandle: () => void; disabled?: boolean} | null
+/** `set` writes a field, read-only ones too (the action decides, as Sanity's patch.execute); false: the document is locked here, nothing written. */
+export type DocumentAction = (ctx: {doc: Doc; set: (field: string, value: unknown) => boolean}) => {label: string; onHandle: () => void; disabled?: boolean} | null
 
 /** A badge beside the save state, Sanity's colors. */
 export type DocumentBadge = (doc: Doc) => {label: string; color?: 'primary' | 'success' | 'warning' | 'danger'; title?: string} | null
