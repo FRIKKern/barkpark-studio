@@ -1130,7 +1130,8 @@ export async function discardDraft(qc: QueryClient, doc: Doc) {
   await qc.invalidateQueries({queryKey: ['doc', id]})
 }
 
-export type Recovered = {pending: Pending; fields: [string, unknown][]; gone?: string[]; keys: string[]}
+/** `untold`: fields a Restore could not put back, the text they touched having changed since (lib/kept-stands.ts): still kept, shown to copy. */
+export type Recovered = {pending: Pending; fields: [string, unknown][]; gone?: string[]; keys: string[]; untold?: string[]}
 /**
  * B11 widen: on open, edits this browser kept for `doc` that never reached Barkpark (a
  * reload or crash). Same server rev → sent again now, quietly (`replayed`); a newer rev →
@@ -1181,7 +1182,7 @@ export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys
     edit(qc, now, at, value)
   })
   const kept = keepRefused(doc._publishedId, keys, pending, [...refused, ...untold])
-  const left = untold.length && kept ? {pending, fields: fields.filter(([f]) => untold.includes(f)), gone, keys: [kept]} : null
+  const left = untold.length && kept ? {pending, fields: fields.filter(([f]) => untold.includes(f)), gone, keys: [kept], untold} : null
   return {refused, left}
 }
 

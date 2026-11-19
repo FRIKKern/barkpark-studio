@@ -14,6 +14,8 @@ import {advisoryProblems} from '../lib/findings'
 import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
 import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setByAction, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
+import {keptText} from '../lib/kept-text'
+import '../kept-edits.css'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {choiceById} from '../lib/templates'
 import {reportFocus} from '../lib/presence'
@@ -826,13 +828,21 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         {recovered && doc && (
           <div className="pane-banner" role="alert" data-testid="kept-edits">
             <span>
-              {recovered.fields.length > 0 && t('Unsaved changes from {date}, kept in this browser. The document has changed since.', {date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}
+              {recovered.untold?.length ? (
+                <>
+                  {t('Unsaved changes to {fields} from {date} could not be put back: the text changed since. They are kept in this browser.', {fields: recovered.untold.map((f) => fieldLabels[f.split(/[.[]/)[0]!] ?? f).join(', '), date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}
+                  {/* task-28470f0d0ace566c: the kept text itself, to copy. */}
+                  <span className="kept-text" data-testid="kept-text">{recovered.fields.map(([, v]) => keptText(v)).filter(Boolean).join('\n\n')}</span>
+                </>
+              ) : (
+                recovered.fields.length > 0 && t('Unsaved changes from {date}, kept in this browser. The document has changed since.', {date: longDate(new Date(recovered.pending.at).toISOString(), locale)})
+              )}
               {recovered.gone?.length
                 ? `${recovered.fields.length ? ' ' : ''}${t('Unsaved changes to {fields} from {date} cannot be put back: the schema has changed since.', {fields: recovered.gone.map((f) => fieldLabels[f.split(/[.[]/)[0]!] ?? f).join(', '), date: longDate(new Date(recovered.pending.at).toISOString(), locale)})}`
                 : null}
             </span>
             <span className="pane-banner-actions">
-              {recovered.fields.length > 0 && (
+              {recovered.fields.length > 0 && !recovered.untold?.length && (
                 <button type="button" className="btn-text" onClick={() => {
                   const done = restorePending(qc, doc, recovered)
                   if (done?.refused.length) notPutBack(done.refused, longDate(new Date(recovered.pending.at).toISOString(), locale), done.refused.length < recovered.fields.length)

@@ -14,6 +14,7 @@ import {QueryClient} from '@tanstack/react-query'
 register('./save-flow.hooks.mjs', import.meta.url)
 const {freshItems} = await import('./pt-value.ts')
 const {mergeBlock} = await import('./pt-keep.ts')
+const {keptText} = await import('./kept-text.ts')
 const {applyPaths, getPath, setPath} = await import('./paths.ts')
 const {applyPatches, makePatches, parsePatch} = await import('@sanity/diff-match-patch')
 
@@ -579,6 +580,9 @@ for (const [name, base, mine, now, old] of [
     await tick(20)
     assert.deepEqual(server.doc.ptBody, now, 'their blocks byte-equal')
     assert.deepEqual(done?.left?.fields.map(([f]) => f), ['ptBody[_key=="b"]'], 'the card stays up for it')
+    // task-28470f0d0ace566c: the card says it could not be put back, and shows the text to copy.
+    assert.deepEqual(done?.left?.untold, ['ptBody[_key=="b"]'], 'marked: could not be put back')
+    assert.equal(keptText(done!.left!.fields[0]![1]), mine, 'the kept text, as typed')
     const stored = [...idb.values()].some((p) => (p as {fields?: [string, unknown][]}).fields?.some(([f, v]) => f === 'ptBody[_key=="b"]' && J(v) === J(line)))
     assert.ok(stored, 'the kept edit is still in the store')
     server.gone.add(`?page=untold${name.split(' ')[0]}2`)
