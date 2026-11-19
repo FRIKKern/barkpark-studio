@@ -18,7 +18,7 @@ import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withPara
 import {choiceById} from '../lib/templates'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
-import {fieldState, groupShows, personKnown} from '../lib/conditions'
+import {fieldState, groupShows, keptEditsWait, roleRuled} from '../lib/conditions'
 import {DeletedBanner, ReferenceBanner, useDeleted} from './PaneBanners'
 import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
@@ -448,11 +448,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // scheduled draft (once its schedule is known), a deleted doc or a seat that can't write.
   // While locked they stay kept, and are offered again once it is editable (Pause to edit).
   const editable = !!draftQ.data && !locked && schedule !== undefined
+  const keptWait = keptEditsWait(user)
   useEffect(() => {
     setRecovered(null)
     // Judged against the schema as it is now (a field it dropped or retyped is not sent).
     // And once the person is known: a field a rule may lock for them refuses its kept edits until then.
-    if (!keepScope || !editable || !draftQ.data || !schema || !personKnown(user)) return
+    if (!keepScope || !editable || !draftQ.data || !schema || keptWait) return
     let live = true
     void recoverPending(qc, draftQ.data, schema).then((r) => {
       if (!live || !r) return
@@ -462,7 +463,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       notPutBack(r.refused, date, r.put > 0)
     })
     return () => void (live = false)
-  }, [keepScope, pane.id, editable, !!schema, personKnown(user)])
+  }, [keepScope, pane.id, editable, !!schema, keptWait])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   // Sanity's Inspect is in the URL (`inspect=on`): Back closes and reopens it, a link or a
   // reload opens it, and it takes the inspector's place (History closes), as there.
@@ -824,7 +825,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <SignInAgain />
           </div>
         )}
-        {doc && <PersonCheckBanner docId={pane.id} dateOf={(at) => longDate(new Date(at).toISOString(), locale)} />}
+        {doc && <PersonCheckBanner docId={pane.id} ruled={roleRuled(doc._type, studio.form?.conditions)} dateOf={(at) => longDate(new Date(at).toISOString(), locale)} />}
         {recovered && doc && (
           <div className="pane-banner" role="alert" data-testid="kept-edits">
             <span>

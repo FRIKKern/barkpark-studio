@@ -1,11 +1,11 @@
-import {queryOptions, useQuery} from '@tanstack/react-query'
+import {queryOptions, useQuery, type QueryClient} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {accountRequestReset, accountSignIn, cloudSignIn, currentEditor, describeToken, displayName, editorKey, knownTokenSelf, presenceName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {bpFetch, requestToken} from '../server/barkpark'
 import {stubPerson} from '../server/access-stub'
 import {useT} from './i18n'
 import {currentScopeQuery} from './scope-switch'
-import {serviceAccess} from './token-self'
+import {meOf, sessionEnded} from './me-of'
 import {headStartAllowed} from './gate-head-start'
 import {currentUserOf} from './conditions'
 import {useMemo} from 'react'
@@ -23,38 +23,17 @@ export const whoAmI = createServerFn({method: 'GET'}).handler(async () => {
   const self = signInRequired() && !editor ? undefined : await describeToken(editor?.token ?? requestToken())
   // The signed-in editor's own token is dead (revoked or expired, 401): their session
   // ends here, and signing in again mints a new one (J48), not a refused-studio card.
-  const ended = !!editor && !!self?.refused
+  const ended = sessionEnded(editor, self)
   if (ended) void signOut()
-  const mode = signInMode()
-  const me = {
-    /** How editors sign in: their Barkpark account, dev (an email), or nobody (shared). */
-    signIn: mode,
-    devLogin: mode === 'dev',
-    /** Sign in with Barkpark Cloud is offered (BARKPARK_CLOUD_URL and BARKPARK_CLOUD_INSTANCE). */
+  const me = meOf({
+    mode: signInMode(),
     cloud: !!cloudSignIn(),
-    email: ended ? null : editor?.email ?? null,
-    /** task-701f8a5fdb6b4d52, the user menu as Sanity's: their name (Barkpark display name) and role here. */
+    editor,
+    self,
     name: ended || !named ? null : await Promise.race([named, new Promise<null>((r) => setTimeout(r, 400, null))]),
-    role: ended || !editor ? null : self?.role ?? null,
-    /** Help > Diagnostics: the Barkpark user behind a login session. */
-    userId: ended || !editor ? null : self?.userId ?? null,
-    /** J07: the name this editor's presence goes by, so their own tabs can be left out (Sanity's). Shared sign-in: none. */
-    presenceName: ended || !editor ? null : presenceName(editor.email),
-    /** The editor in browser storage keys: a digest, never the email. */
-    editorKey: ended || !editor ? null : editorKey(editor.email),
-    canWrite: self && !ended ? self.permissions.includes('write') : true,
-    canPublish: self && !ended ? self.canPublish !== false : true,
-    /** A token held to one dataset (Barkpark #22393): the only one it can open. */
-    boundDataset: self?.boundDataset ?? null,
-    /** The studio's own token is refused (revoked, or out of the workspace): nothing will load. */
-    studioTokenRefused: !editor && !!self?.refused,
-    /** Signed in, but with no seat in this workspace (or it doesn't exist): Sanity's no-access screen. */
-    noSeat: !!editor && !ended && !!self && serviceAccess(self) === 'no_seat',
-    /** Barkpark's answer (false), or provisionalMe's stand-in while it is late (true). */
-    provisional: false as boolean,
-    /** Barkpark did not answer the check (describeToken's UNKNOWN_SELF): who this is stays unknown, and the page offers a retry. */
-    unchecked: !ended && !!self?.unknown,
-  }
+    presenceName: editor ? presenceName(editor.email) : null,
+    editorKey: editor ? editorKey(editor.email) : null,
+  })
   // e2e only (server/access-stub.ts): a signed-in person with no seat here, until one is given.
   const stand = stubPerson()
   return stand && !stand.seated ? {...me, email: stand.email, noSeat: true} : me
@@ -176,8 +155,14 @@ export function useBoundElsewhere(): {bound: string; here: {workspace: string; p
 /** The studio's own Barkpark token is refused: the reason every read and save fails. */
 export const useStudioTokenRefused = () => !!useQuery(meQuery).data?.studioTokenRefused
 
-/** Sanity's useCurrentUser: the signed-in editor with their role under Sanity's name (lib/conditions.ts), or null. */
+/**
+ * Sanity's useCurrentUser: the person a field is judged for (lib/conditions.ts Person): known,
+ * nobody, or unknown. With personOf, the only source of a person (person-scan.test.ts): a lock
+ * site takes it whole and hands it to the rule.
+ */
 export function useCurrentUser() {
   const me = useQuery(meQuery).data
   return useMemo(() => currentUserOf(me), [me])
 }
+/** The same outside a component: the person as the cached whoAmI says. */
+export const personOf = (qc: QueryClient) => currentUserOf(qc.getQueryData(meQuery.queryKey) ?? undefined)

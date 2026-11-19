@@ -150,8 +150,13 @@ export function resolveConditional(property: ConditionalProperty, context: Condi
 type Where = {path: string; value: unknown; parent?: Record<string, unknown>}
 /** A config callback, which may ask who the person is: until that is known it cannot be answered. */
 const awaitsPerson = (p: ConditionalProperty, person: Person): person is typeof UNKNOWN => person === UNKNOWN && typeof p === 'function'
-/** Whether the person is known (or known to be nobody): what may wait on it, as kept edits do. */
-export const personKnown = (person: Person): person is CurrentUser | null => person !== UNKNOWN
+/** Whether the person is known (or known to be nobody). Only this file asks (person-scan.test.ts). */
+const personKnown = (person: Person): person is CurrentUser | null => person !== UNKNOWN
+/** Whether kept edits wait to be put back: until the person is known, a role rule may lock a field they hold. */
+export const keptEditsWait = (person: Person) => !personKnown(person)
+/** Whether a type has a role rule: a `form.conditions` callback under `type.`, which waits while the person is unknown. */
+export const roleRuled = (type: string, rules: Record<string, FieldConditions> | undefined) =>
+  Object.entries(rules ?? {}).some(([key, c]) => key.startsWith(`${type}.`) && (typeof c.hidden === 'function' || typeof c.readOnly === 'function'))
 /**
  * Who makes a write, for mayWrite: this person by hand (a key, a menu, an undo), "Keep mine" on
  * a clash, kept edits put back (a replay), or a document action's `set` (code the developer wrote).

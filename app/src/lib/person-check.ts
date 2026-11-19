@@ -16,3 +16,10 @@ export function personCheck({data, isError, isFetching, waitedMs}: CheckState): 
   if (isFetching) return waitedMs < SLOW_CHECK_MS ? 'checking' : 'failed'
   return isError || data?.unchecked || waitedMs >= SLOW_CHECK_MS ? 'failed' : 'checking'
 }
+
+/**
+ * Whether the page says the check failed: only where something is closed because the person is
+ * unknown, a type with a role rule (conditions.ts roleRuled) or kept edits waiting. A doc with
+ * nothing closed shows nothing.
+ */
+export const bannerShows = ({failed, ruled, kept}: {failed: boolean; ruled: boolean; kept: boolean}) => failed && (ruled || kept)

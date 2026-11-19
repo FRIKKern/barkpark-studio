@@ -2,9 +2,9 @@
 // judge role rules against a person with no role: it waits, says so, and offers a retry.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {currentUserOf, fieldState, UNKNOWN, type FieldConditions} from './conditions.ts'
+import {currentUserOf, fieldState, roleRuled, UNKNOWN, type FieldConditions} from './conditions.ts'
 import {docKeyOfEntry, pendingKey} from './pending-edits.ts'
-import {personCheck, SLOW_CHECK_MS} from './person-check.ts'
+import {bannerShows, personCheck, SLOW_CHECK_MS} from './person-check.ts'
 import {UNKNOWN_SELF} from './token-self.ts'
 
 const me = {email: 'ada@example.com', name: 'Ada', userId: 'u1', role: 'owner', canWrite: true}
@@ -40,4 +40,21 @@ test('the page says the check failed: an unchecked answer, a failed read, or non
 test("the kept edits' doc is read from this page's entry key", () => {
   assert.equal(docKeyOfEntry(pendingKey('ws|p|ds|ed|post-1', 'tab-1'), 'tab-1'), 'ws|p|ds|ed|post-1')
   assert.equal(docKeyOfEntry('ws|p|ds|ed|post-1|other', 'tab-1'), null)
+})
+
+test('the failed check is said only where something is closed: a type with a role rule, or kept edits', () => {
+  // The shipped config has no role rule: a post with nothing kept shows nothing.
+  assert.equal(roleRuled('post', undefined), false)
+  assert.equal(bannerShows({failed: true, ruled: roleRuled('post', undefined), kept: false}), false)
+  // A plain true/false rule waits on nobody; another type's callback is not this type's.
+  assert.equal(roleRuled('post', {'post.stage': {readOnly: true, hidden: false}, 'author.bio': adminsOnly['post.stage']!}), false)
+  assert.equal(roleRuled('post', {'postscript.x': adminsOnly['post.stage']!}), false)
+  // A callback on the type, at any depth: said.
+  assert.equal(roleRuled('post', adminsOnly), true)
+  assert.equal(roleRuled('post', {'post.body.caption': {hidden: () => false}}), true)
+  assert.equal(bannerShows({failed: true, ruled: true, kept: false}), true)
+  // Kept edits wait on the person, rule or none: said.
+  assert.equal(bannerShows({failed: true, ruled: false, kept: true}), true)
+  // A check that has not failed: nothing said.
+  assert.equal(bannerShows({failed: false, ruled: true, kept: true}), false)
 })
