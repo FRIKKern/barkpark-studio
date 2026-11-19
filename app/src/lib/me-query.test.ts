@@ -5,7 +5,7 @@ import {test} from 'node:test'
 import {dehydrate, hydrate, QueryClient, QueryObserver} from '@tanstack/react-query'
 import {fieldState, keptEditsWait, roleRuled, type FieldConditions} from './conditions.ts'
 import {asksAgain, meQueryOf} from './me-query.ts'
-import {personCheck} from './person-check.ts'
+import {personCheck, SLOW_CHECK_MS} from './person-check.ts'
 import {mint, unknown} from './persons.fixture.ts'
 
 type Me = {email: string | null; name: string | null; userId: string | null; role: string | null; canWrite: boolean; provisional?: boolean; unchecked?: boolean}
@@ -141,6 +141,70 @@ test("structural sharing: an unchanged answer keeps the session's object, a chan
     const share = s.query.structuralSharing as (old: unknown, next: unknown) => unknown
     assert.equal(share(lookAlike, {...lookAlike}) === lookAlike, false)
     assert.equal(s.isMade(share(first, lookAlike)), false)
+  })
+})
+
+test("only the latest ask's answer is believed: an older one written back over a failed ask reads as unknown", async () => {
+  let fail = false
+  const s = session(async () => {
+    if (fail) throw new Error('500')
+    return {...editor}
+  })
+  const qc = client()
+  await inBrowser(async () => {
+    const old = await qc.fetchQuery(s.query)
+    assert.equal(s.title(qc).readOnly, false, 'the first answer opens the field')
+    fail = true
+    await qc.refetchQueries({queryKey: s.query.queryKey})
+    assert.equal(qc.getQueryState(s.query.queryKey)!.status, 'error')
+    assert.equal(s.title(qc).readOnly, true, 'the ask failed: closed, though the cache still holds the old answer')
+    // The old answer, made by the session, written back over the failure.
+    qc.setQueryData(s.query.queryKey, old)
+    assert.equal(qc.getQueryData(s.query.queryKey), old)
+    assert.equal(s.isMade(old), false)
+    assert.equal(s.person(qc), unknown)
+    assert.equal(s.title(qc).readOnly, true, 'still closed')
+    const state = qc.getQueryState(s.query.queryKey)!
+    const check = (waitedMs: number) => personCheck({data: state.data, made: s.isMade(state.data), isError: state.status === 'error', isFetching: false, waitedMs})
+    assert.equal(check(SLOW_CHECK_MS), 'failed', 'the banner shows, with Retry (the write-back cleared the error, so once late)')
+    // Retry answers: believed again on that answer, no reload.
+    fail = false
+    await qc.refetchQueries({queryKey: s.query.queryKey})
+    assert.ok(s.isMade(qc.getQueryData(s.query.queryKey)))
+    assert.equal(s.title(qc).readOnly, false)
+    assert.equal(s.isMade(old), false, 'the older answer is never believed again')
+  })
+})
+
+test('good, failed, good: believed again on the third answer, and an ask the query dropped changes nothing', async () => {
+  let fail = false
+  let hold: Promise<void> | undefined
+  const s = session(async () => {
+    if (hold) await hold
+    if (fail) throw new Error('500')
+    return {...editor}
+  })
+  const qc = client()
+  await inBrowser(async () => {
+    await qc.fetchQuery(s.query)
+    fail = true
+    await qc.refetchQueries({queryKey: s.query.queryKey})
+    assert.equal(s.title(qc).readOnly, true)
+    fail = false
+    await qc.refetchQueries({queryKey: s.query.queryKey})
+    assert.equal(s.title(qc).readOnly, false, 'the third answer opens the field')
+    // An ask held up, dropped for a newer one (a refetch cancels it); the dropped one answers last.
+    let letGo!: () => void
+    hold = new Promise((r) => (letGo = r))
+    void qc.refetchQueries({queryKey: s.query.queryKey})
+    await new Promise((r) => setTimeout(r, 1))
+    hold = undefined
+    await qc.refetchQueries({queryKey: s.query.queryKey}, {cancelRefetch: true})
+    assert.equal(qc.isFetching({queryKey: s.query.queryKey}), 0)
+    letGo()
+    await new Promise((r) => setTimeout(r, 5))
+    assert.ok(s.isMade(qc.getQueryData(s.query.queryKey)), "the newer ask's answer is the one believed")
+    assert.equal(s.title(qc).readOnly, false)
   })
 })
 

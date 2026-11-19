@@ -1,12 +1,13 @@
 import {queryOptions, replaceEqualDeep} from '@tanstack/react-query'
 import {roleRules, type FieldConditions} from './conditions.ts'
 
-// task-4ffed14fbf52dc47: who-am-I's query, and which of its answers the session made. Only an
-// answer whoAmI's queryFn returned in the browser is the session's: nothing registers on the
-// server or on hydrate, so an answer in the server-rendered page, a cache write under any key, a
-// stand-in client or a look-alike is no answer of the session's, and the person stays unknown
-// (lib/person-source.ts). The register is the closure's own: no module exports it, and another
-// meQueryOf registers into its own set, never the session's (lib/session.ts holds that one).
+// task-4ffed14fbf52dc47: who-am-I's query, and which of its answers the session made. Only the
+// answer whoAmI's latest completed ask returned in the browser is the session's: nothing registers
+// on the server or on hydrate, a failed ask clears it, so an answer in the server-rendered page, an
+// older answer written back, a cache write under any key, a stand-in client or a look-alike is no
+// answer of the session's, and the person stays unknown (lib/person-source.ts). The latest is the
+// closure's own: no module exports it, and another meQueryOf keeps its own, never the session's
+// (lib/session.ts holds that one).
 
 /** Frozen all the way down, so an answer the session made cannot be changed afterwards. */
 function frozen<T>(v: T): T {
@@ -18,21 +19,41 @@ function frozen<T>(v: T): T {
 }
 
 /**
- * who-am-I's query on `read`, and `isMade`: whether an answer is one this query's queryFn returned
- * in the browser. A refetch with the same answer keeps the answer it had, if that one was made
- * here (the person stays the same object); any other answer is the fetch's own.
+ * who-am-I's query on `read`, and `isMade`: whether an answer is the one the session's latest
+ * completed ask returned in the browser. Nothing else is: not an older answer of its own (kept and
+ * written back over a failed ask), and nothing while the latest ask failed, or while one runs after
+ * a failure. A refetch with the same answer keeps the answer it had (the person stays the same
+ * object); any other answer is the fetch's own.
  */
 export function meQueryOf<T extends object>(read: () => Promise<T>) {
-  const made = new WeakSet<object>()
-  const isMade = (me: unknown) => typeof me === 'object' && me !== null && made.has(me)
+  /** The latest completed ask's answer; null before one, after a failed one and until the next answers. */
+  let current: object | null = null
+  /** The answer that was the latest when the newest ask began: the one a same answer keeps. */
+  let before: object | null = null
+  /** Asks begun; only the newest one's outcome counts (an ask the query dropped answers to no one). */
+  let asks = 0
+  const isMade = (me: unknown) => current !== null && me === current
   const query = queryOptions({
     queryKey: ['me'],
     queryFn: async (): Promise<T> => {
-      const me = await read()
-      if (typeof window !== 'undefined' && typeof me === 'object' && me !== null) made.add(frozen(me))
+      const ask = ++asks
+      before = current
+      let me: T
+      try {
+        me = await read()
+      } catch (e) {
+        if (ask === asks) current = null
+        throw e
+      }
+      if (ask === asks) current = typeof window !== 'undefined' && typeof me === 'object' && me !== null ? frozen(me) : null
       return me
     },
-    structuralSharing: (old: unknown, next: unknown) => (isMade(old) && replaceEqualDeep(old, next) === old ? old : next),
+    structuralSharing: (old: unknown, next: unknown) => {
+      if (!(isMade(next) && before !== null && old === before && replaceEqualDeep(old, next) === old)) return next
+      // The same answer again: the answer it had stays, and is the latest.
+      current = old
+      return old
+    },
     staleTime: 30_000,
     // Re-asked when the window regains focus (J48): a session lost to a studio restart or
     // an expired cookie shows up before the next edit, not only after it.

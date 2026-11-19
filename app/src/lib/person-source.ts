@@ -14,8 +14,8 @@ import.meta.hot?.dispose(() => giveMintBack(currentUserOf))
 /**
  * Sanity's useCurrentUser: the person a field is judged for: known, nobody, or unknown. With
  * personOf, the only source of a person (person-scan.test.ts): a lock site takes it whole and
- * hands it to the rule. Only an answer the session made (lib/me-query.ts) is believed; any other
- * (the server render's, a cache write, a look-alike) gives unknown.
+ * hands it to the rule. Only the session's latest who-am-I answer (lib/me-query.ts) is believed;
+ * any other (the server render's, an older one, a cache write, a look-alike) gives unknown.
  */
 export function useCurrentUser() {
   const me = useQuery(meQuery).data

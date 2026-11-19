@@ -2,13 +2,13 @@ import type {Field} from './data'
 import {segments} from './paths.ts'
 
 // The person (task-4ffed14fbf52dc47). What this guards: a change anywhere in the app that would
-// hand the rules a person the session did not produce reads as unknown, so fields with a role rule
-// stay closed. What it does not guard: code that edits lib/session.ts, lib/person-source.ts,
+// hand the rules a person other than the one made from the session's latest who-am-I answer reads
+// as unknown, so fields with a role rule stay closed. What it does not guard: code that edits lib/session.ts, lib/person-source.ts,
 // lib/me-query.ts or this file themselves (person-scan.test.ts pins them by export, review reads
 // them), and a hostile browser (only the server can stop that).
-// Nothing registers on hydrate or on the server: only the answer whoAmI's queryFn returns in the
-// browser is the session's, registered by a closure no module exports (lib/me-query.ts, held by
-// lib/session.ts). Until the browser's first answer, a field with a role rule stays closed: one
+// Nothing registers on hydrate or on the server: only the answer whoAmI's latest completed ask
+// returned in the browser is the session's, kept by a closure no module exports (lib/me-query.ts,
+// held by lib/session.ts); a failed ask clears it, and an older answer is never believed again. Until the browser's first answer, a field with a role rule stays closed: one
 // who-am-I round trip, asked right after load (routes/__root.tsx), only where a role rule waits.
 
 // Conditional fields (J30). Barkpark's schema says when a field shows with

@@ -108,8 +108,8 @@ export const requestPasswordReset = createServerFn({method: 'POST'})
 
 export const endSession = createServerFn({method: 'POST'}).handler(async () => (await signOut(), {ok: true}))
 
-// who-am-I's query (lib/me-query.ts), and which answers the session made: only one whoAmI
-// returned in the browser. lib/person-source.ts believes no other.
+// who-am-I's query (lib/me-query.ts), and which answer the session made: only the one whoAmI's
+// latest completed ask returned in the browser. lib/person-source.ts believes no other.
 const asked = meQueryOf(() => whoAmI())
 export const meQuery = asked.query
 export const madeBySession = asked.isMade
