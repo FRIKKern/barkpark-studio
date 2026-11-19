@@ -56,7 +56,7 @@ class Server {
   /** For the next writes, in order: refused with a 500, landed with its answer lost, held until `release`. */
   faults: ('500' | 'lost' | 'hold')[] = []
   release = () => {}
-  /** Pages that are gone (reloaded): their calls never answer. */
+  /** Pages that are gone (reloaded). */
   gone = new Set<string>()
   onRead?: () => void
   constructor(fields: Record<string, unknown>) {
@@ -82,7 +82,8 @@ class Server {
     return d
   }
   async fetch(page: string, _url: string, init: {body: string}) {
-    if (this.gone.has(page)) return new Promise(() => {})
+    // A page that is gone writes nothing more (signed out there: no retry timers left behind).
+    if (this.gone.has(page)) return answer(401, {error: {code: 'session_lost', message: 'The page is gone'}})
     const fault = this.faults.shift()
     if (fault === 'hold') await new Promise<void>((go) => (this.release = go))
     if (fault === '500') return answer(500, {error: {code: 'internal_error', message: 'Internal Server Error'}})
