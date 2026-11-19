@@ -11,13 +11,14 @@ path=docs/images/roadmap.svg
 # fail, and deploy_push: the one place the deploy key is handled (a file only while the push runs, after
 # every check on the picture).
 # shellcheck source=scripts/lib/deploy-push.sh
-. "$(dirname "${BASH_SOURCE[0]}")/lib/deploy-push.sh"
+# (Its path by parameter expansion, a builtin: nothing forks while DEPLOY_KEY is still in the env.)
+. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"
 
 # The picture: a plain file (no link), under 1 MB, that scripts/lib/svg-check.py passes (an SVG that holds
 # nothing that runs or loads; Python's standard library only, isolated from the env).
 { [ -f "$svg" ] && [ ! -L "$svg" ]; } || fail 'no roadmap.svg from refresh'
 [ "$(wc -c < "$svg")" -lt 1048576 ] || fail 'roadmap.svg is 1 MB or more'
-why=$(python3 -I "$(dirname "${BASH_SOURCE[0]}")/lib/svg-check.py" "$svg") || fail "roadmap.svg refused: it $why"
+why=$(python3 -I "${BASH_SOURCE[0]%/*}/lib/svg-check.py" "$svg") || fail "roadmap.svg refused: it $why"
 blob=$(git hash-object -w -- "$svg")
 
 for try in 1 2 3; do

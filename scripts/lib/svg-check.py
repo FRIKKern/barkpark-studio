@@ -2,7 +2,8 @@
 # the file the no-key `refresh` job made, before it may reach main. It parses the file as XML, as a browser
 # does an SVG shown through <img>, and passes only an SVG that holds nothing that runs or loads: UTF-8, no
 # DOCTYPE or ENTITY (refused in the raw bytes, before the parser sees them), no processing instruction,
-# only SVG elements, no script or foreignObject, no on... attribute, no href and no url( but to a
+# only the SVG elements the generator writes (ELEMENTS; docs.yml checks its live output on every PR),
+# attributes only unprefixed or in xlink (no xml:base), no on... attribute, no href and no url( but to a
 # #fragment, no style attribute, and a <style> only when its text is scripts/lib/roadmap-style.css byte for
 # byte (the file generate-roadmap.mjs writes it from). On a refusal it prints the reason and exits 1.
 # docs/decisions/0003-tracking-and-hygiene.md
@@ -12,6 +13,8 @@ import sys
 import xml.parsers.expat
 
 SVG = 'http://www.w3.org/2000/svg'
+XLINK = 'http://www.w3.org/1999/xlink'
+ELEMENTS = {'svg', 'title', 'desc', 'style', 'g', 'rect', 'path', 'text', 'tspan'}
 
 
 class Refused(Exception):
@@ -53,10 +56,12 @@ def check(data):
         stack.append(local)
         if ns != SVG:
             raise Refused(f'holds {local!r}, not an SVG element')
-        if local.lower() in ('script', 'foreignobject'):
-            raise Refused(f'holds {local!r}')
+        if local not in ELEMENTS:
+            raise Refused(f'holds {local!r}, not one of the roadmap\'s elements')
         for key, value in attrs.items():
-            attr = key.rpartition(' ')[2]
+            attr_ns, _, attr = key.rpartition(' ')
+            if attr_ns not in ('', XLINK):
+                raise Refused(f'has an attribute {attr!r} in {attr_ns}, outside SVG and xlink')
             if attr.lower().startswith('on'):
                 raise Refused(f'has an {attr!r} attribute')
             if attr.lower() == 'href' and not value.startswith('#'):
@@ -67,7 +72,8 @@ def check(data):
                 raise Refused(f'has a backslash (a CSS escape) in {attr!r}')
             if attr == 'style':
                 raise Refused('has a style attribute')
-            if attr == 'attributeName' and (value.lower().startswith('on') or value.lower().endswith('href')):
+            judged = value.strip().lower()
+            if attr == 'attributeName' and (judged.startswith('on') or judged.endswith('href')):
                 raise Refused(f'animates {value!r}')
         if local == 'style':
             styles.append([])

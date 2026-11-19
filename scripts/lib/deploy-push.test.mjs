@@ -8,6 +8,8 @@ import {join} from 'node:path'
 import test, {after} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
+import {BASH, keyShims} from './key-shims.mjs'
+
 const HELPER = fileURLToPath(new URL('./deploy-push.sh', import.meta.url))
 const REAL_GIT = execFileSync('sh', ['-c', 'command -v git'], {encoding: 'utf8'}).trim()
 const base = mkdtempSync(join(tmpdir(), 'deploy-push-'))
@@ -28,32 +30,41 @@ const first = commit('first')
 git(work, 'push', '-q', 'origin', `${first}:refs/heads/main`)
 const mainAt = () => git(base, 'ls-remote', origin, 'refs/heads/main').split('\t')[0]
 
-// Origin logs the key file as a push sees it; git logs each command run while the key file exists, and
-// with KILL_AT_PUSH set, a push ends the script (SIGTERM) while it runs.
+// PATH holds only these shims and git's wrapper: every child the caller starts is checked for the key.
+const shim = keyShims(join(base, 'shims'), 'the deploy key')
+// Origin logs the key file as a push sees it. git logs each command run while the key file exists, and at
+// a push the key file's mode, GIT_SSH_COMMAND and the known-hosts file; with KILL_AT_PUSH set, a push ends
+// the script (SIGTERM) while it runs.
 const pushed = join(bin, 'pushed.log')
 const keyWhile = join(bin, 'key-while.log')
+const atPush = join(bin, 'at-push.log')
+const HOST = 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl'
 writeFileSync(join(origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "${temp}/deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
-writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ ! -e "${temp}/deploy-key" ] || echo "$1" >> "${keyWhile}"\n[ "$1" != push ] || [ -z "$KILL_AT_PUSH" ] || { kill -TERM $PPID; exit 1; }\nexec "${REAL_GIT}" "$@"\n`)
+const logAtPush = `[ "$1" != push ] || { ls -l "${temp}/deploy-key" | cut -c1-10; echo "$GIT_SSH_COMMAND"; cat "${temp}/deploy-key.hosts"; } >> "${atPush}"`
+writeFileSync(join(bin, 'git'), `#!/bin/sh\n${shim.check('git')}\n[ ! -e "${temp}/deploy-key" ] || echo "$1" >> "${keyWhile}"\n${logAtPush}\n[ "$1" != push ] || [ -z "$KILL_AT_PUSH" ] || { kill -TERM $PPID; exit 1; }\nexec "${REAL_GIT}" "$@"\n`)
 chmodSync(join(origin, 'hooks/pre-receive'), 0o755)
 chmodSync(join(bin, 'git'), 0o755)
 // A script as the two callers are: source the helper, run git and a child before and after one push.
 const script = join(bin, 'caller.sh')
-writeFileSync(script, `set -euo pipefail\n. "${HELPER}"\ngit status -s\nsh -c 'echo "child sees \${DEPLOY_KEY:-no key}"'\ndeploy_push "$@" || echo "push status $?"\ngit status -s\necho done\n`)
+writeFileSync(script, `set -euo pipefail\n. "${HELPER}"\ngit status -s\necho "exported: $(export -p | grep -c -E ' (deploy_key|deploy_keyfile|DEPLOY_KEY)(=|$)' || true)"\ndeploy_push "$@" || echo "push status $?"\ngit status -s\necho done\n`)
 
 /** The caller run with `args` for deploy_push; `more` adds to its env. */
 function run(args, more = {}) {
-  for (const f of [pushed, keyWhile]) rmSync(f, {force: true})
-  const r = spawnSync('bash', [script, ...args], {cwd: work, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: temp, DEPLOY_KEY: 'the deploy key', DEPLOY_PUSH_URL: origin, ...more}})
+  for (const f of [pushed, keyWhile, atPush]) rmSync(f, {force: true})
+  const r = spawnSync(BASH, [script, ...args], {cwd: work, encoding: 'utf8', env: {...env, PATH: `${bin}:${shim.dir}`, RUNNER_TEMP: temp, DEPLOY_KEY: 'the deploy key', DEPLOY_PUSH_URL: origin, ...more}})
   const lines = (f) => (existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n') : [])
-  return {status: r.status, out: r.stdout + r.stderr, pushedWith: lines(pushed), keyWhile: lines(keyWhile).filter((c) => c !== 'receive-pack'), keyLeft: readdirSync(temp)}
+  return {status: r.status, out: r.stdout + r.stderr, seen: shim.seen(), atPush: lines(atPush), pushedWith: lines(pushed), keyWhile: lines(keyWhile).filter((c) => c !== 'receive-pack'), keyLeft: readdirSync(temp)}
 }
 
-test('deploy_push: the key is a file only while git pushes, and no child process sees it', () => {
+test('deploy_push: the key is a file (600) only while git pushes, never exported, over SSH with the host key pinned', () => {
   const next = commit('next', first)
   const r = run([`${next}:refs/heads/main`])
   assert.equal(r.status, 0, r.out)
   assert.equal(mainAt(), next)
-  assert.match(r.out, /^child sees no key$/m)
+  assert.deepEqual(r.seen, [], 'no child process sees the key')
+  assert.match(r.out, /^exported: 0$/m, 'neither the key nor its file name is exported')
+  const ssh = `ssh -F /dev/null -i ${temp}/deploy-key -o IdentitiesOnly=yes -o UserKnownHostsFile=${temp}/deploy-key.hosts -o GlobalKnownHostsFile=/dev/null -o StrictHostKeyChecking=yes`
+  assert.deepEqual(r.atPush, ['-rw-------', ssh, HOST], 'mode 600; strict host checking against the pinned key only')
   assert.match(r.out, /^done$/m)
   assert.deepEqual(r.pushedWith, ['the deploy key'])
   assert.deepEqual(r.keyWhile, ['push'], 'not written before the push, removed after it')

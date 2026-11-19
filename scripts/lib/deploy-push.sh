@@ -25,7 +25,7 @@ deploy_push() {
   (umask 077 && printf '%s\n' "$deploy_key" > "$deploy_keyfile")
   printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$deploy_keyfile.hosts"
   local status=0
-  GIT_SSH_COMMAND="ssh -F /dev/null -i $deploy_keyfile -o IdentitiesOnly=yes -o UserKnownHostsFile=$deploy_keyfile.hosts -o StrictHostKeyChecking=yes" \
+  GIT_SSH_COMMAND="ssh -F /dev/null -i $deploy_keyfile -o IdentitiesOnly=yes -o UserKnownHostsFile=$deploy_keyfile.hosts -o GlobalKnownHostsFile=/dev/null -o StrictHostKeyChecking=yes" \
     git push -q "${@:2}" "${DEPLOY_PUSH_URL:-git@github.com:$GH_REPO.git}" "$1" || status=$?
   rm -f "$deploy_keyfile" "$deploy_keyfile.hosts"
   return "$status"

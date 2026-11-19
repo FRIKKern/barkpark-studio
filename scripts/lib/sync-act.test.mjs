@@ -8,6 +8,7 @@ import {join} from 'node:path'
 import test, {after} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
+import {BASH, keyShims} from './key-shims.mjs'
 import {COPIED} from './pack.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
@@ -16,6 +17,8 @@ const REAL_GIT = execFileSync('sh', ['-c', 'command -v git'], {encoding: 'utf8'}
 const BRANCH = 'sync/barkpark-pack'
 const made = []
 const tmp = (prefix) => (made.push(mkdtempSync(join(tmpdir(), prefix))), made.at(-1))
+// PATH holds only these shims and each run's own wrappers: every child act starts is checked for the key.
+const shim = keyShims(join(tmp('shims-'), 'bin'), 'the deploy key')
 after(() => made.forEach((d) => rmSync(d, {recursive: true, force: true})))
 
 const env = {...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1'}
@@ -69,8 +72,8 @@ function plan(w, json, not = [w.main]) {
 }
 
 /**
- * Act's script in a fresh clone of origin (the job's checkout); gh answers `pr list` with `prs` and logs
- * `KEY IN ENV` if the deploy key reaches it. Origin's pre-receive hook logs the key file as a push sees it.
+ * Act's script in a fresh clone of origin (the job's checkout); gh answers `pr list` with `prs`, and every
+ * child is checked for the key (key-shims.mjs). Origin's pre-receive hook logs the key file as a push sees it.
  * `keyWhile`: each git command run while the key file exists; `keyLeft`: key files left in RUNNER_TEMP;
  * `sshCommand`: the checkout's core.sshCommand.
  */
@@ -81,15 +84,16 @@ function act(w, runnerTemp, prs = []) {
   writeFileSync(join(w.origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "$RUNNER_TEMP/deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
   chmodSync(join(w.origin, 'hooks/pre-receive'), 0o755)
   const keyWhile = join(bin, 'key-while.log')
-  writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ ! -e "$RUNNER_TEMP/deploy-key" ] || echo "$1" >> "${keyWhile}"\nexec "${REAL_GIT}" "$@"\n`)
+  writeFileSync(join(bin, 'git'), `#!/bin/sh\n${shim.check('git')}\n[ ! -e "$RUNNER_TEMP/deploy-key" ] || echo "$1" >> "${keyWhile}"\nexec "${REAL_GIT}" "$@"\n`)
   chmodSync(join(bin, 'git'), 0o755)
-  writeFileSync(join(bin, 'gh'), `#!/bin/sh\n[ -z "$DEPLOY_KEY" ] || echo "KEY IN ENV" >> "${log}"\necho "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
+  writeFileSync(join(bin, 'gh'), `#!/bin/sh\n${shim.check('gh')}\necho "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
   writeFileSync(join(bin, 'prs.json'), JSON.stringify(prs))
   chmodSync(join(bin, 'gh'), 0o755)
   const checkout = join(tmp('checkout-'), 'repo')
   git(w.base, 'clone', '-q', w.origin, checkout)
   const out = join(bin, 'out')
-  const r = spawnSync('bash', [ACT], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, DEPLOY_KEY: 'the deploy key', DEPLOY_PUSH_URL: w.origin}})
+  const r = spawnSync(BASH, [ACT], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${shim.dir}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, DEPLOY_KEY: 'the deploy key', DEPLOY_PUSH_URL: w.origin}})
+  assert.deepEqual(shim.seen(), [], `a child process saw the deploy key: ${r.stdout + r.stderr}`)
   const calls = existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []
   const sshCommand = spawnSync('git', ['config', '--get', 'core.sshCommand'], {cwd: checkout, env, encoding: 'utf8'}).stdout.trim()
   return {
@@ -118,7 +122,7 @@ const commit = (w, msg) => (git(w.work, 'add', '-A'), git(w.work, 'commit', '-q'
 
 test('sync-act.sh handles no key itself: it sources scripts/lib/deploy-push.sh and pushes with deploy_push', () => {
   const code = readFileSync(ACT, 'utf8').split('\n').filter((l) => !/^\s*#/.test(l))
-  assert.deepEqual(code.filter((l) => /deploy-push\.sh/.test(l)), ['. "$(dirname "${BASH_SOURCE[0]}")/lib/deploy-push.sh"'])
+  assert.deepEqual(code.filter((l) => /deploy-push\.sh/.test(l)), ['. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"'])
   assert.deepEqual(code.filter((l) => /deploy_push/.test(l)).map((l) => l.trim()), ['deploy_push "$sync:refs/heads/$branch" --force-with-lease="$branch:$lease"', 'deploy_push "$start:refs/heads/$branch" --force-with-lease="$branch:$sync"'])
   assert.deepEqual(code.filter((l) => /DEPLOY_|deploy_key|keyfile/.test(l) || /ssh|git push|\btrap\b/i.test(l)), [], 'nothing else touches the key')
 })

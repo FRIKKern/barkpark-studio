@@ -8,6 +8,8 @@ import {join} from 'node:path'
 import test, {after} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
+import {BASH, keyShims} from './key-shims.mjs'
+
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const PUSH = join(root, 'scripts/housekeeping-push.sh')
 const REAL_GIT = execFileSync('sh', ['-c', 'command -v git'], {encoding: 'utf8'}).trim()
@@ -59,10 +61,11 @@ function run(w, picture, {first = '', key = 'the deploy key', refuse = false} = 
   const keyWhile = join(bin, 'key-while.log')
   writeFileSync(join(bin, 'first.sh'), `cd "${w.origin}"\n${first}\n`)
   const firstPush = `[ "$1" != push ] || [ -e "${once}" ] || { touch "${once}"; PATH="${process.env.PATH}" sh "${join(bin, 'first.sh')}"; }`
-  writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ ! -e "$RUNNER_TEMP/deploy-key" ] || echo "$1" >> "${keyWhile}"\n${firstPush}\nexec "${REAL_GIT}" "$@"\n`)
+  writeFileSync(join(bin, 'git'), `#!/bin/sh\n${shim.check('git')}\n[ ! -e "$RUNNER_TEMP/deploy-key" ] || echo "$1" >> "${keyWhile}"\n${firstPush}\nexec "${REAL_GIT}" "$@"\n`)
   chmodSync(join(bin, 'git'), 0o755)
-  const r = spawnSync('bash', [PUSH], {cwd: w.checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: temp, DEPLOY_KEY: key, DEPLOY_PUSH_URL: w.origin}})
+  const r = spawnSync(BASH, [PUSH], {cwd: w.checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${shim.dir}`, RUNNER_TEMP: temp, DEPLOY_KEY: key, DEPLOY_PUSH_URL: w.origin}})
   const lines = (f) => (existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n') : [])
+  assert.deepEqual(shim.seen(), [], `a child process saw the deploy key: ${r.stdout + r.stderr}`)
   return {
     status: r.status,
     err: r.stdout + r.stderr,
@@ -74,10 +77,12 @@ function run(w, picture, {first = '', key = 'the deploy key', refuse = false} = 
 }
 const svg = (text) => (dir) => writeFileSync(join(dir, 'roadmap.svg'), text)
 const w = world()
+// PATH holds only these shims and the run's own wrappers: every child the script starts is checked for the key.
+const shim = keyShims(join(w.base, 'shims'), 'the deploy key')
 
 test('housekeeping-push.sh handles no key itself: it sources scripts/lib/deploy-push.sh and pushes with deploy_push', () => {
   const code = readFileSync(PUSH, 'utf8').split('\n').filter((l) => !/^\s*#/.test(l))
-  assert.deepEqual(code.filter((l) => /deploy-push\.sh/.test(l)), ['. "$(dirname "${BASH_SOURCE[0]}")/lib/deploy-push.sh"'])
+  assert.deepEqual(code.filter((l) => /deploy-push\.sh/.test(l)), ['. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"'])
   assert.deepEqual(code.filter((l) => /deploy_push/.test(l)), ['  if deploy_push "$commit:refs/heads/main" 2> "$err"; then rm -f "$err"; exit 0; fi'])
   assert.deepEqual(code.filter((l) => /DEPLOY_|deploy_key|keyfile/.test(l) || /ssh|git push|\btrap\b/i.test(l)), [], 'nothing else touches the key')
 })
@@ -108,7 +113,7 @@ test('svg-check.py: today\'s roadmap passes; one row per refusal', () => {
   // The generator writes its one <style> from scripts/lib/roadmap-style.css; the picture on main holds it.
   const today = readFileSync(join(root, SVG), 'utf8')
   assert.ok(today.includes(`<style>${readFileSync(join(root, 'scripts/lib/roadmap-style.css'), 'utf8')}</style>`))
-  const passing = [today, '<?xml version="1.0" encoding="UTF-8"?>\n' + pic('a'), pic('<a href="#x">x</a>').replace('<text>', '<text fill="url(#g)">')]
+  const passing = [today, '<?xml version="1.0" encoding="UTF-8"?>\n' + pic('a'), pic('<tspan href="#x">x</tspan>').replace('<text>', '<text fill="url(#g)">')]
   assert.deepEqual(checkAll(passing), ['ok', 'ok', 'ok'], "today's roadmap.svg; an XML declaration first; a #fragment href and url(#…)")
   const svgWith = (inner, attrs = '') => `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"${attrs}>${inner}</svg>`
   const rows = [
@@ -121,15 +126,18 @@ test('svg-check.py: today\'s roadmap passes; one row per refusal', () => {
     ['<svg>x</svg>', "its root is 'svg', not an SVG svg"],
     [svgWith('<?xml-stylesheet href="https://x/a.css"?>'), 'has a processing instruction'],
     [svgWith('<p xmlns="http://www.w3.org/1999/xhtml">x</p>'), "holds 'p', not an SVG element"],
-    [svgWith('<script>alert(1)</script>'), "holds 'script'"],
-    [svgWith('<foreignObject/>'), "holds 'foreignObject'"],
+    [svgWith('<script>alert(1)</script>'), "holds 'script', not one of the roadmap's elements"],
+    [svgWith('<foreignObject/>'), "holds 'foreignObject', not one of the roadmap's elements"],
+    [svgWith('<image/>'), "holds 'image', not one of the roadmap's elements"],
+    [svgWith('<g xml:base="https://x/"/>'), "has an attribute 'base' in http://www.w3.org/XML/1998/namespace, outside SVG and xlink"],
+    [svgWith('<g xmlns:o="urn:o" o:k="v"/>'), "has an attribute 'k' in urn:o, outside SVG and xlink"],
     [svgWith('', ' onload="x()"'), "has an 'onload' attribute"],
-    [svgWith('<image href="https://x/a.png"/>'), "has an href to 'https://x/a.png', not a #fragment"],
-    [svgWith('<use xlink:href="https://x/a.svg#b"/>'), "has an href to 'https://x/a.svg#b', not a #fragment"],
+    [svgWith('<rect href="https://x/a.png"/>'), "has an href to 'https://x/a.png', not a #fragment"],
+    [svgWith('<rect xlink:href="https://x/a.svg#b"/>'), "has an href to 'https://x/a.svg#b', not a #fragment"],
     [svgWith('<rect fill="url(https://x/a#b)"/>'), "has a url( to something but a #fragment in 'fill'"],
     [svgWith('<rect fill="\\75rl(x)"/>'), "has a backslash (a CSS escape) in 'fill'"],
     [svgWith('<rect style="fill: red"/>'), 'has a style attribute'],
-    [svgWith('<set attributeName="href" to="https://x"/>'), "animates 'href'"],
+    [svgWith('<rect attributeName=" HREF "/>'), "animates ' HREF '"],
     [svgWith('<style>@import "https://x/a.css";</style>'), 'has a <style> that is not scripts/lib/roadmap-style.css'],
     [today.replace('--bg:#fbfaf7', '--bg:#fbfaf8'), 'has a <style> that is not scripts/lib/roadmap-style.css'],
     [today.replace('</style>', '</style><style></style>'), 'has a <style> that is not scripts/lib/roadmap-style.css'],
@@ -140,7 +148,7 @@ test('svg-check.py: today\'s roadmap passes; one row per refusal', () => {
   const file = join(tmp('svg-'), 'roadmap.svg')
   writeFileSync(file, svgWith('<script/>'))
   const r = spawnSync('python3', ['-I', CHECK, file], {encoding: 'utf8'})
-  assert.deepEqual([r.status, r.stdout], [1, "holds 'script'\n"], r.stderr)
+  assert.deepEqual([r.status, r.stdout], [1, "holds 'script', not one of the roadmap's elements\n"], r.stderr)
 })
 
 test('housekeeping push: one commit on main, the picture only; the key a file only while git pushes', () => {

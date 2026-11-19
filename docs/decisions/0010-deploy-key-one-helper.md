@@ -19,7 +19,7 @@ step env DEPLOY_KEY ─► scripts/lib/deploy-push.sh: taken, unset ─► every
     at once, so no child process sees it;
   - it is a file, mode 600, only inside `deploy_push`, called after every check the caller makes; the
     file is removed after the push, and by an EXIT trap if the script ends mid-push;
-  - GitHub's ed25519 host key is pinned, and no other SSH config is read;
+  - GitHub's ed25519 host key is the only known host (no global known-hosts file, no SSH config);
   - the push is never forced; a caller may pass a lease (`--force-with-lease`).
 - Every workflow job holds no key or is pinned whole, with the files it runs, in
   `scripts/lib/keyed-jobs.json` (`scripts/lib/workflow-keys.mjs`). Holding no key: every checkout keeps
@@ -27,7 +27,8 @@ step env DEPLOY_KEY ─► scripts/lib/deploy-push.sh: taken, unset ─► every
   jobs are pinned, with the helper among their files, so one changed byte in it reds both pins; every
   action in a pinned job is named by a full commit SHA.
 - `scripts/lib/deploy-push.test.mjs` holds the guarantees, once. Each script's own test shows it touches
-  the key nowhere but `deploy_push`.
+  the key nowhere but `deploy_push`, and its runs, with every external command shimmed
+  (`scripts/lib/key-shims.mjs`), show no child process with the key in its env.
 
 ## Considered
 

@@ -17,7 +17,8 @@ re_sha='^[0-9a-f]{40}$'
 # fail, and deploy_push: the one place the deploy key is handled (a file only while each push runs, after
 # every check on the bundle).
 # shellcheck source=scripts/lib/deploy-push.sh
-. "$(dirname "${BASH_SOURCE[0]}")/lib/deploy-push.sh"
+# (Its path by parameter expansion, a builtin: nothing forks while DEPLOY_KEY is still in the env.)
+. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"
 
 action=$(jq -r .action "$plan/plan.json")
 # The sync PR, found here: this repo's (not a fork's) open PR from sync/barkpark-pack into main.
