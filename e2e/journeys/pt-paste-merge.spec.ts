@@ -133,6 +133,13 @@ test('@local Portable Text: a paste kept while its page reloads mid-save, the ot
     }
     await card.getByRole('button', {name: 'Restore'}).click()
     await savesLanded(page)
+    await page.waitForTimeout(3_000)
+    log('restored: stored', JSON.stringify(await stored()))
+    await page.reload()
+    await target(info).settle(page)
+    await page.getByRole('tab', {name: 'All fields'}).click()
+    await page.waitForTimeout(3_000)
+    log('restored, second reload: stored', JSON.stringify(await stored()), 'screen', JSON.stringify(await lines(page.locator('[id="body"][contenteditable="true"]'))), 'card', await card.isVisible())
     await expect.poll(stored, {timeout: 15_000}).toEqual(WANT)
     const again = page.locator('[id="body"][contenteditable="true"]')
     await expect.poll(() => lines(again), {timeout: 15_000}).toEqual(WANT)
