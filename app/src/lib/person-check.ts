@@ -8,11 +8,14 @@ export const SLOW_CHECK_MS = 10_000
 
 type Me = {provisional?: boolean; unchecked?: boolean; [field: string]: unknown}
 /** meQuery as it stands, and how long the person has been unknown. */
-export type CheckState = {data: Me | undefined; isError: boolean; isFetching: boolean; waitedMs: number}
+export type CheckState = {data: Me | undefined; made: boolean; isError: boolean; isFetching: boolean; waitedMs: number}
 
-/** `known`: Barkpark said who (or that nobody is signed in). `checking`: asking. `failed`: it did not say, or not in time. */
-export function personCheck({data, isError, isFetching, waitedMs}: CheckState): 'known' | 'checking' | 'failed' {
-  if (data && !data.provisional && !data.unchecked) return 'known'
+/**
+ * `known`: Barkpark said who (or that nobody is signed in), in an answer the session made
+ * (`made`: lib/me-query.ts). `checking`: asking. `failed`: it did not say, or not in time.
+ */
+export function personCheck({data, made, isError, isFetching, waitedMs}: CheckState): 'known' | 'checking' | 'failed' {
+  if (made && data && !data.provisional && !data.unchecked) return 'known'
   if (isFetching) return waitedMs < SLOW_CHECK_MS ? 'checking' : 'failed'
   return isError || data?.unchecked || waitedMs >= SLOW_CHECK_MS ? 'failed' : 'checking'
 }

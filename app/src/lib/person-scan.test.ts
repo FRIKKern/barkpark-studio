@@ -14,7 +14,13 @@
 //   (useQuery, ensureQueryData, fetchQuery, prefetchQuery) and its key only read or refreshed,
 //   never set, spread into a query of its own or given another queryFn; setQueriesData names its
 //   key; a query client is made only where CLIENTS says, and personOf reads only the page's own
-//   (router.tsx hands it over: holdAppClient);
+//   (router.tsx hands it over once: holdAppClient); no query's state is set past the client
+//   (setData, setState, a cache's build), and setQueryData's key names a plain head;
+// - only an answer the session made is believed: person-source.ts asks madeBySession, and
+//   lib/me-query.ts registers only in whoAmI's queryFn in the browser, in a closure no module
+//   exports (meQueryOf, taken only by session.ts); routes/__root.tsx asks again after load where a
+//   role rule waits. A write the scan misses still gives unknown at run time (person-forged.test.ts);
+// - person-source.ts and me-query.ts, like the rule's modules, are reached only by named imports;
 // - a lock site takes the person one way: the whole initializer of a `const <name>`, from
 //   `useCurrentUser()` or `personOf()`; a named function may take it as a parameter typed Person;
 // - that name is used only as the person argument of a rule function (RULES, or such a named
@@ -58,7 +64,8 @@ const TAKES = new Set(['useCurrentUser', 'personOf'])
 /** The rule's insides, where the person rides in a paste context (`c.user`). */
 const INSIDE = new Set([HOME, 'lib/paste-locked.ts'])
 /** The modules that are the rule: reached only by named imports, so each call of a rule function is a call by its name. */
-const RULE_MODULES = ['lib/conditions', 'lib/form-lock', 'lib/paste-reads', 'lib/paste-locked']
+/** Reached only by named imports: the rule's modules, the person's source and who-am-I's query. */
+const RULE_MODULES = ['lib/conditions', 'lib/form-lock', 'lib/paste-reads', 'lib/paste-locked', 'lib/person-source', 'lib/me-query']
 /** A dynamic import by a computed path, and why it is no way to the rule. */
 const COMPUTED_IMPORTS: Record<string, string> = {'components/DocEditors.tsx': 'loads a built chunk again by its own URL, after it failed to load'}
 /** The rule's functions that take a person, and where (0-based): nothing else may be handed it. */
@@ -72,7 +79,7 @@ const READS_ROLE: Record<string, {why: string; waits: RegExp}> = {
 /** The banner's wiring: said only where something is closed. */
 const BANNER: Record<string, RegExp> = {
   'components/DocumentPane.tsx': /<PersonCheckBanner docId=\{pane\.id\} ruled=\{roleRuled\(doc\._type, studio\.form\?\.conditions\)\}/,
-  'components/PersonCheckBanner.tsx': /if \(!bannerShows\(\{failed, ruled, kept: keptAt !== null\}\)\) return null/,
+  'components/PersonCheckBanner.tsx': /if \(!bannerShows\(\{failed, ruled, kept: ruled && keptAt !== null\}\)\) return null/,
 }
 
 const starts = new Map<string, number[]>()
@@ -264,7 +271,19 @@ function reachProblems(file: string, text: string): string[] {
 }
 
 /** Who may hold the maker and the page's client, by import binding: the maker, only SOURCE (and the tests' people); holdAppClient, only router.tsx. */
-const HANDS: Record<string, string[]> = {takeMint: [SOURCE, TEST_PEOPLE], giveMintBack: [SOURCE, TEST_PEOPLE], holdAppClient: ['router.tsx']}
+const ME_HOME = 'lib/me-query.ts'
+/** The names a module exports (any `export`), read from the parse. */
+const exportsOf = (file: string, text: string) =>
+  parse(file, text).program.body.flatMap((n: Node): string[] =>
+    n.type === 'ExportNamedDeclaration'
+      ? n.declaration
+        ? n.declaration.type === 'VariableDeclaration'
+          ? n.declaration.declarations.map((d: Node) => d.id.name ?? '?')
+          : [n.declaration.id?.name ?? '?']
+        : n.specifiers.map((x: Node) => x.exported.name ?? x.exported.value)
+      : n.type === 'ExportDefaultDeclaration' ? ['default'] : n.type === 'ExportAllDeclaration' || n.type === 'TSExportAssignment' ? ['*'] : [],
+  )
+const HANDS: Record<string, string[]> = {takeMint: [SOURCE, TEST_PEOPLE], giveMintBack: [SOURCE, TEST_PEOPLE], holdAppClient: ['router.tsx'], meQueryOf: [SESSION]}
 /** Where a query client may be made, and why none of them is a way to a person (personOf reads only the page's own, useCurrentUser the provider's). */
 const CLIENTS: Record<string, string> = {
   'router.tsx': "the page's own client, held for personOf",
@@ -291,20 +310,28 @@ function handProblems(file: string, text: string): string[] {
     if (parent?.type === 'CallExpression' && parent.arguments[0] === n && READS.has(member(parent) ?? '')) return true
     return parent?.type === 'Property' && parent.value === n && parent.key.name === 'queryKey' && grand?.type === 'ObjectExpression' && call?.type === 'CallExpression' && call.arguments[0] === grand && REFRESHES.has(member(call) ?? '')
   }
-  if (/\b(takeMint|giveMintBack|holdAppClient|QueryClient|meQuery|me)\b/.test(text))
+  if (/\b(takeMint|giveMintBack|holdAppClient|meQueryOf|QueryClient|meQuery|me|setQueryData|setData|setState|getQueryCache)\b/.test(text))
     visit(parse(file, text).program, (n, up) => {
       const parent = up.at(-1)
       if (n.type === 'ImportSpecifier' && Object.hasOwn(HANDS, n.imported.name ?? n.imported.value) && !HANDS[n.imported.name ?? n.imported.value]!.includes(file)) say(n, `takes ${n.imported.name ?? n.imported.value}: a person comes only from ${SOURCE}`)
+      if (n.type === 'ExportSpecifier' && Object.hasOwn(HANDS, n.local.name ?? n.local.value)) say(n, `passes ${n.local.name ?? n.local.value} on: a person comes only from ${SOURCE}`)
+      // A query's state written past the client (a query found in the cache, set directly).
+      if ((member(n) === 'setData' || (member(n) === 'setState' && n.callee.object.type !== 'ThisExpression') || (member(n) === 'build' && /getQueryCache/.test(show(text, n)))) && file !== SESSION) say(n, "writes a query's state directly: only through the client, by a key it names")
+      // setQueryData's key, written out: its head a plain string, never whoAmI's, never computed.
+      if (member(n) === 'setQueryData' && n.arguments[0]?.type === 'ArrayExpression') {
+        const head = n.arguments[0].elements[0]
+        if (head?.type !== 'Literal' || typeof head.value !== 'string' || head.value === 'me') say(n, "writes a query by a key whose head is not a plain name (whoAmI's?)")
+      }
       if (n.type === 'NewExpression' && n.callee.type === 'Identifier' && n.callee.name === 'QueryClient' && !CLIENTS[file]) say(n, 'makes a query client: personOf reads only the page\'s own (list it in CLIENTS with why)')
       if (n.type === 'Identifier' && n.name === 'QueryClientProvider' && parent?.type !== 'ImportSpecifier') say(n, 'provides a query client of its own: useCurrentUser reads the page\'s')
-      if (n.type === 'Identifier' && n.name === 'meQuery' && file !== SESSION && parent && !isKey(n, parent) && parent.type !== 'ImportSpecifier') {
+      if (n.type === 'Identifier' && n.name === 'meQuery' && file !== SESSION && file !== ME_HOME && parent && !isKey(n, parent) && parent.type !== 'ImportSpecifier') {
         const asQuery = parent.type === 'CallExpression' && parent.arguments[0] === n && (called(parent) === 'useQuery' || RUNS.has(member(parent) ?? ''))
         const asKey = parent.type === 'MemberExpression' && parent.object === n && !parent.computed && parent.property.name === 'queryKey' && keyRead(parent, up, up.length - 1)
         const handed = parent.type === 'CallExpression' && ME_HANDED[file]?.to === called(parent)
         if (!asQuery && !asKey && !handed) say(n, "writes or reshapes whoAmI's answer: only useQuery(meQuery), ensureQueryData/fetchQuery/prefetchQuery(meQuery), or meQuery.queryKey read or refreshed")
       }
       // whoAmI's key itself (['me']; a list of key heads, like SessionGate's KEEP, is no key).
-      if (n.type === 'ArrayExpression' && n.elements.length === 1 && n.elements[0]?.type === 'Literal' && n.elements[0].value === 'me' && file !== SESSION && !keyRead(n, up, up.length)) say(n, "names whoAmI's key to write it: only read it, or refresh it")
+      if (n.type === 'ArrayExpression' && n.elements.length === 1 && n.elements[0]?.type === 'Literal' && n.elements[0].value === 'me' && file !== SESSION && file !== ME_HOME && !keyRead(n, up, up.length)) say(n, "names whoAmI's key to write it: only read it, or refresh it")
       // Writes to many queries: each names its key's head, never whoAmI's, and no predicate.
       if (member(n) === 'setQueriesData') {
         const filter = n.arguments[0]
@@ -347,6 +374,20 @@ function judge(src: Record<string, string>) {
   // The maker's one taker: once, at load, in a module the server loads once.
   const source = code(src[SOURCE] ?? '')
   if (!/^const currentUserOf = takeMint\(\)$/m.test(source) || /\bcreateServerFn\b/.test(source)) problems.push(`${SOURCE}: no longer takes the maker once as it loads, in a module with no server function`)
+  // Believed: only an answer the session made; the page's client held once.
+  if ((source.match(/currentUserOf\(madeBySession\(me\) \? me : undefined\)/g) ?? []).length !== 2 || /\bcurrentUserOf\((?!madeBySession\(me\) \? me : undefined\))/.test(source))
+    problems.push(`${SOURCE}: makes a person from an answer the session may not have made (only currentUserOf(madeBySession(me) ? me : undefined))`)
+  if (!/^  if \(appClient\) throw /m.test(source)) problems.push(`${SOURCE}: holds the page's client more than once`)
+  // Registered only in the browser, in who-am-I's own queryFn; the register in no export.
+  const query = code(src[ME_HOME] ?? '')
+  if (!/^      if \(typeof window !== 'undefined' && typeof me === 'object' && me !== null\) made\.add\(frozen\(me\)\)$/m.test(query) || (query.match(/\bmade\.add\(/g) ?? []).length !== 1 || !/^  return \{query, isMade\}$/m.test(query) || !/structuralSharing: \(old: unknown, next: unknown\) => \(isMade\(old\) && replaceEqualDeep\(old, next\) === old \? old : next\)/.test(query))
+    problems.push(`${ME_HOME}: registers an answer outside whoAmI's queryFn in the browser, or keeps one it did not make`)
+  if (src[ME_HOME] !== undefined && exportsOf(ME_HOME, src[ME_HOME]!).join() !== 'meQueryOf,asksAgain') problems.push(`${ME_HOME} exports ${exportsOf(ME_HOME, src[ME_HOME]!).join(', ')}: only meQueryOf and asksAgain (the register stays in the closure)`)
+  const session = code(src[SESSION] ?? '')
+  if (!/^const asked = meQueryOf\(\(\) => whoAmI\(\)\)$/m.test(session) || !/^export const meQuery = asked\.query$/m.test(session) || !/^export const madeBySession = asked\.isMade$/m.test(session) || /\bexport\b[^\n]*\basked\b(?!\.(query|isMade)$)/m.test(session) || (session.match(/\basked\b/g) ?? []).length !== 3)
+    problems.push(`${SESSION}: who-am-I's query is no longer meQueryOf(whoAmI)'s, or hands more of it on than meQuery and madeBySession`)
+  if (!/asksAgain\(qc\.getQueryData\(meQuery\.queryKey\), madeBySession, studio\.form\?\.conditions\)\) void qc\.invalidateQueries\(\{queryKey: meQuery\.queryKey\}\)/.test(code(src['routes/__root.tsx'] ?? '')))
+    problems.push('routes/__root.tsx no longer asks who-am-I again after load where a role rule waits (asksAgain)')
   // At home: a Person is sealed, nobody and the seal stay in the file, and unknown is UNKNOWN.
   const home = code(src[HOME] ?? '')
   if (!/export type Person = Known \| Nobody \| typeof UNKNOWN\b/.test(home) || !/^declare const sealed: unique symbol$/m.test(home) || !/^type Nobody = \{readonly \[sealed\]: 'nobody'\}$/m.test(home) || !/^const UNKNOWN: unique symbol = Symbol\('unknown'\)$/m.test(home) || /\bexport\s*\{[^}]*\b(UNKNOWN|sealed|Known|Nobody|mint|madeBy|nobodies|taken|checked)\b/.test(home) || /\bexport\s+(type\s+(Known|Nobody)|(let|const)\s+(taken|madeBy|nobodies))\b/.test(home))
@@ -365,13 +406,23 @@ test('no reader treats an unknown person as nobody', () => {
 })
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
-const fails = (src: Record<string, string>, file: string, text: string, why: RegExp) => assert.match(judge({...src, [file]: text}).join('\n'), why, file)
+/** `src` with `file` made `text`: a plant. It prints the line it changed; a plant that changes nothing fails. */
+function plant(src: Record<string, string>, file: string, text: string) {
+  const was = src[file] ?? ''
+  assert.notEqual(text, was, `${file}: the plant changes nothing`)
+  const [a, b] = [was.split('\n'), text.split('\n')]
+  let i = 0
+  while (i < b.length && a[i] === b[i]) i++
+  console.log(`plant ${file}:${i + 1}: ${b[i] ?? '(lines removed)'}`)
+  return {...src, [file]: text}
+}
+const fails = (src: Record<string, string>, file: string, text: string, why: RegExp) => assert.match(judge(plant(src, file, text)).join('\n'), why, file)
 /** `src` with the `nth` (0-based) `from` in `file` made `to`; the fixture must still hold it. */
 function swap(src: Record<string, string>, file: string, from: string, to: string, nth = 0) {
   let at = -1
   for (let i = 0; i <= nth; i++) at = src[file]!.indexOf(from, at + 1)
   assert.ok(at >= 0, `${file} holds ${from} (${nth})`)
-  return {...src, [file]: src[file]!.slice(0, at) + to + src[file]!.slice(at + from.length)}
+  return plant(src, file, src[file]!.slice(0, at) + to + src[file]!.slice(at + from.length))
 }
 const red = (src: Record<string, string>, why: RegExp) => assert.match(judge(src).join('\n'), why)
 const TAKEN = 'const user = useCurrentUser()'
@@ -385,7 +436,7 @@ test('fails cases: UNKNOWN or the role read outside conditions.ts, a person made
   fails(src, 'components/Who.tsx', "import {take\\u004dint as t, giveMintBack as g} from '../lib/conditions'\nconst f = t()\ng(f)\n", /Who\.tsx takes takeMint[\s\S]*Who\.tsx takes giveMintBack/)
   fails(src, 'components/Who.tsx', "import {holdAppClient} from '../lib/person-source'\nimport {QueryClient} from '@tanstack/react-query'\nholdAppClient(new QueryClient())\n", /Who\.tsx takes holdAppClient[\s\S]*Who\.tsx makes a query client/)
   red(swap(src, SOURCE, 'const currentUserOf = takeMint()', 'const currentUserOf = (me: never) => takeMint()(me)'), /person-source\.ts: no longer takes the maker once as it loads/)
-  red({...src, [SOURCE]: `${src[SOURCE]!}\nexport const late = createServerFn({method: 'GET'}).handler(async () => 1)\n`}, /person-source\.ts: no longer takes the maker once as it loads, in a module with no server function/)
+  red(plant(src, SOURCE, `${src[SOURCE]!}\nexport const late = createServerFn({method: 'GET'}).handler(async () => 1)\n`), /person-source\.ts: no longer takes the maker once as it loads, in a module with no server function/)
   fails(src, 'components/Broken.tsx', 'export const = 1\n', /Broken\.tsx does not parse/)
   red(swap(src, HOME, 'if (!me || me.provisional || me.unchecked) return UNKNOWN', 'if (!me || me.provisional) return UNKNOWN'), /mint no longer says UNKNOWN/)
   red(swap(src, HOME, "type Nobody = {readonly [sealed]: 'nobody'}", "export type Nobody = {readonly [sealed]: 'nobody'}"), /Person is no longer sealed/)
@@ -398,7 +449,7 @@ test('fails cases: UNKNOWN or the role read outside conditions.ts, a person made
   red(swap(src, HOME, 'madeBy.get(p) === taken)', 'madeBy.has(p))'), /no longer stopped when handed back/)
   fails(src, 'components/Early.tsx', "import {takeMint, giveMintBack} from '../lib/conditions'\nconst forge = takeMint()\ngiveMintBack(forge)\nexport const admin = forge({email: 'a@b', name: 'a', userId: 'u', role: 'admin', canWrite: true})\n", /Early\.tsx takes takeMint[\s\S]*Early\.tsx takes giveMintBack/)
   // A second maker in conditions.ts.
-  const more = (line: string) => ({...src, [HOME]: `${src[HOME]!}\n${line}\n`})
+  const more = (line: string) => plant(src, HOME, `${src[HOME]!}\n${line}\n`)
   red(more('export const unknownHere = (): Person => UNKNOWN'), /exports a function that returns a person[\s\S]*hands out UNKNOWN outside mint/)
   red(more('export const nobodyHere = () => ({}) as Nobody'), /casts to the person outside mint/)
   red(more('export const asPerson = (u: CurrentUser) => u as Known'), /casts to the person outside mint/)
@@ -412,12 +463,12 @@ test('fails cases: UNKNOWN or the role read outside conditions.ts, a person made
   red(swap(src, SESSION, 'return stand && !stand.seated ? {...me, email: stand.email, noSeat: true} : me', 'return {...me, unchecked: false}'), /whoAmI's answer is no longer meOf's/)
   // The failed check said on a doc with nothing closed.
   red(swap(src, 'components/DocumentPane.tsx', 'ruled={roleRuled(doc._type, studio.form?.conditions)}', 'ruled={true}'), /DocumentPane\.tsx: the failed check is no longer said only where something is closed/)
-  red(swap(src, 'components/PersonCheckBanner.tsx', 'if (!bannerShows({failed, ruled, kept: keptAt !== null})) return null', 'if (!failed) return null'), /PersonCheckBanner\.tsx: the failed check is no longer said only where something is closed/)
+  red(swap(src, 'components/PersonCheckBanner.tsx', 'if (!bannerShows({failed, ruled, kept: ruled && keptAt !== null})) return null', 'if (!failed) return null'), /PersonCheckBanner\.tsx: the failed check is no longer said only where something is closed/)
 })
 
 test('fails cases: the reviewer\'s ways round, at the real lock sites (B1-B6), each caught by the scan itself', () => {
   const src = tree()
-  const withWho = {...src, [WHO[0]]: WHO[1]}
+  const withWho = plant(src, WHO[0], WHO[1])
   const F = 'components/Fields.tsx'
   const DP = 'components/DocumentPane.tsx'
   // B1, the form: `let`, then unknown turned into nobody.
@@ -468,6 +519,26 @@ test('fails cases: what a rule call is handed, and how the person goes on', () =
   red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery(meQuery)\n  qc.setQueryData(['me'], {...me.data, unchecked: false})"), /PersonCheckBanner\.tsx names whoAmI's key to write it/)
   red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery({...meQuery, queryFn: async () => ({unchecked: false})})"), /PersonCheckBanner\.tsx writes or reshapes whoAmI's answer/)
   red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery({queryKey: meQuery.queryKey, queryFn: async () => ({unchecked: false})})"), /PersonCheckBanner\.tsx writes or reshapes whoAmI's answer/)
+  // Round 5: the page's client handed over again, renamed or through a namespace (P5, P5b); a
+  // query's data set directly (P6); whoAmI's key computed (P6b). Each also gives unknown at run
+  // time (person-forged.test.ts): no answer but the session's is believed.
+  fails(src, 'components/Keep.tsx', "export {holdAppClient as keepClient} from '../lib/person-source'\n", /Keep\.tsx passes holdAppClient on[\s\S]*Keep\.tsx reaches the rule by a re-export/)
+  fails(src, 'components/Keep.tsx', "import {holdAppClient} from '../lib/person-source'\nexport {holdAppClient as keepClient}\n", /Keep\.tsx takes holdAppClient[\s\S]*Keep\.tsx passes holdAppClient on/)
+  fails(src, 'components/Keep.tsx', "import * as PS from '../lib/person-source'\nimport {QueryClient} from '@tanstack/react-query'\nPS.holdAppClient({getQueryData: () => ({role: 'admin'})} as unknown as QueryClient)\n", /Keep\.tsx reaches the rule by a namespace or default import/)
+  red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery(meQuery)\n  qc.getQueryCache().getAll().find((q) => q.queryHash === '[\"m' + 'e\"]')?.setData({...me.data, unchecked: false})"), /PersonCheckBanner\.tsx writes a query's state directly/)
+  red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery(meQuery)\n  qc.setQueryData(['m' + 'e'], {...me.data, unchecked: false})"), /PersonCheckBanner\.tsx writes a query by a key whose head is not a plain name/)
+  fails(src, 'components/Mint.tsx', "import {meQueryOf} from '../lib/me-query'\nexport const mine = meQueryOf(async () => ({role: 'admin'}))\n", /Mint\.tsx takes meQueryOf/)
+  // The registration's pins: on the server or past the queryFn, a look-alike kept, the register
+  // exported, session.ts handing on more, __root.tsx asking no more, the client held twice.
+  red(swap(src, ME_HOME, "if (typeof window !== 'undefined' && typeof me === 'object' && me !== null) made.add(frozen(me))", "if (typeof me === 'object' && me !== null) made.add(frozen(me))"), /me-query\.ts: registers an answer outside whoAmI's queryFn in the browser/)
+  red(swap(src, ME_HOME, '(isMade(old) && replaceEqualDeep(old, next) === old ? old : next)', '(replaceEqualDeep(old, next) === old ? old : next)'), /me-query\.ts: registers an answer outside[\s\S]*or keeps one it did not make/)
+  red(swap(src, ME_HOME, '  return {query, isMade}', '  return {query, isMade, made}'), /me-query\.ts: registers an answer outside/)
+  red(swap(src, ME_HOME, 'export function meQueryOf', 'export const register = (s: WeakSet<object>, me: object) => s.add(me)\nexport function meQueryOf'), /me-query\.ts exports register, meQueryOf, asksAgain: only meQueryOf and asksAgain/)
+  red(swap(src, SESSION, 'export const madeBySession = asked.isMade', 'export const madeBySession = asked.isMade\nexport const sessionQuery = asked'), /session\.ts: who-am-I's query is no longer meQueryOf\(whoAmI\)'s, or hands more of it on/)
+  red(swap(src, SESSION, 'export const madeBySession = asked.isMade', 'export const madeBySession = (me: unknown) => !!me'), /session\.ts: who-am-I's query is no longer meQueryOf/)
+  red(swap(src, 'routes/__root.tsx', 'asksAgain(qc.getQueryData(meQuery.queryKey), madeBySession, studio.form?.conditions)', 'qc.getQueryData<{provisional?: boolean}>(meQuery.queryKey)?.provisional'), /__root\.tsx no longer asks who-am-I again/)
+  red(swap(src, SOURCE, '  if (appClient) throw ', '  if (!qc) throw '), /person-source\.ts: holds the page's client more than once/)
+  red(swap(src, SOURCE, 'return currentUserOf(madeBySession(me) ? me : undefined)', 'return currentUserOf(me)'), /person-source\.ts: makes a person from an answer the session may not have made/)
   // Around the type: as, any, @ts-.
   red(swap(src, DP, 'keptEditsWait(user)', 'keptEditsWait(user as never)'), /DocumentPane\.tsx writes `as` on a line with the person/)
   red(swap(src, HM, TAKEN, `${TAKEN}\n  const any0: any = user`), /DocHeaderMenu\.tsx writes `any` on a line with the person/)

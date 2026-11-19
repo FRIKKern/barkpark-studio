@@ -8,6 +8,8 @@ import {fieldLock, fieldState, giveMintBack, keptEditsWait, pasteSkips, pathRead
 import type {Field, Schema} from './data.ts'
 import {canvasAccess, freeformCanvas, paneFieldLock} from './form-lock.ts'
 import {keepLocked, pasteDocument, pasteDocumentReading, pasteField, pasteFieldReading, type PasteContext} from './paste-locked.ts'
+import {QueryClient} from '@tanstack/react-query'
+import {meQueryOf} from './me-query.ts'
 import {known, mint, nobody, unknown} from './persons.fixture.ts'
 
 const post = {name: 'post', title: 'Post', fields: [{name: 'title', type: 'string'}, {name: 'secret', type: 'string'}, {name: 'body', type: 'richText'}]} as unknown as Schema
@@ -85,6 +87,37 @@ test('the markers and the person never leave the rule: a callback gets a copy, o
   for (const u of seen) assert.ok(u === null || (typeof u === 'object' && u !== admin && (u as {roles: unknown[]}).roles.length === 1), String(u))
   const symbols = (v: unknown): boolean => typeof v === 'symbol' || (!!v && typeof v === 'object' && Object.values(v).some(symbols))
   for (const p of [admin, nobody, unknown] as Person[]) assert.equal(symbols(await answers(p)), false)
+})
+
+test("an answer the session did not make gives unknown at every way in: a cache write by any key, a stand-in client", async () => {
+  const me = {email: 'a@example.com', name: 'A', userId: 'u1', role: 'member', canWrite: true}
+  const admin = {...me, role: 'admin'}
+  const session = meQueryOf(async () => ({...me}))
+  // lib/person-source.ts: the person from a client's who-am-I, believed only if the session made it.
+  const personOf = (qc: {getQueryData: (key: readonly unknown[]) => unknown}) => {
+    const answer = qc.getQueryData(session.query.queryKey)
+    return mint(session.isMade(answer) ? (answer as typeof me) : undefined)
+  }
+  const page = new QueryClient()
+  const g = globalThis as {window?: unknown}
+  g.window = globalThis
+  try {
+    await page.fetchQuery(session.query)
+  } finally {
+    delete g.window
+  }
+  const asUnknown = await answers(unknown)
+  assert.notDeepEqual(await answers(personOf(page)), asUnknown, "the session's own answer: a member, known")
+  const forged: [string, () => Person][] = [
+    // P6: the query found by its hash and its data set.
+    ['the query set by hash', () => (page.getQueryCache().getAll().find((q) => q.queryHash === '["m' + 'e"]')!.setData(admin), personOf(page))],
+    // P6b: a key computed to whoAmI's.
+    ['setQueryData by a computed key', () => (page.setQueryData(['m' + 'e'], admin), personOf(page))],
+    // P5 / P5b: a stand-in client handed over in the page's place (renamed, or through a namespace).
+    ['a stand-in client', () => personOf({getQueryData: () => admin})],
+    ['a stand-in client holding a copy of a real answer', () => personOf({getQueryData: () => ({...me})})],
+  ]
+  for (const [how, forge] of forged) assert.deepEqual(await answers(forge()), asUnknown, how)
 })
 
 test('the maker is handed out once, and one handed back makes nothing more: nothing it made is believed', () => {

@@ -1,6 +1,16 @@
 import type {Field} from './data'
 import {segments} from './paths.ts'
 
+// The person (task-4ffed14fbf52dc47). What this guards: a change anywhere in the app that would
+// hand the rules a person the session did not produce reads as unknown, so fields with a role rule
+// stay closed. What it does not guard: code that edits lib/session.ts, lib/person-source.ts,
+// lib/me-query.ts or this file themselves (person-scan.test.ts pins them by export, review reads
+// them), and a hostile browser (only the server can stop that).
+// Nothing registers on hydrate or on the server: only the answer whoAmI's queryFn returns in the
+// browser is the session's, registered by a closure no module exports (lib/me-query.ts, held by
+// lib/session.ts). Until the browser's first answer, a field with a role rule stays closed: one
+// who-am-I round trip, asked right after load (routes/__root.tsx), only where a role rule waits.
+
 // Conditional fields (J30). Barkpark's schema says when a field shows with
 // `visibleWhen: {field, operator, value}` (api content/field_visibility.ex); these are
 // the same operators with the same meaning, so the Studio and Barkpark's own
@@ -211,6 +221,8 @@ export const keptEditsWait = (person: Person) => !personKnown(checked(person))
 /** Whether a type has a role rule: a `form.conditions` callback under `type.`, which waits while the person is unknown. */
 export const roleRuled = (type: string, rules: Record<string, FieldConditions> | undefined) =>
   Object.entries(rules ?? {}).some(([key, c]) => key.startsWith(`${type}.`) && (typeof c.hidden === 'function' || typeof c.readOnly === 'function'))
+/** Whether any type has a role rule (a callback, which may read the person). */
+export const roleRules = (rules: Record<string, FieldConditions> | undefined) => Object.values(rules ?? {}).some((c) => typeof c.hidden === 'function' || typeof c.readOnly === 'function')
 /**
  * Who makes a write, for mayWrite: this person by hand (a key, a menu, an undo), "Keep mine" on
  * a clash, kept edits put back (a replay), or a document action's `set` (code the developer wrote).

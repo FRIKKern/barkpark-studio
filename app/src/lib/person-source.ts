@@ -5,7 +5,7 @@
 import {useQuery, type QueryClient} from '@tanstack/react-query'
 import {useMemo} from 'react'
 import {giveMintBack, takeMint} from './conditions'
-import {meQuery} from './session'
+import {madeBySession, meQuery} from './session'
 
 const currentUserOf = takeMint()
 // A dev reload of this module hands the maker back first, so its next run takes it again.
@@ -14,14 +14,22 @@ import.meta.hot?.dispose(() => giveMintBack(currentUserOf))
 /**
  * Sanity's useCurrentUser: the person a field is judged for: known, nobody, or unknown. With
  * personOf, the only source of a person (person-scan.test.ts): a lock site takes it whole and
- * hands it to the rule.
+ * hands it to the rule. Only an answer the session made (lib/me-query.ts) is believed; any other
+ * (the server render's, a cache write, a look-alike) gives unknown.
  */
 export function useCurrentUser() {
   const me = useQuery(meQuery).data
-  return useMemo(() => currentUserOf(me), [me])
+  return useMemo(() => currentUserOf(madeBySession(me) ? me : undefined), [me])
 }
-/** The page's own query client, as router.tsx makes it (in the browser: one per page). */
+/** The page's own query client, as router.tsx makes it (in the browser: one per page), held once. */
 let appClient: QueryClient | undefined
-export const holdAppClient = (qc: QueryClient) => void (typeof window !== 'undefined' && (appClient = qc))
+export function holdAppClient(qc: QueryClient) {
+  if (typeof window === 'undefined') return
+  if (appClient) throw new Error("The page's query client is held already: only router.tsx hands it over, once.")
+  appClient = qc
+}
 /** The same outside a component: the person as the page's own cached whoAmI says (none on the server: unknown). */
-export const personOf = () => currentUserOf(appClient?.getQueryData(meQuery.queryKey) ?? undefined)
+export function personOf() {
+  const me = appClient?.getQueryData(meQuery.queryKey)
+  return currentUserOf(madeBySession(me) ? me : undefined)
+}

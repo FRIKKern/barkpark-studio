@@ -25,7 +25,7 @@ test('a check Barkpark did not answer leaves the person unknown, so a role-ruled
 })
 
 test('the page says the check failed: an unchecked answer, a failed read, or none in time', () => {
-  const at = (q: Partial<Parameters<typeof personCheck>[0]>) => personCheck({data: undefined, isError: false, isFetching: false, waitedMs: 0, ...q})
+  const at = (q: Partial<Parameters<typeof personCheck>[0]>) => personCheck({data: undefined, made: true, isError: false, isFetching: false, waitedMs: 0, ...q})
   assert.equal(at({data: me}), 'known')
   assert.equal(at({data: {...me, email: null}}), 'known', 'nobody signed in is an answer')
   assert.equal(at({data: {...me, unchecked: true}}), 'failed')
@@ -34,6 +34,10 @@ test('the page says the check failed: an unchecked answer, a failed read, or non
   // Still asking: checking, until it has waited too long.
   assert.equal(at({isFetching: true, waitedMs: SLOW_CHECK_MS - 1}), 'checking')
   assert.equal(at({data: {...me, provisional: true}, isFetching: true, waitedMs: SLOW_CHECK_MS}), 'failed')
+  // An answer the session did not make (the server render's): not known. Its ask failing: failed.
+  assert.equal(at({data: me, made: false}), 'checking')
+  assert.equal(at({data: me, made: false, isFetching: true}), 'checking')
+  assert.equal(at({data: me, made: false, isError: true}), 'failed')
   // A retry in flight after a failure: checking again.
   assert.equal(at({data: {...me, unchecked: true}, isFetching: true, waitedMs: 0}), 'checking')
 })
@@ -54,7 +58,7 @@ test('the failed check is said only where something is closed: a type with a rol
   assert.equal(roleRuled('post', adminsOnly), true)
   assert.equal(roleRuled('post', {'post.body.caption': {hidden: () => false}}), true)
   assert.equal(bannerShows({failed: true, ruled: true, kept: false}), true)
-  // Kept edits wait on the person, rule or none: said.
+  // Kept edits waiting (only on a type with a role rule: DocumentPane): said.
   assert.equal(bannerShows({failed: true, ruled: false, kept: true}), true)
   // A check that has not failed: nothing said.
   assert.equal(bannerShows({failed: false, ruled: true, kept: true}), false)

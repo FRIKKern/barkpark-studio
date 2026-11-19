@@ -1,4 +1,5 @@
 import {queryOptions, useQuery} from '@tanstack/react-query'
+import {meQueryOf} from './me-query'
 import {createServerFn} from '@tanstack/react-start'
 import {accountRequestReset, accountSignIn, cloudSignIn, currentEditor, describeToken, displayName, editorKey, knownTokenSelf, presenceName, signIn, signInMode, SignInRefused, signInRequired, signOut} from '../server/auth'
 import {bpFetch, requestToken} from '../server/barkpark'
@@ -107,9 +108,11 @@ export const requestPasswordReset = createServerFn({method: 'POST'})
 
 export const endSession = createServerFn({method: 'POST'}).handler(async () => (await signOut(), {ok: true}))
 
-// Re-asked when the window regains focus (J48): a session lost to a studio restart or
-// an expired cookie shows up before the next edit, not only after it.
-export const meQuery = queryOptions({queryKey: ['me'], queryFn: () => whoAmI(), staleTime: 30_000, refetchOnWindowFocus: true})
+// who-am-I's query (lib/me-query.ts), and which answers the session made: only one whoAmI
+// returned in the browser. lib/person-source.ts believes no other.
+const asked = meQueryOf(() => whoAmI())
+export const meQuery = asked.query
+export const madeBySession = asked.isMade
 
 /**
  * J49: can this editor change things, and if not, the reason to show on what is

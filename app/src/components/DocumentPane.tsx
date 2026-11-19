@@ -450,7 +450,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // scheduled draft (once its schedule is known), a deleted doc or a seat that can't write.
   // While locked they stay kept, and are offered again once it is editable (Pause to edit).
   const editable = !!draftQ.data && !locked && schedule !== undefined
-  const keptWait = keptEditsWait(user)
+  // Only a type with a role rule waits on the person: elsewhere who it is decides nothing.
+  const keptWait = !!schema && roleRuled(schema.name, studio.form?.conditions) && keptEditsWait(user)
   useEffect(() => {
     setRecovered(null)
     // Judged against the schema as it is now (a field it dropped or retyped is not sent).

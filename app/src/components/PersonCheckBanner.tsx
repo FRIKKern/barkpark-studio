@@ -4,7 +4,7 @@ import {keepKeyOf} from '../lib/edits'
 import {useT} from '../lib/i18n'
 import {combine, docKeyOfEntry, readDocPending} from '../lib/pending-edits'
 import {bannerShows, personCheck, SLOW_CHECK_MS} from '../lib/person-check'
-import {meQuery} from '../lib/session'
+import {madeBySession, meQuery} from '../lib/session'
 
 /**
  * task-4ffed14fbf52dc47: the studio could not learn who the person is (whoAmI failed, Barkpark
@@ -17,7 +17,7 @@ export function PersonCheckBanner({docId, ruled, dateOf}: {docId: string; ruled:
   const t = useT()
   const qc = useQueryClient()
   const me = useQuery(meQuery)
-  const unknown = !me.data || !!me.data.provisional || !!me.data.unchecked
+  const unknown = !me.data || !!me.data.provisional || !!me.data.unchecked || !madeBySession(me.data)
   // Since when the person has been unknown (again from a retry), to say when it is late.
   const [since, setSince] = useState(() => Date.now())
   const [, wake] = useState(0)
@@ -27,7 +27,7 @@ export function PersonCheckBanner({docId, ruled, dateOf}: {docId: string; ruled:
     const timer = left > 0 ? setTimeout(() => wake((n) => n + 1), left) : undefined
     return () => clearTimeout(timer)
   }, [unknown, since])
-  const check = personCheck({data: me.data, isError: me.isError, isFetching: me.isFetching, waitedMs: Date.now() - since})
+  const check = personCheck({data: me.data, made: madeBySession(me.data), isError: me.isError, isFetching: me.isFetching, waitedMs: Date.now() - since})
   // Said once the check failed, and through a retry until it answers (no flicker while it asks).
   const [retried, setRetried] = useState(false)
   useEffect(() => void (!unknown && setRetried(false)), [unknown])
@@ -43,7 +43,8 @@ export function PersonCheckBanner({docId, ruled, dateOf}: {docId: string; ruled:
     void readDocPending(doc).then((all) => live && setKeptAt(combine(all.filter(([k]) => k !== own).map(([, p]) => p))?.at ?? null))
     return () => void (live = false)
   }, [failed, own])
-  if (!bannerShows({failed, ruled, kept: keptAt !== null})) return null
+  // Kept edits wait only on a type with a role rule (DocumentPane).
+  if (!bannerShows({failed, ruled, kept: ruled && keptAt !== null})) return null
   return (
     <div className="pane-banner" role="alert" data-testid="person-check">
       <span>
