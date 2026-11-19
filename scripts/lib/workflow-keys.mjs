@@ -20,18 +20,20 @@ export const DATA_SECRETS = {
 export const PINS = 'scripts/lib/keyed-jobs.json'
 
 const sha256 = (text) => createHash('sha256').update(text).digest('hex')
-/** JSON with every object's keys sorted: the same YAML, however written, gives the same text. */
-export const canonical = (v) =>
-  Array.isArray(v) ? `[${v.map(canonical).join(',')}]` : v && typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical(v[k])}`).join(',')}}` : JSON.stringify(v ?? null)
-// What GitHub reads as expressions: an `if:` value whole, and any other string from its first `${{` on
-// (the rest of the line too, so a `}}` inside a quoted string hides nothing).
-const expressions = (v, key, out = []) => {
-  if (typeof v === 'string') {
-    if (key === 'if') out.push(v)
-    else if (v.includes('${{')) out.push(v.slice(v.indexOf('${{')))
-  } else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) expressions(x, k, out)
-  return out
+/**
+ * JSON with every object's keys sorted: the same YAML, however written, gives the same text. Anything but
+ * a plain object, array, string, finite number, boolean or null is refused, by its path.
+ */
+export function canonical(v, at = '') {
+  if (v === null || typeof v === 'string' || typeof v === 'boolean') return JSON.stringify(v)
+  if (typeof v === 'number' && Number.isFinite(v)) return JSON.stringify(v)
+  if (Array.isArray(v)) return `[${v.map((x, i) => canonical(x, `${at}[${i}]`)).join(',')}]`
+  if (v && typeof v === 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(v)))
+    return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical(v[k], `${at}.${k}`)}`).join(',')}}`
+  throw new Error(`${at || 'the value'} is ${typeof v === 'number' ? v : 'not a plain value'}, which this reader refuses`)
 }
+/** YAML as GitHub reads it: the core schema (no dates, no `<<` merge). */
+export const load = (text) => yaml.load(text, {schema: yaml.CORE_SCHEMA})
 
 /** Why a job does not hold "no key" (empty: it holds none). */
 export function keyReasons(workflow, job) {
@@ -48,7 +50,13 @@ export function keyReasons(workflow, job) {
     }
   const permissions = 'permissions' in job ? job.permissions : workflow.permissions
   if (writes(permissions)) why.push(`its token may write (permissions: ${JSON.stringify(permissions ?? 'the repo default')})`)
-  for (const name of secrets([job, workflow.env, workflow.defaults])) if (!(name in DATA_SECRETS)) why.push(`reads secret ${name}`)
+  let text
+  try {
+    text = canonical({job, env: workflow.env ?? null, defaults: workflow.defaults ?? null})
+  } catch (e) {
+    return [...why, e.message]
+  }
+  for (const name of secrets(text)) if (!(name in DATA_SECRETS)) why.push(`reads secret ${name}`)
   return why
 }
 const LEVELS = new Set(['read', 'none'])
@@ -56,20 +64,32 @@ function writes(p) {
   if (p === 'read-all' || (p && typeof p === 'object' && !Array.isArray(p) && Object.values(p).every((v) => LEVELS.has(v)))) return false
   return true // write, write-all, unset (the repo default) or anything else
 }
-/** The secret names these values' expressions read; one written in a way not read here is `?`. */
-function secrets(values) {
+/**
+ * The secret names read by `${{ }}` expressions in this canonical JSON, keys and values alike: from each
+ * `${{` to the end of its JSON string, so a `}}` inside a quoted string hides nothing. One written in a way
+ * not read here is `?`.
+ */
+function secrets(text) {
   const names = new Set()
-  for (const text of expressions(values))
-    for (const m of text.matchAll(/secrets/gi)) {
-      const rest = text.slice(m.index + m[0].length)
+  for (let i = text.indexOf('${{'); i >= 0; i = text.indexOf('${{', i + 3)) {
+    let end = i
+    while (end < text.length && text[end] !== '"') end += text[end] === '\\' ? 2 : 1
+    for (const m of text.slice(i, end).matchAll(/secrets/gi)) {
+      const rest = text.slice(i, end).slice(m.index + m[0].length)
       const name = rest.match(/^\s*\.\s*([A-Za-z_][\w-]*)/)?.[1] ?? rest.match(/^\s*\[\s*'([^']*)'\s*\]/)?.[1]
       names.add(name ? name.toUpperCase() : '?')
     }
+  }
   return names
 }
+/** In a keyed job every action, and a called workflow, is named by a full commit SHA. */
+const unpinnedUses = (job) => [job.uses, ...(Array.isArray(job.steps) ? job.steps.map((s) => s?.uses) : [])].filter((u) => u !== undefined && !/^[^@\s]+@[0-9a-f]{40}$/.test(String(u)))
 
 /** A keyed job's pin: its YAML with the workflow's own keys (all but `jobs`), as canonical JSON. */
-export const jobHash = (workflow, name) => sha256(canonical({workflow: {...workflow, jobs: undefined}, job: workflow.jobs[name]}))
+export function jobHash(workflow, name) {
+  const {jobs, ...own} = workflow
+  return sha256(canonical({workflow: own, job: jobs[name]}))
+}
 
 /**
  * Every problem: a workflow this reader cannot parse, a keyed job not pinned, a pin that no longer
@@ -83,7 +103,7 @@ export function keyProblems(files, pins, read) {
   for (const [file, text] of Object.entries(files)) {
     let workflow
     try {
-      workflow = yaml.load(text)
+      workflow = load(text)
     } catch (e) {
       out.push(`${file}: not parsed (${e.reason ?? e.message})`)
       continue
@@ -105,7 +125,14 @@ export function keyProblems(files, pins, read) {
         out.push(`${id}: holds a key (${why.join('; ')}) and is not pinned in ${PINS}`)
         continue
       }
-      const hash = jobHash(workflow, name)
+      for (const u of unpinnedUses(workflow.jobs[name])) out.push(`${id}: uses ${u}, not a full commit SHA`)
+      let hash
+      try {
+        hash = jobHash(workflow, name)
+      } catch (e) {
+        out.push(`${id}: ${e.message}`)
+        continue
+      }
       if (hash !== pin.sha256) out.push(`${id}: changed since its pin (now ${hash})`)
       for (const [path, want] of Object.entries(pin.runs)) {
         let bytes
@@ -136,7 +163,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2] === '-
   const {files, pins, read} = repo()
   for (const pin of pins.jobs) {
     const [file, name] = pin.job.split(' ')
-    pin.sha256 = jobHash(yaml.load(files[file]), name)
+    pin.sha256 = jobHash(load(files[file]), name)
     for (const path of Object.keys(pin.runs)) pin.runs[path] = sha256(read(path))
   }
   writeFileSync(join(root, PINS), `${JSON.stringify(pins, null, 2)}\n`)

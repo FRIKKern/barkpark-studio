@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # sync-pack.yml's `act` job runs this file from main's checkout (no credentials kept); the job and this
 # file are pinned in scripts/lib/keyed-jobs.json, and scripts/lib/sync-act.test.mjs runs these same bytes.
-# It trusts nothing from the plan job except the studio's own report file (conformance/barkpark-studio.json)
-# and SOURCE.md's text: it finds the sync PR itself, checks the bundle, the commit's parent and both sides
-# of every changed path, and that every other pack file is Barkpark's own, byte for byte, at the commit
-# SOURCE.md names, a commit on Barkpark's main. docs/decisions/0009-pack-syncs-itself.md
+# It trusts nothing from the plan job except which of the three actions to take (each re-checked against
+# GitHub's own state), the studio's report file (conformance/barkpark-studio.json) and SOURCE.md's prose.
+# It finds the sync PR itself; checks the bundle, the commit's parent and both sides of every changed path;
+# checks that every other pack file is Barkpark's own, byte for byte, at the commit SOURCE.md names, on
+# Barkpark's main and not older than main's; and writes the commit message, PR title and body itself.
+# docs/decisions/0009-pack-syncs-itself.md
 set -euo pipefail
 plan="$RUNNER_TEMP/plan"
 barkpark="${BARKPARK_GIT:-https://github.com/FRIKKern/barkpark}"
@@ -98,7 +100,8 @@ case "$action" in
     done < <(git diff --no-renames --raw -z "$base" "$new")
     [ -z "$bad" ] || fail "the sync commit changes what the pack never holds: $bad"
     # Every pack file but SOURCE.md: Barkpark's own blob at the commit SOURCE.md names, on Barkpark's main
-    # (trees only, no file contents fetched). conformance.mjs and its types sit in Barkpark's conformance/.
+    # and not older than the one main's SOURCE.md names (commits and trees only, no file contents fetched).
+    # conformance.mjs and its types sit in Barkpark's conformance/.
     re_source='commit `([0-9a-f]{40})`'
     [[ $(git cat-file blob "$new:conformance/pack/SOURCE.md") =~ $re_source ]] || fail 'SOURCE.md names no Barkpark commit'
     at=${BASH_REMATCH[1]}
@@ -107,8 +110,12 @@ case "$action" in
     git -C "$bp" remote add origin "$barkpark"
     git -C "$bp" config remote.origin.promisor true
     git -C "$bp" config remote.origin.partialclonefilter blob:none
-    git -C "$bp" fetch -q --filter=blob:none --depth=200 origin main
+    git -C "$bp" fetch -q --filter=blob:none origin main
     git -C "$bp" merge-base --is-ancestor "$at" FETCH_HEAD || fail "Barkpark $at is not on Barkpark's main"
+    if [[ $(git cat-file blob origin/main:conformance/pack/SOURCE.md 2>/dev/null || true) =~ $re_source ]]; then
+      was=${BASH_REMATCH[1]}
+      git -C "$bp" merge-base --is-ancestor "$was" "$at" || fail "Barkpark $at is older than $was, which main holds"
+    fi
     while IFS= read -r -d '' entry; do
       oid=${entry%%$'\t'*}
       oid=${oid##* }
@@ -121,16 +128,21 @@ case "$action" in
       [ "$(git -C "$bp" rev-parse -q --verify "$at:api/priv/portable_doc/$src" || true)" = "$oid" ] || bad+="$rel; "
     done < <(git ls-tree -r -z "$new" -- conformance/pack/)
     [ -z "$bad" ] || fail "the pack differs from Barkpark $at: $bad"
-    push "$branch:$lease" "$new:refs/heads/$branch"
-    read -r title < "$plan/title.txt"
+    # The words are act's own: the plan's commit message is dropped, its tree and parent kept.
+    title="PortableDoc pack: sync from Barkpark ${at:0:12}"
+    body="$RUNNER_TEMP/sync-body.md"
+    printf '%s\n' "Written by \`scripts/pack-sync.mjs\` from [\`FRIKKern/barkpark\` ${at:0:12}](https://github.com/FRIKKern/barkpark/commit/$at) \`api/priv/portable_doc\`, and checked by \`scripts/sync-act.sh\`: every pack file but \`SOURCE.md\` is Barkpark's own at that commit. Barkpark is the source: fix the pack there, never here." \
+      '' "If \`unit\` fails here, conformance rows moved: the studio renderer is behind Barkpark. Fix the renderer, or accept the rows on this branch (\`pnpm --dir app conformance:write\`) and say why. The run summary of the sync job lists the rows." > "$body"
+    sync=$(git commit-tree "$new^{tree}" -p "$base" -m "$title")
+    push "$branch:$lease" "$sync:refs/heads/$branch"
     if [ -n "$number" ]; then
-      gh pr edit "$number" --title "$title" --body-file "$plan/body.md"
+      gh pr edit "$number" --title "$title" --body-file "$body"
     else
-      gh pr create --head "$branch" --base main --title "$title" --body-file "$plan/body.md" ||
+      gh pr create --head "$branch" --base main --title "$title" --body-file "$body" ||
         fail 'The sync PR cannot be opened. Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests" must be on.'
       # A PR the workflow token opens starts no checks; a push by the deploy key does.
-      start=$(git commit-tree "$new^{tree}" -p "$new" -m 'Start the checks')
-      push "$branch:$(git rev-parse "$new")" "$start:refs/heads/$branch"
+      start=$(git commit-tree "$sync^{tree}" -p "$sync" -m 'Start the checks')
+      push "$branch:$sync" "$start:refs/heads/$branch"
     fi
     ;;
   *) fail "unknown action $action" ;;

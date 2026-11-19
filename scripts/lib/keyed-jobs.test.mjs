@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import {DATA_SECRETS, keyProblems, keyReasons, repo} from './workflow-keys.mjs'
+import {DATA_SECRETS, jobHash, keyProblems, keyReasons, load, repo} from './workflow-keys.mjs'
 
 const {files, pins, read} = repo()
 /** The problems with one workflow's text changed, or a repo file's bytes changed. */
@@ -36,10 +36,30 @@ test('a keyed job changed in any way is red until its pin changes too', () => {
     assert.match(out[0], changed, name)
   }
   // Housekeeping's keyed refresh job too.
-  const hk = withEdit('housekeeping.yml', (t) => after(t, "      - uses: actions/setup-node@v5\n        with: { node-version: 22 }\n", '      - run: pnpm --dir app install\n'))
+  const hk = withEdit('housekeeping.yml', (t) => after(t, "        with: { node-version: 22 }\n", '      - run: pnpm --dir app install\n'))
   assert.match(hk.join('\n'), /^housekeeping\.yml refresh: changed since its pin/m)
   // So is a workflow-level default the keyed job inherits.
   assert.match(withEdit('sync-pack.yml', (t) => t.replace('permissions: {}\n', 'permissions: {}\ndefaults:\n  run:\n    shell: node {0}\n')).join('\n'), changed)
+})
+
+test("a keyed job's actions are named by full commit SHA", () => {
+  const out = withEdit('sync-pack.yml', (t) => t.replace(/actions\/download-artifact@[0-9a-f]{40}/, 'actions/download-artifact@v4'))
+  assert.ok(out.includes('sync-pack.yml act: uses actions/download-artifact@v4, not a full commit SHA'), String(out))
+})
+
+test('the pin reads YAML as GitHub does: dates stay text, and .inf and .nan are refused, never hashed alike', () => {
+  const act = (value) => {
+    try {
+      return jobHash(load(after(files['sync-pack.yml'], ACT_SCRIPT_STEP, `      - env: { SINCE: ${value} }\n        run: x\n`)), 'act')
+    } catch (e) {
+      return `refused: ${e.message}`
+    }
+  }
+  const got = ['2026-01-01', '2027-12-31', '2001-12-14t21:59:43.10-05:00', '.inf', '.nan', '~', "''"].map(act)
+  assert.equal(new Set(got).size, got.length, got.join('\n'))
+  assert.match(got[3], /^refused: .*SINCE is Infinity/)
+  assert.match(got[4], /^refused: .*SINCE is NaN/)
+  assert.match(keyProblems({...files, 'sync-pack.yml': after(files['sync-pack.yml'], ACT_SCRIPT_STEP, '      - env: { SINCE: .inf }\n        run: x\n')}, pins, read).join('\n'), /^sync-pack\.yml act: .*SINCE is Infinity, which this reader refuses$/m)
 })
 
 test('one byte changed in a file a keyed job runs is red', () => {
@@ -62,6 +82,12 @@ test('a job that does not hold "no key" and is not pinned is named', () => {
   // A secret not on the data-only list, however written.
   for (const ref of ['${{ secrets.NPM_TOKEN }}', "${{ secrets['NPM_TOKEN'] }}", '${{ toJSON(secrets) }}', '${{ SECRETS.npm_token }}'])
     assert.match(unpinned(ref, () => withEdit('unit.yml', (t) => after(t, UNIT_CHECKOUT, `      - env: { T: "${ref}" }\n        run: x\n`))), /reads secret (NPM_TOKEN|\?)/)
+  // A secret written as a mapping key (GitHub evaluates `${{ }}` there too): at the step, the job and the workflow.
+  const asKey = "'${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}': x"
+  assert.match(unpinned('step env key', () => withEdit('unit.yml', (t) => after(t, UNIT_CHECKOUT, `      - env: { ${asKey} }\n        run: pnpm install\n`))), /reads secret HOUSEKEEPING_DEPLOY_KEY/)
+  assert.match(unpinned('job env key', () => withEdit('unit.yml', (t) => t.replace(/( {2}unit:\n)/, `$1    env: { ${asKey} }\n`))), /reads secret HOUSEKEEPING_DEPLOY_KEY/)
+  assert.match(unpinned('workflow env key', () => withEdit('unit.yml', (t) => t.replace('jobs:\n', `env: { ${asKey} }\njobs:\n`))), /reads secret HOUSEKEEPING_DEPLOY_KEY/)
+  assert.match(unpinned('with key', () => withEdit('unit.yml', (t) => after(t, UNIT_CHECKOUT, "      - uses: x/y@v1\n        with: { 'k${{ toJSON(secrets) }}': x }\n"))), /reads secret \?/)
   // A token that may write.
   assert.match(unpinned('contents: write', () => withEdit('unit.yml', (t) => t.replace(/( {2}unit:\n)/, '$1    permissions: { contents: write }\n'))), /its token may write/)
   // A new job: named the same way.

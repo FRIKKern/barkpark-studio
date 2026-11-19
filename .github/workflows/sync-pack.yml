@@ -2,8 +2,9 @@
 # `plan` (no key, read-only token) compares, builds the sync commit and decides; `act` writes: it pushes
 # that one commit to sync/barkpark-pack with the deploy key, opens or updates the PR, merges a green one
 # or closes a leftover one.
-# `act` trusts nothing from `plan` except the studio's own report file and SOURCE.md's text: `plan` ran
-# install scripts, the renderer and Barkpark's conformance.mjs. scripts/sync-act.sh says what it checks.
+# `act` trusts nothing from `plan` except which of the three actions to take (each re-checked against
+# GitHub's own state), the studio's report file and SOURCE.md's prose: `plan` ran install scripts, the
+# renderer and Barkpark's conformance.mjs. scripts/sync-act.sh says what it checks.
 # Every job here and in the other workflows either holds no key or is pinned, whole, with the files it
 # runs, in scripts/lib/keyed-jobs.json (scripts/lib/workflow-keys.mjs; scripts/lib/keyed-jobs.test.mjs).
 # Why and how: docs/decisions/0009-pack-syncs-itself.md. To hold the sync back, disable this workflow.
@@ -70,9 +71,9 @@ jobs:
     outputs:
       merged: ${{ steps.write.outputs.merged }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with: { name: plan, path: '${{ runner.temp }}/plan' }
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with: { fetch-depth: 0, persist-credentials: false }
       # The deploy key, for the push alone: a push by the workflow token starts no checks on the PR.
       - name: Push, open or update, merge, or close

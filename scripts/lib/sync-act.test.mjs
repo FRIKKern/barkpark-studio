@@ -64,8 +64,6 @@ function plan(w, json, not = [w.main]) {
   const dir = join(tmp('plan-'), 'plan')
   mkdirSync(dir)
   writeFileSync(join(dir, 'plan.json'), JSON.stringify(json))
-  writeFileSync(join(dir, 'title.txt'), 'PortableDoc pack: sync\n')
-  writeFileSync(join(dir, 'body.md'), 'body\n')
   if (json.action === 'push') git(w.work, 'bundle', 'create', '-q', join(dir, 'sync.bundle'), 'HEAD', ...not.map((c) => `^${c}`))
   return join(dir, '..')
 }
@@ -100,9 +98,20 @@ function act(w, runnerTemp, prs = []) {
     writes: calls.filter((c) => !/^pr (list|view)/.test(c)),
     keyWhile: existsSync(keyWhile) ? readFileSync(keyWhile, 'utf8').trim().split('\n') : [],
     pushedWith: existsSync(pushed) ? readFileSync(pushed, 'utf8').trim().split('\n') : [],
+    temp: runnerTemp,
+    body: existsSync(join(runnerTemp, 'sync-body.md')) ? readFileSync(join(runnerTemp, 'sync-body.md'), 'utf8') : '',
     keyLeft: readdirSync(runnerTemp).filter((f) => f.startsWith('sync-deploy-key')),
     sshCommand,
   }
+}
+/** Act's commit on the branch: the plan's tree and parents under act's own message, fetched into the work clone. */
+function landed(w, planned) {
+  const at = branchAt(w)
+  git(w.work, 'fetch', '-q', 'origin', BRANCH)
+  assert.equal(git(w.work, 'rev-parse', `${at}^{tree}`), git(w.work, 'rev-parse', `${planned}^{tree}`))
+  assert.equal(git(w.work, 'rev-parse', `${at}^@`), git(w.work, 'rev-parse', `${planned}^@`))
+  assert.match(git(w.work, 'log', '-1', '--format=%s', at), /^PortableDoc pack: sync from Barkpark [0-9a-f]{12}$/)
+  return at
 }
 const syncPr = (number = 9, more = {}) => ({number, headRefName: BRANCH, baseRefName: 'main', isCrossRepository: false, ...more})
 const commit = (w, msg) => (git(w.work, 'add', '-A'), git(w.work, 'commit', '-q', '-m', msg), git(w.work, 'rev-parse', 'HEAD'))
@@ -114,9 +123,15 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
   const r = act(ok, plan(ok, {action: 'push', main: ok.main}))
   assert.equal(r.status, 0, r.err)
   assert.match(r.writes.join('\n'), /^pr create --head sync\/barkpark-pack --base main/m)
-  // The empty commit that starts the checks, on the sync commit, made without a checkout.
-  assert.equal(git(ok.origin, 'rev-parse', `${BRANCH}^`), synced)
+  // Act's own commit: the plan's tree on main under act's message; then the empty commit that starts the
+  // checks, made without a checkout. The PR's title and body are act's, from the Barkpark commit it checked.
+  const at = git(ok.barkpark, 'rev-parse', 'HEAD')
+  assert.equal(git(ok.origin, 'rev-parse', `${BRANCH}^^{tree}`), git(ok.work, 'rev-parse', `${synced}^{tree}`))
+  assert.equal(git(ok.origin, 'rev-parse', `${BRANCH}^^`), ok.main)
+  assert.equal(git(ok.origin, 'log', '-1', '--format=%s', `${BRANCH}^`), `PortableDoc pack: sync from Barkpark ${at.slice(0, 12)}`)
   assert.equal(git(ok.origin, 'log', '-1', '--format=%s', BRANCH), 'Start the checks')
+  assert.ok(r.writes.includes(`pr create --head ${BRANCH} --base main --title PortableDoc pack: sync from Barkpark ${at.slice(0, 12)} --body-file ${r.temp}/sync-body.md`), r.writes.join('\n'))
+  assert.match(r.body, new RegExp(`^Written by \`scripts/pack-sync\.mjs\` from \\[\`FRIKKern/barkpark\` ${at.slice(0, 12)}\\]\\(https://github\\.com/FRIKKern/barkpark/commit/${at}\\)`))
   // The deploy key: a file only while each push runs, gone after; never in gh's env.
   assert.deepEqual(r.pushedWith, ['the deploy key', 'the deploy key'])
   assert.deepEqual(r.keyWhile.filter((c) => c !== 'receive-pack'), ['push', 'push'], 'the key file exists only while git pushes')
@@ -144,6 +159,21 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
   refused('a pack file not as Barkpark holds it', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/a.json', '{"v": 666}\n'), commit(w, 'sync')), /the pack differs from Barkpark [0-9a-f]{40}: a\.json/)
   refused('a pack file Barkpark lacks', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/extra.mjs', 'x\n'), commit(w, 'sync')), /the pack differs from Barkpark [0-9a-f]{40}: extra\.mjs/)
   refused('a Barkpark commit off its main', (w) => (bark(w, '{"v": 2}\n', 'side'), commit(w, 'sync')), /is not on Barkpark's main/)
+  // An older Barkpark pack than main's (main's SOURCE.md names a later commit): refused.
+  {
+    const w = world()
+    const old = git(w.barkpark, 'rev-parse', 'HEAD')
+    bark(w, '{"v": 2}\n')
+    const main = commit(w, 'pack from a later Barkpark commit')
+    git(w.work, 'push', '-q', 'origin', 'HEAD:main')
+    write(w.work, 'conformance/pack/a.json', '{}\n')
+    write(w.work, 'conformance/pack/SOURCE.md', `commit \`${old}\`\n`)
+    commit(w, 'sync')
+    const r = act(w, plan(w, {action: 'push', main}, [main]))
+    assert.equal(r.status, 1, r.err)
+    assert.match(r.err, new RegExp(`Barkpark ${old} is older than [0-9a-f]{40}, which main holds`))
+    assert.equal(branchAt(w), '')
+  }
   refused('SOURCE.md naming no commit', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/SOURCE.md', 'hand-written\n'), commit(w, 'sync')), /SOURCE\.md names no Barkpark commit/)
   // A plan value with a line break stays on the error line.
   const w = world()
@@ -215,10 +245,10 @@ test('act, with the sync PR open: the commit sits on its head with main merged i
   // On the head, which holds that main already: pushed, the hand commit kept, the PR edited.
   git(w.work, 'reset', '-q', '--hard', hand)
   bark(w, '{"v": 3}\n')
-  const first = commit(w, 'sync')
+  const planned = commit(w, 'sync')
   const ok = act(w, plan(w, {action: 'push', number: 9, main: w.main}, [hand]), [syncPr(9)])
   assert.equal(ok.status, 0, ok.err)
-  assert.equal(branchAt(w), first)
+  const first = landed(w, planned)
   assert.match(ok.writes[0], /^pr edit 9 --title/)
   // Main moves; the next sync merges it into the head: pushed on top, the hand commit still there.
   git(w.work, 'reset', '-q', '--hard', w.main)
@@ -228,10 +258,10 @@ test('act, with the sync PR open: the commit sits on its head with main merged i
   git(w.work, 'reset', '-q', '--hard', first)
   git(w.work, 'merge', '-q', '--no-edit', main2)
   bark(w, '{"v": 4}\n')
-  const second = commit(w, 'sync')
+  const planned2 = commit(w, 'sync')
   const ok2 = act(w, plan(w, {action: 'push', number: 9, main: main2}, [first, main2]), [syncPr(9)])
   assert.equal(ok2.status, 0, ok2.err)
-  assert.equal(branchAt(w), second)
+  const second = landed(w, planned2)
   assert.equal(git(w.origin, 'merge-base', '--is-ancestor', hand, BRANCH), '')
   // A merge carrying one more change than git's own merge: refused.
   git(w.work, 'reset', '-q', '--hard', second)
