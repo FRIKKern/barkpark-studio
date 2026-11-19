@@ -8,13 +8,16 @@
 // - nothing outside conditions.ts decides a field's hidden or read-only itself;
 // - the pastes that take the workspace's roles (PASTES) are imported only by lib/paste-reads.ts,
 //   which reads them from Barkpark: no menu hands a paste roles of its own;
-// - paste-reads.ts, and each ALLOWED file that defines no writer, exports only the values listed
-//   here, whatever the form of any other export.
+// - paste-reads.ts, and each ALLOWED file that defines no writer (or defines one and imports
+//   another file's), exports only the values listed here, whatever the form of any other export.
+// The limit: an allowed file can still hand a writer on without exporting it (say, put into an object
+// another module holds); no scan of export names sees that.
 import assert from 'node:assert/strict'
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import {dirname, join, normalize, relative} from 'node:path'
 import {test} from 'node:test'
 import {fileURLToPath} from 'node:url'
+import {parseSync} from 'vite'
 
 const SRC = fileURLToPath(new URL('..', import.meta.url))
 const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? files(join(dir, n)) : /\.tsx?$/.test(n) && !/\.test\.tsx?$/.test(n) ? [join(dir, n)] : []))
@@ -98,86 +101,74 @@ function imports(file: string, text: string, src: Record<string, string>): Impor
     if (def) out.push('default'), locals.push(def[1]!)
     return {names: out, locals}
   }
-  const c = code(text)
-  const out: Import[] = []
-  for (const m of c.matchAll(/\bimport\s+(type\s+)?([^'";]*?)\s*from\s*['"]([^'"]+)['"]/g)) if (!m[1]) out.push({to: resolve(m[3]!), ...named(m[2]!), reexport: false})
-  for (const m of c.matchAll(/\bexport\s+(type\s+)?(\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*['"]([^'"]+)['"]/g)) if (!m[1]) out.push({to: resolve(m[3]!), ...named(m[2]!), reexport: true})
-  for (const m of c.matchAll(/\bimport\(\s*(['"`])([^'"`$]+)\1\s*\)/g)) out.push({to: resolve(m[2]!), names: '*', locals: [], reexport: false})
-  return out
+  // The specifiers are read once per text (judge reads every file again); resolved here, by `src`.
+  let read = specifiers.get(text)
+  if (!read) {
+    const c = code(text)
+    read = []
+    for (const m of c.matchAll(/\bimport\s+(type\s+)?([^'";]*?)\s*from\s*['"]([^'"]+)['"]/g)) if (!m[1]) read.push({spec: m[3]!, ...named(m[2]!), reexport: false})
+    for (const m of c.matchAll(/\bexport\s+(type\s+)?(\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*['"]([^'"]+)['"]/g)) if (!m[1]) read.push({spec: m[3]!, ...named(m[2]!), reexport: true})
+    for (const m of c.matchAll(/\bimport\(\s*(['"`])([^'"`$]+)\1\s*\)/g)) read.push({spec: m[2]!, names: '*', locals: [], reexport: false})
+    specifiers.set(text, read)
+  }
+  return read.map(({spec, ...i}) => ({to: resolve(spec), ...i}))
 }
+const specifiers = new Map<string, (Omit<Import, 'to'> & {spec: string})[]>()
+/** The names a binding pattern binds (`const {a, b: c, ...d} = …` binds a, c and d). */
+const bound = (p: {type: string; [k: string]: any} | null): string[] =>
+  !p ? [] : p.type === 'Identifier' ? [p.name] : p.type === 'ObjectPattern' ? p.properties.flatMap((x: any) => bound(x.type === 'RestElement' ? x : x.value)) : p.type === 'ArrayPattern' ? p.elements.flatMap(bound) : p.type === 'RestElement' ? bound(p.argument) : p.type === 'AssignmentPattern' ? bound(p.left) : [`?${p.type}`]
+/** Top-level statements that export nothing. */
+const NOT_EXPORTS = new Set(['ImportDeclaration', 'VariableDeclaration', 'FunctionDeclaration', 'ClassDeclaration', 'ExpressionStatement', 'TSTypeAliasDeclaration', 'TSInterfaceDeclaration', 'TSEnumDeclaration', 'TSModuleDeclaration', 'TSDeclareFunction', 'TSImportEqualsDeclaration', 'EmptyStatement', 'IfStatement', 'ForStatement', 'ForOfStatement', 'ForInStatement', 'WhileStatement', 'DoWhileStatement', 'BlockStatement', 'TryStatement', 'ThrowStatement', 'SwitchStatement', 'LabeledStatement'])
 /**
- * The statement at `at` (to a `;`, or a line at column 0, outside brackets, strings, templates and
- * regexes): its text, its parts split at the commas outside brackets, and whether its brackets close.
+ * The values `text` exports, by name, read by the parser Vite builds with (oxc, `parseSync`): every
+ * declarator, every name in an export list, `default`, `*` for an `export * from`, `=` for `export =`.
+ * A type exports no value. A top-level kind with no case here, and a parse error, are named `?…`,
+ * which no list holds.
  */
-function statement(c: string, at: number): {text: string; parts: string[]; closed: boolean} {
-  const stack: string[] = []
-  const parts: string[] = []
-  const pairs: Record<string, string> = {')': '(', ']': '[', '}': '{'}
-  let closed = true
-  let from = at
-  let prev = ''
-  let i = at
-  // From inside a template to its closing backtick, or into a `${`.
-  const template = () => {
-    for (; i < c.length && c[i] !== '`'; i++) {
-      if (c[i] === '\\') i++
-      else if (c[i] === '$' && c[i + 1] === '{') return void (stack.push('${'), i++)
+const exported = new Map<string, string[]>()
+function exportsOf(file: string, text: string): string[] {
+  const key = `${file}\0${text}`
+  if (!exported.has(key)) exported.set(key, readExports(file, text))
+  return exported.get(key)!
+}
+function readExports(file: string, text: string): string[] {
+  const {program, errors} = parseSync(file, text, {lang: file.endsWith('.tsx') ? 'tsx' : 'ts'})
+  if (errors.length) return [`?parse error: ${errors[0]!.message}`]
+  const declared = (d: {type: string; [k: string]: any}): string[] => {
+    switch (d.type) {
+      case 'VariableDeclaration':
+        return d.declarations.flatMap((v: any) => bound(v.id))
+      case 'FunctionDeclaration':
+      case 'ClassDeclaration':
+      case 'TSEnumDeclaration':
+      case 'TSDeclareFunction':
+      case 'TSImportEqualsDeclaration':
+        return [d.id?.name ?? `?${d.type}`]
+      case 'TSModuleDeclaration':
+        return [d.id?.name ?? String(d.id?.value)]
+      case 'TSTypeAliasDeclaration':
+      case 'TSInterfaceDeclaration':
+        return []
+      default:
+        return [`?${d.type}`]
     }
   }
-  for (; i < c.length; i++) {
-    const ch = c[i]!
-    if (ch === "'" || ch === '"') for (i++; i < c.length && c[i] !== ch && c[i] !== '\n'; i++) c[i] === '\\' && i++
-    else if (ch === '`') i++, template()
-    else if (ch === '/' && /^$|[=(,:[!&|?{};]/.test(prev)) for (let cls = false, i0 = i++; i < c.length && c[i] !== '\n' && (cls || c[i] !== '/' || i === i0); i++) c[i] === '\\' ? i++ : c[i] === '[' ? (cls = true) : c[i] === ']' && (cls = false)
-    else if ('([{'.includes(ch)) stack.push(ch)
-    else if (ch in pairs) {
-      const open = stack.pop()
-      if (open === '${') i++, template()
-      else if (open !== pairs[ch]) closed = false
-    } else if (!stack.length && ch === ',') parts.push(c.slice(from, i)), (from = i + 1)
-    else if (!stack.length && (ch === ';' || (ch === '\n' && /[^\s)\]}.]/.test(c[i + 1] ?? '')))) break
-    if (!/\s/.test(ch)) prev = c[i]!
-  }
-  parts.push(c.slice(from, i))
-  return {text: c.slice(at, i), parts, closed: closed && !stack.length}
-}
-/**
- * The values `text` exports, by name, whatever the form (a type exports no value); `default`, and `*`
- * for an `export * from`. A form the scan cannot read is named `?` and its start, which no list holds.
- */
-function exportsOf(text: string): string[] {
-  const c = code(text)
-  const out: string[] = []
-  for (const m of c.matchAll(/\bexport\b/g)) {
-    const line = `? (${c.slice(m.index, m.index + 48).replace(/\s+/g, ' ').trim()}…)`
-    if (m.index && c[m.index - 1] !== '\n') {
-      out.push(line)
-      continue
+  const named = (n: {type: string; name?: string; value?: unknown}) => (n.type === 'Identifier' ? n.name! : String(n.value))
+  return program.body.flatMap((n: any): string[] => {
+    switch (n.type) {
+      case 'ExportNamedDeclaration':
+        if (n.declaration) return declared(n.declaration)
+        return n.exportKind === 'type' ? [] : n.specifiers.filter((s: any) => s.exportKind !== 'type').map((s: any) => named(s.exported))
+      case 'ExportDefaultDeclaration':
+        return ['default']
+      case 'ExportAllDeclaration':
+        return n.exportKind === 'type' ? [] : [n.exported ? named(n.exported) : '*']
+      case 'TSExportAssignment':
+        return ['=']
+      default:
+        return NOT_EXPORTS.has(n.type) ? [] : [`?${n.type}`]
     }
-    const {text: s, parts, closed} = statement(c, m.index)
-    const head = s.replace(/\s+/g, ' ')
-    const one = (re: RegExp) => re.exec(head)?.[1]
-    const declared = one(/^export (?:declare )?(?:async )?function\b ?\*? ?([\w$]+)/) ?? one(/^export (?:declare )?(?:abstract )?class ([\w$]+)/) ?? one(/^export (?:declare )?(?:const )?enum ([\w$]+)/) ?? one(/^export (?:declare )?(?:namespace|module) ([\w$]+)/) ?? one(/^export import ([\w$]+)/)
-    // A declaration is named by its head; JSX in its body is not read.
-    if (declared) out.push(declared)
-    else if (!closed) out.push(line)
-    else if (/^export (declare )?(type|interface)\b/.test(head)) continue
-    else if (/^export default\b/.test(head)) out.push('default')
-    else if (/^export \{/.test(head)) out.push(...(/^export \{([^}]*)\}/.exec(head)?.[1] ?? '').split(',').map((x) => x.trim()).filter((x) => x && !x.startsWith('type ')).map((x) => x.split(/\s+as\s+/).at(-1)!))
-    else if (/^export \* as /.test(head)) out.push(one(/^export \* as ([\w$]+) from\b/) ?? line)
-    else if (/^export \* from\b/.test(head)) out.push('*')
-    else if (/^export (declare )?(const|let|var|using) /.test(head)) {
-      // Each declarator: the first part, and each part after a comma outside brackets that binds a name
-      // (a comma inside a type's angle brackets binds none).
-      parts.forEach((p, i) => {
-        const part = (i ? p : p.replace(/^\s*export\s+(declare\s+)?(const|let|var|using)\s+/, '')).trim()
-        const name = /^([\w$]+)\s*(?::[\s\S]*?)?(=(?![=>])|$)/.exec(part)?.[1]
-        if (name) out.push(name)
-        else if (i === 0 || /^[[{][\s\S]*[\]}]\s*(?::[\s\S]*?)?=(?![=>])/.test(part)) out.push(line)
-      })
-    } else out.push(line)
-  }
-  return out
+  })
 }
 /** Whether `file` passes on a writer it imported under `local` (export {local}, export const x = local, export default local). */
 const passesOn = (c: string, local: string) =>
@@ -243,10 +234,12 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
   for (const [file, list] of [[PASTE_READS, PASTE_READS_EXPORTS] as const, ...Object.entries(ALLOWED).map(([file, a]) => [file, a.exports] as const)]) {
     if (!(file in src)) continue
     if (!list) {
+      const borrows = imports(file, src[file]!, src).flatMap(({to, names}) => (to === file ? [] : takes(names, WRITERS[to] ?? [])))
       if (!WRITERS[file]) problems.push(`${file} is allowed and lists no exports: list the values it may export`)
+      else if (borrows.length) problems.push(`${file} defines a writer and imports another file's (${borrows.join(', ')}): list the values it may export`)
       continue
     }
-    const has = exportsOf(src[file]!)
+    const has = exportsOf(file, src[file]!)
     for (const name of has) if (!list.includes(name)) problems.push(`${file} exports ${name}, which is not on its list (${list.join(', ')}): fieldrule-scan.test.ts names all it may export`)
     for (const name of list) if (!has.includes(name)) problems.push(`${file} no longer exports ${name}: take it off its list`)
   }
@@ -306,11 +299,25 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
     ['export const pastes = {pasteDocumentWith, raw: pasteDocumentReading}', 'pastes'],
     ['export const ok = 1,\n  raw = pasteFieldReading', 'raw'],
     ['export let ok = 1, later\nlater = pasteFieldReading', 'later'],
-    ['export const {raw} = {raw: pasteFieldReading}', '? (export const {raw} = {raw: pasteFieldReading}…)'],
+    ['export const {raw} = {raw: pasteFieldReading}', 'raw'],
+    ['export const {a: {raw = pasteFieldReading}} = {a: {}}', 'raw'],
     ['export default pasteDocumentReading', 'default'],
     ['export function wrap(...a: Parameters<typeof pasteFieldReading>) {\n  return pasteFieldReading(...a)\n}', 'wrap'],
     ['export {pasteDocumentWith as again}', 'again'],
-    ['const raw = pasteDocumentReading; export {raw}', '? (export {raw}…)'],
+    ['const raw = pasteDocumentReading; export {raw}', 'raw'],
+    ['const r = pasteDocumentReading\nexport {r as default}', 'default'],
+    ['export namespace N {\n  export const raw = pasteDocumentReading\n}', 'N'],
+    ['export class K {\n  static raw = pasteDocumentReading\n}', 'K'],
+    ['export enum E {\n  A = 1,\n}', 'E'],
+    ['export const g = {get raw() {\n  return pasteDocumentReading\n}}', 'g'],
+    ["export * as PL from './paste-locked'", 'PL'],
+    ["export * from './paste-locked'", '*'],
+    ['export declare const raw: typeof pasteDocumentReading', 'raw'],
+    ['export = pasteDocumentReading', '='],
+    ['const r = pasteDocumentReading\nexport\n{r}', 'r'],
+    ['const r = pasteDocumentReading\n  export {r}', 'r'],
+    ['export async function* gen() {\n  yield pasteDocumentReading\n}', 'gen'],
+    ['export let a = 1, b\n;[b] = [pasteDocumentReading]', 'b'],
   ])
   planted('lib/templates.ts', 'choicesFor, templateChoice, choiceById, startNew', [
     ['const again = createDoc\nexport const make = again', 'make'],
@@ -318,6 +325,24 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
     ['export const writers = {make: createDoc}', 'writers'],
     ['export class Maker {\n  make = draftNew\n}', 'Maker'],
   ])
+  // A second declarator on a listed export, however it is laid out: named.
+  const onLine = (file: string, line: RegExp, tail: string) => {
+    const at = line.exec(src[file]!)![0]
+    return judge({...src, [file]: src[file]!.replace(at, at + tail)})
+  }
+  for (const [file, line, name] of [[PASTE_READS, /^export const pasteFieldWith = .*$/m, 'raw = pasteFieldReading'], ['lib/comments.ts', /^export const readerCommentsQuery = .*$/m, 'mk = mutate']] as const) {
+    for (const tail of [`,\n${name}`, `\n, ${name}`, `, // a; b\n  ${name}`, `, zz = typeof /;/, ${name}`]) {
+      assert.match(onLine(file, line, tail).join('\n'), new RegExp(`${file.replace(/[./]/g, '\\$&')} exports ${name.split(' ')[0]}, which is not on its list`), JSON.stringify(tail))
+    }
+    // A comment after it is no code, whatever it holds.
+    for (const tail of [' // see (Sanity', " // the doc's type", ' // a; b', ' // {']) assert.deepEqual(onLine(file, line, tail), [], JSON.stringify(tail))
+  }
+  // The word export in a comment, a string or a template is no export.
+  for (const added of ['const zz = 1 // we export this later\nvoid zz', "const zz = 'export default'\nvoid zz", 'const zz = `\nexport this`\nvoid zz', '/* export const x = 1 */']) {
+    assert.deepEqual(judge({...src, 'lib/templates.ts': `${src['lib/templates.ts']}\n${added}\n`}), [], added)
+  }
+  // A file that defines a writer and imports another file's carries a list.
+  fails(src, 'lib/blocks.ts', `import {mutate} from './edits'\n${src['lib/blocks.ts']}\nvoid mutate\n`, /lib\/blocks\.ts defines a writer and imports another file's \(mutate\): list the values it may export/)
   // A type exports no value; a listed export gone is named too.
   assert.deepEqual(judge({...src, [PASTE_READS]: `${src[PASTE_READS]}\nexport type Raw = typeof pasteDocumentReading\nexport interface R {\n  r: Raw\n}\n`}), [])
   fails(src, PASTE_READS, src[PASTE_READS]!.replace('export const pasteFieldWith', 'const pasteFieldWith'), /lib\/paste-reads\.ts no longer exports pasteFieldWith/)
