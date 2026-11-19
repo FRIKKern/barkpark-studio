@@ -20,5 +20,8 @@ export function useCurrentUser() {
   const me = useQuery(meQuery).data
   return useMemo(() => currentUserOf(me), [me])
 }
-/** The same outside a component: the person as the cached whoAmI says. */
-export const personOf = (qc: QueryClient) => currentUserOf(qc.getQueryData(meQuery.queryKey) ?? undefined)
+/** The page's own query client, as router.tsx makes it (in the browser: one per page). */
+let appClient: QueryClient | undefined
+export const holdAppClient = (qc: QueryClient) => void (typeof window !== 'undefined' && (appClient = qc))
+/** The same outside a component: the person as the page's own cached whoAmI says (none on the server: unknown). */
+export const personOf = () => currentUserOf(appClient?.getQueryData(meQuery.queryKey) ?? undefined)

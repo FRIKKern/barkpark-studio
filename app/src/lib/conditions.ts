@@ -76,21 +76,22 @@ export const groupShows = (fields: Field[], group: string, doc: Record<string, u
 export type CurrentUser = {id: string; name: string; email: string; roles: {name: string; title: string}[]}
 /** Who the person is not known yet: whoAmI not read, a provisional stand-in, or a check Barkpark did not answer. Never nobody. */
 const UNKNOWN: unique symbol = Symbol('unknown')
-/** Nobody signed in (shared sign-in): a role rule's callbacks get `currentUser: null`. */
-const NOBODY: unique symbol = Symbol('nobody')
-/** The seal on a known person: not exported, so no other file can make one. */
+/** The seal on a person: not exported, so no other file can make one. */
 declare const sealed: unique symbol
-type Known = Readonly<CurrentUser> & {readonly [sealed]: true}
+type Known = Readonly<CurrentUser> & {readonly [sealed]: 'known'}
+/** Nobody signed in (shared sign-in): a role rule's callbacks get `currentUser: null`. */
+type Nobody = {readonly [sealed]: 'nobody'}
 /**
  * The person a field is judged for, one of three: known (a CurrentUser), nobody signed in, or
- * unknown. Only `mint` makes one, and only its one taker has it (takeMint: lib/session.ts). The
- * rule believes only what it minted (checked): anything else, a look-alike, a copy, a clone,
- * null, any `any`, is unknown, so the field locks. A field with a role rule waits while the
- * person is unknown (awaitsPerson); the markers for nobody and unknown never leave this file.
+ * unknown. Only a maker (mint) makes one, and only its one taker has it (takeMint:
+ * lib/person-source.ts). The rule believes only what the maker handed out now made (checked):
+ * anything else, a look-alike, a copy, a clone, null, any `any`, a person made by a maker handed
+ * back, is unknown, so the field locks. A field with a role rule waits while the person is
+ * unknown (awaitsPerson); the marker for unknown never leaves this file.
  * Not held: a known person minted before a check failed is still believed if a component keeps
  * one (task-17875b8357355194; person-scan.test.ts refuses keeping one in a ref or a `let`).
  */
-export type Person = Known | typeof NOBODY | typeof UNKNOWN
+export type Person = Known | Nobody | typeof UNKNOWN
 /** Sanity's Path: field names and array items by `_key`. */
 export type PathSegment = string | {_key: string}
 export type ConditionContext = {currentUser: CurrentUser | null; document: Record<string, unknown>; parent: unknown; value: unknown; path: PathSegment[]}
@@ -114,33 +115,50 @@ export function sanityRole(role: string | null | undefined, canWrite = true): st
 }
 
 type Me = {email: string | null; name: string | null; userId: string | null; role: string | null; canWrite: boolean; provisional?: boolean; unchecked?: boolean}
-/** Each known person `mint` made: the rule believes these, NOBODY and UNKNOWN, and nothing else. */
-const minted = new WeakSet<object>()
+type Maker = (me: Me | undefined) => Person
+/** Each person a maker made (known, or its nobody), by that maker. */
+const madeBy = new WeakMap<object, Maker>()
+const nobodies = new WeakSet<object>()
+/** The maker handed out now, if any. */
+let taken: Maker | null = null
 /**
- * whoAmI as Sanity's currentUser: nobody signed in (shared sign-in); unknown while Barkpark has
- * not said who (not read yet, a provisional stand-in, or a check it did not answer); else who it
- * is, frozen all the way down, so no role can be added to it.
+ * A maker of people: whoAmI as Sanity's currentUser. Nobody signed in (shared sign-in); unknown
+ * while Barkpark has not said who (not read yet, a provisional stand-in, or a check it did not
+ * answer); else who it is, frozen all the way down, so no role can be added to it. It makes
+ * nothing once handed back, and what it made is no longer believed.
  */
-function mint(me: Me | undefined): Person {
-  if (!me || me.provisional || me.unchecked) return UNKNOWN
-  if (!me.email) return NOBODY
-  const role = sanityRole(me.role, me.canWrite)
-  const roles = Object.freeze(role ? [Object.freeze({name: role, title: roleTitle(role)})] : [])
-  const known = Object.freeze({id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles}) as unknown as Known
-  minted.add(known)
-  return known
+function mint(): Maker {
+  const nobody = Object.freeze({}) as Nobody
+  const maker: Maker = (me) => {
+    if (maker !== taken) throw new Error('This person maker was handed back: a person comes only from lib/person-source.ts (useCurrentUser, personOf).')
+    if (!me || me.provisional || me.unchecked) return UNKNOWN
+    if (!me.email) return nobody
+    const role = sanityRole(me.role, me.canWrite)
+    const roles = Object.freeze(role ? [Object.freeze({name: role, title: roleTitle(role)})] : [])
+    const known = Object.freeze({id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles}) as unknown as Known
+    madeBy.set(known, maker)
+    return known
+  }
+  nobodies.add(nobody)
+  madeBy.set(nobody, maker)
+  return maker
 }
-let taken: typeof mint | null = null
 /**
- * The maker of a person, handed out once: lib/session.ts takes it as it loads (the tests'
+ * The maker of a person, handed out once: lib/person-source.ts takes it as it loads (the tests'
  * people, lib/persons.fixture.ts, in a test run); a second taker throws, so nothing else ever
- * makes a person. giveMintBack lets the one who has it hand it back (a dev reload of that module).
+ * makes a person.
  */
 export function takeMint() {
-  if (taken) throw new Error('The person maker is taken: a person comes only from lib/session.ts (useCurrentUser, personOf).')
-  return (taken = mint)
+  if (taken) throw new Error('The person maker is taken: a person comes only from lib/person-source.ts (useCurrentUser, personOf).')
+  return (taken = mint())
 }
-export const giveMintBack = (m: unknown) => void (m === taken && m !== null && (taken = null))
+/** Not a build (Vite's import.meta.env.DEV is false in one): a dev server, or a test run. */
+const DEV = import.meta.env?.DEV !== false
+/**
+ * A dev reload of lib/person-source.ts hands its maker back before it takes a new one: that maker
+ * stops, and what it made is no longer believed. In a build nothing is handed back.
+ */
+export const giveMintBack = (m: unknown) => void (DEV && m !== null && m === taken && (taken = null))
 
 /** The config key of a field path: its type, then field names with array items left out (`post.links.title`). */
 export const conditionKey = (type: string, path: string) => `${type}.${segments(path).flatMap((s) => ('name' in s ? [s.name] : [])).join('.')}`
@@ -180,13 +198,14 @@ type Where = {path: string; value: unknown; parent?: Record<string, unknown>}
 /** A config callback, which may ask who the person is: until that is known it cannot be answered. */
 const awaitsPerson = (p: ConditionalProperty, person: Person): person is typeof UNKNOWN => person === UNKNOWN && typeof p === 'function'
 /** Whether the person is known (or known to be nobody). Only this file asks (person-scan.test.ts). */
-const personKnown = (person: Person): person is Known | typeof NOBODY => person !== UNKNOWN
+const personKnown = (person: Person): person is Known | Nobody => person !== UNKNOWN
+const isNobody = (person: Person): person is Nobody => nobodies.has(person as object)
 /** Whether `mint` made this: a person any other way (a copy, a clone, an object made on one, null, any `any`) is not. */
-const isMinted = (p: unknown): p is Person => p === NOBODY || p === UNKNOWN || (typeof p === 'object' && p !== null && minted.has(p))
+const isMinted = (p: unknown): p is Person => p === UNKNOWN || (typeof p === 'object' && p !== null && taken !== null && madeBy.get(p) === taken)
 /** The person as the rule takes it, first thing at each way in: what `mint` made, or else unknown. */
 const checked = (p: unknown): Person => (isMinted(p) ? p : UNKNOWN)
 /** A known person (or nobody) as Sanity's callbacks take it: a copy as `currentUser`, or null. Never the person itself. */
-const sanityUser = (person: Known | typeof NOBODY): CurrentUser | null => (person === NOBODY ? null : {...person, roles: person.roles.map((r) => ({...r}))})
+const sanityUser = (person: Known | Nobody): CurrentUser | null => (isNobody(person) ? null : {...person, roles: person.roles.map((r) => ({...r}))})
 /** Whether kept edits wait to be put back: until the person is known, a role rule may lock a field they hold. */
 export const keptEditsWait = (person: Person) => !personKnown(checked(person))
 /** Whether a type has a role rule: a `form.conditions` callback under `type.`, which waits while the person is unknown. */
@@ -280,7 +299,7 @@ export function roleHidden(type: string, doc: Record<string, unknown>, who: Pers
   const hidden = rules?.[key]?.hidden
   // Until the person is known, a hidden callback hides the field as fieldState does.
   if (awaitsPerson(hidden, currentUser)) return true
-  if (!personKnown(currentUser) || currentUser === NOBODY || hidden === undefined) return false
+  if (!personKnown(currentUser) || isNobody(currentUser) || hidden === undefined) return false
   const ask = (user: CurrentUser, log = false) => resolveConditional(hidden, {currentUser: user, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)}, `form.conditions['${key}'].hidden`, log)
   if (!ask(sanityUser(currentUser)!, true)) return false
   const probes = new Set([...KNOWN_ROLES, ...currentUser.roles.map((r) => r.name), ...roles.flatMap((r) => sanityRole(r) ?? [])])

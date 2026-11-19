@@ -1,15 +1,22 @@
 // task-4ffed14fbf52dc47: the person is one of three, known, nobody, or unknown (lib/conditions.ts
 // Person), and no reader treats unknown as nobody. The first wall is the rule itself: it believes
-// only a person its one maker minted (conditions.ts checked), and reads anything else, a copy, a
-// clone, null, any `any`, as unknown, so the field locks. The maker is handed out once
-// (takeMint), to lib/person-source.ts. The second wall is the type: a Person is sealed, so a lock
+// only a person made by the maker handed out now (conditions.ts checked), and reads anything else,
+// a copy, a clone, null, any `any`, a person from a maker handed back, as unknown, so the field
+// locks. The maker is handed out once (takeMint), to lib/person-source.ts; one handed back (a dev
+// reload only: a build has no give-back) throws, and nothing it made is believed. The second wall is the type: a Person is sealed, so a lock
 // site cannot write a nobody or a compare-and-replace that tsc takes. This scan is the third,
 // read from the parse (oxc, source-tree.fixture.ts) of every file but the tests:
-// - only lib/person-source.ts takes the maker (it holds no server function, so the server never
-//   loads it twice: TanStack Start loads a module with server functions twice), and the tests'
-//   people (persons.fixture.ts) are imported by no source file;
+// - only lib/person-source.ts imports takeMint or giveMintBack (by import binding, so an escaped
+//   or renamed name is caught; it holds no server function, so the server never loads it twice:
+//   TanStack Start loads a module with server functions twice), and the tests' people
+//   (persons.fixture.ts) are imported by no source file;
+// - whoAmI's answer is written only in lib/session.ts: elsewhere meQuery is only asked
+//   (useQuery, ensureQueryData, fetchQuery, prefetchQuery) and its key only read or refreshed,
+//   never set, spread into a query of its own or given another queryFn; setQueriesData names its
+//   key; a query client is made only where CLIENTS says, and personOf reads only the page's own
+//   (router.tsx hands it over: holdAppClient);
 // - a lock site takes the person one way: the whole initializer of a `const <name>`, from
-//   `useCurrentUser()` or `personOf(<qc>)`; a named function may take it as a parameter typed Person;
+//   `useCurrentUser()` or `personOf()`; a named function may take it as a parameter typed Person;
 // - that name is used only as the person argument of a rule function (RULES, or such a named
 //   function), or in a hook's dependency list: never compared, reassigned, put in String(), read
 //   from, put in an object or array, spread, returned, or handed to anything else;
@@ -24,7 +31,8 @@
 // its whole file (it fails closed). Inside the rule (INSIDE) the person rides in a paste context,
 // which lock sites reach only through lib/paste-reads.ts (fieldrule-scan.test.ts). A Person named
 // through a type alias is no person here (fails closed). A rule that decides wrong in its own file
-// is for the unit tests to catch. And a known person minted before a check failed is still a
+// is for the unit tests to catch. A write to whoAmI's key through a key computed elsewhere (a
+// variable holding ['me'] made in another file, a whole cache copied) is not seen by name. And a known person minted before a check failed is still a
 // person the rule believes, if a component keeps one (task-17875b8357355194); this scan refuses
 // keeping one in a ref or a `let`.
 import assert from 'node:assert/strict'
@@ -132,7 +140,7 @@ function siteProblems(file: string, text: string, helpers: Record<string, number
   const calleeName = (call: Node): string | undefined => (call.callee.type === 'Identifier' ? call.callee.name : call.callee.type === 'MemberExpression' && !call.callee.computed ? call.callee.property.name : undefined)
   const personAt = (call: Node) => (call.type === 'CallExpression' && calleeName(call) !== undefined ? (call.callee.type === 'Identifier' ? ruleAt(call.callee.name) : Object.hasOwn(rules, calleeName(call)!) ? rules[calleeName(call)!] : undefined) : undefined)
 
-  // The people: a `const` taken from lib/session.ts, or a named function's parameter typed Person.
+  // The people: a `const` taken from lib/person-source.ts, or a named function's parameter typed Person.
   const names = new Set<string>()
   const binds = new Set<Node>()
   for (const n of anonymous) problems.push(`${file} takes a Person in a function with no name (${show(text, n)}): name it, so the scan holds what its callers hand it`)
@@ -144,9 +152,9 @@ function siteProblems(file: string, text: string, helpers: Record<string, number
       const [call, decl, list] = [up.at(-1), up.at(-2), up.at(-3)]
       if (call?.type === 'ImportSpecifier') return
       const args = call?.type === 'CallExpression' && call.callee === n ? call.arguments : null
-      const plain = n.name === 'useCurrentUser' ? args?.length === 0 : args?.length === 1 && args[0].type === 'Identifier'
+      const plain = args?.length === 0
       if (plain && decl?.type === 'VariableDeclarator' && decl.init === call && decl.id.type === 'Identifier' && list?.type === 'VariableDeclaration' && list.kind === 'const') names.add(decl.id.name), binds.add(decl.id)
-      else problems.push(`${file} takes the person another way (${show(text, n)}): only \`const <name> = useCurrentUser()\` or \`const <name> = personOf(<qc>)\``)
+      else problems.push(`${file} takes the person another way (${show(text, n)}): only \`const <name> = useCurrentUser()\` or \`const <name> = personOf()\``)
     }
     if (isFunction(n) && fnName(n, up))
       for (const p of n.params) {
@@ -172,7 +180,7 @@ function siteProblems(file: string, text: string, helpers: Record<string, number
     if (n.type === 'CallExpression' && personAt(n) !== undefined) {
       const arg = n.arguments[personAt(n)!]
       if (arg) for (let l = line(arg); l <= lineOf(text, arg.end); l++) touched.add(l)
-      if (arg?.type !== 'Identifier' || !names.has(arg.name)) problems.push(`${file} hands ${calleeName(n)} a person not taken from lib/session.ts (${show(text, arg ?? n)}): a \`const\` from useCurrentUser() or personOf(qc), or a parameter typed Person`)
+      if (arg?.type !== 'Identifier' || !names.has(arg.name)) problems.push(`${file} hands ${calleeName(n)} a person not taken from ${SOURCE} (${show(text, arg ?? n)}): a \`const\` from useCurrentUser() or personOf(qc), or a parameter typed Person`)
     }
     // A rule function is only called: put anywhere else, what it is handed is out of sight.
     if (n.type === 'Identifier' && ruleAt(n.name) !== undefined && !isKey(n, parent)) {
@@ -215,7 +223,7 @@ function whoAmIProblems(text: string): string[] {
 }
 
 /** In conditions.ts, only `mint` makes a person: casts to it, a marker handed out, a function said to return one. */
-const SEALED = /\b(Known|Person|NOBODY|sealed)\b/
+const SEALED = /\b(Known|Nobody|Person|sealed)\b/
 function sealProblems(text: string): string[] {
   const problems: string[] = []
   const {program} = parse(HOME, text)
@@ -225,7 +233,7 @@ function sealProblems(text: string): string[] {
     const inMaker = up.some((u) => (u.type === 'FunctionDeclaration' && u.id?.name === 'mint') || (u.type === 'VariableDeclarator' && u.id.name === 'checked'))
     if ((n.type === 'TSAsExpression' || n.type === 'TSSatisfiesExpression' || n.type === 'TSTypeAssertion') && said(n.typeAnnotation) && !inMaker) problems.push(`${HOME} casts to the person outside mint (${show(text, n.typeAnnotation)})`)
     const parent = up.at(-1)!
-    if (n.type === 'Identifier' && (n.name === 'NOBODY' || n.name === 'UNKNOWN') && !inMaker && !(parent.type === 'BinaryExpression' && /^[!=]==$/.test(parent.operator)) && parent.type !== 'TSTypeQuery' && !(parent.type === 'VariableDeclarator' && parent.id === n))
+    if (n.type === 'Identifier' && n.name === 'UNKNOWN' && !inMaker && !(parent.type === 'BinaryExpression' && /^[!=]==$/.test(parent.operator)) && parent.type !== 'TSTypeQuery' && !(parent.type === 'VariableDeclarator' && parent.id === n))
       problems.push(`${HOME} hands out ${n.name} outside mint (${show(text, n)}): only compare with it`)
     if (n.type === 'ExportNamedDeclaration') {
       const fns = n.declaration?.type === 'FunctionDeclaration' ? [n.declaration] : (n.declaration?.declarations ?? []).map((d: Node) => d.init).filter((f: Node | null) => f && isFunction(f))
@@ -255,6 +263,61 @@ function reachProblems(file: string, text: string): string[] {
   return problems
 }
 
+/** Who may hold the maker and the page's client, by import binding: the maker, only SOURCE (and the tests' people); holdAppClient, only router.tsx. */
+const HANDS: Record<string, string[]> = {takeMint: [SOURCE, TEST_PEOPLE], giveMintBack: [SOURCE, TEST_PEOPLE], holdAppClient: ['router.tsx']}
+/** Where a query client may be made, and why none of them is a way to a person (personOf reads only the page's own, useCurrentUser the provider's). */
+const CLIENTS: Record<string, string> = {
+  'router.tsx': "the page's own client, held for personOf",
+  'lib/ssr-budget.ts': "a server render's scratch read, copied into the request's client",
+  'lib/structure-route.tsx': "a server render's scratch reads for the pane chain",
+}
+/** Where whoAmI's query may be handed on, and why: */
+const ME_HANDED: Record<string, {to: string; why: string}> = {'lib/structure-route.tsx': {to: 'withinBudget', why: "a server render reads whoAmI within 600 ms, else provisionalMe's stand-in (an unknown person)"}}
+const READS = new Set(['getQueryData', 'getQueryState'])
+const REFRESHES = new Set(['invalidateQueries', 'refetchQueries', 'cancelQueries'])
+const RUNS = new Set(['ensureQueryData', 'fetchQuery', 'prefetchQuery'])
+const hands = new Map<string, string[]>()
+/** The maker, the page's client, whoAmI's cached answer: none reached but the one way. */
+function handProblems(file: string, text: string): string[] {
+  const key = `${file}\0${text}`
+  if (hands.has(key)) return hands.get(key)!
+  const problems: string[] = []
+  const say = (n: Node, what: string) => problems.push(`${file} ${what} (${show(text, n)})`)
+  const member = (n: Node | undefined) => (n?.type === 'CallExpression' && n.callee.type === 'MemberExpression' && !n.callee.computed ? (n.callee.property.name as string) : undefined)
+  const called = (n: Node | undefined) => (n?.type === 'CallExpression' && n.callee.type === 'Identifier' ? (n.callee.name as string) : member(n))
+  // The me key, read or refreshed only: an argument of a read, or the queryKey of a refresh's filter.
+  const keyRead = (n: Node, up: readonly Node[], at: number) => {
+    const [parent, grand, call] = [up[at - 1], up[at - 2], up[at - 3]]
+    if (parent?.type === 'CallExpression' && parent.arguments[0] === n && READS.has(member(parent) ?? '')) return true
+    return parent?.type === 'Property' && parent.value === n && parent.key.name === 'queryKey' && grand?.type === 'ObjectExpression' && call?.type === 'CallExpression' && call.arguments[0] === grand && REFRESHES.has(member(call) ?? '')
+  }
+  if (/\b(takeMint|giveMintBack|holdAppClient|QueryClient|meQuery|me)\b/.test(text))
+    visit(parse(file, text).program, (n, up) => {
+      const parent = up.at(-1)
+      if (n.type === 'ImportSpecifier' && Object.hasOwn(HANDS, n.imported.name ?? n.imported.value) && !HANDS[n.imported.name ?? n.imported.value]!.includes(file)) say(n, `takes ${n.imported.name ?? n.imported.value}: a person comes only from ${SOURCE}`)
+      if (n.type === 'NewExpression' && n.callee.type === 'Identifier' && n.callee.name === 'QueryClient' && !CLIENTS[file]) say(n, 'makes a query client: personOf reads only the page\'s own (list it in CLIENTS with why)')
+      if (n.type === 'Identifier' && n.name === 'QueryClientProvider' && parent?.type !== 'ImportSpecifier') say(n, 'provides a query client of its own: useCurrentUser reads the page\'s')
+      if (n.type === 'Identifier' && n.name === 'meQuery' && file !== SESSION && parent && !isKey(n, parent) && parent.type !== 'ImportSpecifier') {
+        const asQuery = parent.type === 'CallExpression' && parent.arguments[0] === n && (called(parent) === 'useQuery' || RUNS.has(member(parent) ?? ''))
+        const asKey = parent.type === 'MemberExpression' && parent.object === n && !parent.computed && parent.property.name === 'queryKey' && keyRead(parent, up, up.length - 1)
+        const handed = parent.type === 'CallExpression' && ME_HANDED[file]?.to === called(parent)
+        if (!asQuery && !asKey && !handed) say(n, "writes or reshapes whoAmI's answer: only useQuery(meQuery), ensureQueryData/fetchQuery/prefetchQuery(meQuery), or meQuery.queryKey read or refreshed")
+      }
+      // whoAmI's key itself (['me']; a list of key heads, like SessionGate's KEEP, is no key).
+      if (n.type === 'ArrayExpression' && n.elements.length === 1 && n.elements[0]?.type === 'Literal' && n.elements[0].value === 'me' && file !== SESSION && !keyRead(n, up, up.length)) say(n, "names whoAmI's key to write it: only read it, or refresh it")
+      // Writes to many queries: each names its key's head, never whoAmI's, and no predicate.
+      if (member(n) === 'setQueriesData') {
+        const filter = n.arguments[0]
+        const key = filter?.type === 'ObjectExpression' ? filter.properties.find((p: Node) => p.type === 'Property' && p.key.name === 'queryKey')?.value : undefined
+        const head = key?.type === 'ArrayExpression' ? key.elements[0] : undefined
+        const others = filter?.type === 'ObjectExpression' ? filter.properties.some((p: Node) => p.type !== 'Property' || p.key.name === 'predicate') : true
+        if (head?.type !== 'Literal' || typeof head.value !== 'string' || head.value === 'me' || others) say(n, "writes to queries it does not name (whoAmI's among them?): only {queryKey: ['<head>', ...]}")
+      }
+    })
+  hands.set(key, problems)
+  return problems
+}
+
 function judge(src: Record<string, string>) {
   const problems: string[] = []
   const helpers: Record<string, number> = {}
@@ -268,9 +331,9 @@ function judge(src: Record<string, string>) {
     }
     if (file === HOME) continue
     const c = code(text)
-    if (/persons\.fixture/.test(c) && file !== TEST_PEOPLE) problems.push(`${file} imports the tests' people (${TEST_PEOPLE}): take the person from lib/session.ts`)
+    if (/persons\.fixture/.test(c) && file !== TEST_PEOPLE) problems.push(`${file} imports the tests' people (${TEST_PEOPLE}): take the person from ${SOURCE}`)
     if (file === TEST_PEOPLE) continue
-    if (file !== SOURCE && /\b(takeMint|giveMintBack|currentUserOf)\b/.test(c)) problems.push(`${file} makes a person from whoAmI itself: take it from ${SOURCE} (useCurrentUser, personOf)`)
+    problems.push(...handProblems(file, text))
     if (/\bUNKNOWN\b/.test(c) && /from '[./]*(lib\/)?conditions(\.ts)?'/.test(c)) problems.push(`${file} reads UNKNOWN itself: ask lib/conditions.ts (a rule's answer)`)
     if (!RULE_MODULES.some((m) => file.startsWith(`${m}.`))) problems.push(...reachProblems(file, text))
     if (!INSIDE.has(file) && file !== SOURCE) problems.push(...siteProblems(file, text, helpers, helpersKey))
@@ -286,10 +349,12 @@ function judge(src: Record<string, string>) {
   if (!/^const currentUserOf = takeMint\(\)$/m.test(source) || /\bcreateServerFn\b/.test(source)) problems.push(`${SOURCE}: no longer takes the maker once as it loads, in a module with no server function`)
   // At home: a Person is sealed, nobody and the seal stay in the file, and unknown is UNKNOWN.
   const home = code(src[HOME] ?? '')
-  if (!/export type Person = Known \| typeof NOBODY \| typeof UNKNOWN\b/.test(home) || !/^declare const sealed: unique symbol$/m.test(home) || !/^const NOBODY: unique symbol = Symbol\('nobody'\)$/m.test(home) || !/^const UNKNOWN: unique symbol = Symbol\('unknown'\)$/m.test(home) || /\bexport\s*\{[^}]*\b(NOBODY|UNKNOWN|sealed|Known|mint|minted|checked)\b/.test(home) || /\bexport\s+type\s+Known\b/.test(home))
-    problems.push(`${HOME}: Person is no longer sealed (known, NOBODY or UNKNOWN, the markers, the seal and the maker kept in the file)`)
+  if (!/export type Person = Known \| Nobody \| typeof UNKNOWN\b/.test(home) || !/^declare const sealed: unique symbol$/m.test(home) || !/^type Nobody = \{readonly \[sealed\]: 'nobody'\}$/m.test(home) || !/^const UNKNOWN: unique symbol = Symbol\('unknown'\)$/m.test(home) || /\bexport\s*\{[^}]*\b(UNKNOWN|sealed|Known|Nobody|mint|madeBy|nobodies|taken|checked)\b/.test(home) || /\bexport\s+(type\s+(Known|Nobody)|(let|const)\s+(taken|madeBy|nobodies))\b/.test(home))
+    problems.push(`${HOME}: Person is no longer sealed (known, nobody or UNKNOWN; the marker, the seal and the maker kept in the file)`)
   problems.push(...sealProblems(src[HOME] ?? ''))
   if (!/if \(!me \|\| me\.provisional \|\| me\.unchecked\) return UNKNOWN/.test(home)) problems.push(`${HOME}: mint no longer says UNKNOWN for a check not answered`)
+  if (!/^const DEV = import\.meta\.env\?\.DEV !== false$/m.test(home) || !/^export const giveMintBack = \(m: unknown\) => void \(DEV && m !== null && m === taken && \(taken = null\)\)$/m.test(home) || !/^    if \(maker !== taken\) throw /m.test(home) || !/madeBy\.get\(p\) === taken\)$/m.test(home))
+    problems.push(`${HOME}: a maker is no longer stopped when handed back, or one is handed back in a build`)
   if (/\bexport\s+(const|function)\s+personKnown\b/.test(home)) problems.push(`${HOME} exports personKnown: only it asks whether the person is known`)
   for (const [file, re] of Object.entries(BANNER)) if (!re.test(code(src[file] ?? '').replace(/\s+/g, ' '))) problems.push(`${file}: the failed check is no longer said only where something is closed: ${re}`)
   return problems
@@ -316,20 +381,29 @@ test('fails cases: UNKNOWN or the role read outside conditions.ts, a person made
   const src = tree()
   fails(src, 'components/Badge.tsx', "import {UNKNOWN} from '../lib/conditions'\nexport const b = (user: unknown) => (user === UNKNOWN ? null : user)\n", /Badge\.tsx reads UNKNOWN itself/)
   fails(src, 'components/Role.tsx', "const me = useQuery(meQuery).data\nexport const admin = me?.role === 'admin'\n", /Role\.tsx reads whoAmI's role/)
-  fails(src, 'components/Who.tsx', "import {takeMint} from '../lib/conditions'\nexport const who = takeMint()\n", /Who\.tsx makes a person from whoAmI itself/)
+  fails(src, 'components/Who.tsx', "import {takeMint} from '../lib/conditions'\nexport const who = takeMint()\n", /Who\.tsx takes takeMint/)
+  fails(src, 'components/Who.tsx', "import {take\\u004dint as t, giveMintBack as g} from '../lib/conditions'\nconst f = t()\ng(f)\n", /Who\.tsx takes takeMint[\s\S]*Who\.tsx takes giveMintBack/)
+  fails(src, 'components/Who.tsx', "import {holdAppClient} from '../lib/person-source'\nimport {QueryClient} from '@tanstack/react-query'\nholdAppClient(new QueryClient())\n", /Who\.tsx takes holdAppClient[\s\S]*Who\.tsx makes a query client/)
   red(swap(src, SOURCE, 'const currentUserOf = takeMint()', 'const currentUserOf = (me: never) => takeMint()(me)'), /person-source\.ts: no longer takes the maker once as it loads/)
   red({...src, [SOURCE]: `${src[SOURCE]!}\nexport const late = createServerFn({method: 'GET'}).handler(async () => 1)\n`}, /person-source\.ts: no longer takes the maker once as it loads, in a module with no server function/)
   fails(src, 'components/Broken.tsx', 'export const = 1\n', /Broken\.tsx does not parse/)
   red(swap(src, HOME, 'if (!me || me.provisional || me.unchecked) return UNKNOWN', 'if (!me || me.provisional) return UNKNOWN'), /mint no longer says UNKNOWN/)
-  red(swap(src, HOME, 'const NOBODY: unique symbol', 'export const NOBODY: unique symbol'), /Person is no longer sealed/)
-  red(swap(src, HOME, 'export type Person = Known | typeof NOBODY | typeof UNKNOWN', 'export type Person = CurrentUser | null | typeof UNKNOWN'), /Person is no longer sealed/)
+  red(swap(src, HOME, "type Nobody = {readonly [sealed]: 'nobody'}", "export type Nobody = {readonly [sealed]: 'nobody'}"), /Person is no longer sealed/)
+  red(swap(src, HOME, 'let taken: Maker', 'export let taken: Maker'), /Person is no longer sealed/)
+  red(swap(src, HOME, 'export type Person = Known | Nobody | typeof UNKNOWN', 'export type Person = CurrentUser | null | typeof UNKNOWN'), /Person is no longer sealed/)
   red(swap(src, HOME, 'const personKnown =', 'export const personKnown ='), /exports personKnown/)
+  // P1b: a maker taken early and handed back keeps working, or what it made is still believed, or a build hands back.
+  red(swap(src, HOME, 'void (DEV && m !== null', 'void (m !== null'), /handed back, or one is handed back in a build/)
+  red(swap(src, HOME, '    if (maker !== taken) throw ', '    if (maker === null) throw '), /no longer stopped when handed back/)
+  red(swap(src, HOME, 'madeBy.get(p) === taken)', 'madeBy.has(p))'), /no longer stopped when handed back/)
+  fails(src, 'components/Early.tsx', "import {takeMint, giveMintBack} from '../lib/conditions'\nconst forge = takeMint()\ngiveMintBack(forge)\nexport const admin = forge({email: 'a@b', name: 'a', userId: 'u', role: 'admin', canWrite: true})\n", /Early\.tsx takes takeMint[\s\S]*Early\.tsx takes giveMintBack/)
   // A second maker in conditions.ts.
   const more = (line: string) => ({...src, [HOME]: `${src[HOME]!}\n${line}\n`})
-  red(more('export const nobodyHere = (): Person => NOBODY'), /exports a function that returns a person[\s\S]*hands out NOBODY outside mint/)
+  red(more('export const unknownHere = (): Person => UNKNOWN'), /exports a function that returns a person[\s\S]*hands out UNKNOWN outside mint/)
+  red(more('export const nobodyHere = () => ({}) as Nobody'), /casts to the person outside mint/)
   red(more('export const asPerson = (u: CurrentUser) => u as Known'), /casts to the person outside mint/)
   red(swap(src, HOME, 'const UNKNOWN: unique symbol', 'export const UNKNOWN: unique symbol'), /Person is no longer sealed/)
-  red(more('export const none = () => [NOBODY][0]'), /hands out NOBODY outside mint \(line \d+: export const none/)
+  red(more('export const none = () => [UNKNOWN][0]'), /hands out UNKNOWN outside mint \(line \d+: export const none/)
   red(more('export function maybe(p: CurrentUser): Person | undefined {\n  return undefined\n}'), /exports a function that returns a person/)
   fails(src, 'components/People.tsx', "import {nobody} from '../lib/persons.fixture'\nexport const p = nobody\n", /People\.tsx imports the tests' people/)
   red(swap(src, 'components/Diagnostics.tsx', 'me && !me.provisional && !me.unchecked ? (me.role', 'me ? (me.role'), /Diagnostics\.tsx reads the role and no longer waits/)
@@ -355,7 +429,7 @@ test('fails cases: the reviewer\'s ways round, at the real lock sites (B1-B6), e
   // B4, the canvas and the save: destructured and mapped.
   red(swap(withWho, DP, TAKEN, 'const [user] = [useCurrentUser()].map(orNobody)', 0), /DocumentPane\.tsx takes the person another way \(line \d+: const \[user\]/)
   // B5, the page overlay: mapped.
-  red(swap(withWho, 'lib/presentation-overlay.ts', 'const person = personOf(qc)', 'const person = [personOf(qc)].map(orNobody)[0]!'), /presentation-overlay\.ts takes the person another way/)
+  red(swap(withWho, 'lib/presentation-overlay.ts', 'const person = personOf()', 'const person = [personOf()].map(orNobody)[0]!'), /presentation-overlay\.ts takes the person another way/)
   // B6, the group tabs: in an object.
   red(swap(src, DP, TAKEN, "const box = {p: useCurrentUser()}\n  const user = box.p === 'unknown' ? null : box.p", 1), /DocumentPane\.tsx takes the person another way \(line \d+: const box = \{p: useCurrentUser\(\)\}/)
   // The helper itself reads its person.
@@ -371,10 +445,10 @@ test('fails cases: what a rule call is handed, and how the person goes on', () =
   const DP = 'components/DocumentPane.tsx'
   const HM = 'components/DocHeaderMenu.tsx'
   // `any` values without the word: past tsc, not past the rule call.
-  red(swap(src, F, 'fieldState(type, props.field, doc, user,', "fieldState(type, props.field, doc, JSON.parse('null'),"), /Fields\.tsx hands fieldState a person not taken from lib\/session\.ts \(line \d+: .*JSON\.parse/)
-  red(swap(src, DP, 'fieldState(schema.name, f, doc, user,', 'fieldState(schema.name, f, doc, structuredClone(user),'), /DocumentPane\.tsx hands fieldState a person not taken from lib\/session\.ts \(line \d+: .*structuredClone/)
+  red(swap(src, F, 'fieldState(type, props.field, doc, user,', "fieldState(type, props.field, doc, JSON.parse('null'),"), /Fields\.tsx hands fieldState a person not taken from lib\/person-source\.ts \(line \d+: .*JSON\.parse/)
+  red(swap(src, DP, 'fieldState(schema.name, f, doc, user,', 'fieldState(schema.name, f, doc, structuredClone(user),'), /DocumentPane\.tsx hands fieldState a person not taken from lib\/person-source\.ts \(line \d+: .*structuredClone/)
   const loose = {...src, 'lib/loose.js': 'export const loose = (p) => p && null\n'}
-  red(swap(loose, 'lib/presentation-overlay.ts', 'pathReadOnly(type, schema.fields, doc, person,', 'pathReadOnly(type, schema.fields, doc, loose(person),'), /presentation-overlay\.ts hands pathReadOnly a person not taken from lib\/session\.ts/)
+  red(swap(loose, 'lib/presentation-overlay.ts', 'pathReadOnly(type, schema.fields, doc, person,', 'pathReadOnly(type, schema.fields, doc, loose(person),'), /presentation-overlay\.ts hands pathReadOnly a person not taken from lib\/person-source\.ts/)
   red(swap(src, DP, 'fieldState(schema.name, f, doc, user,', 'fieldState(schema.name, f, doc, user ? user : user,'), /DocumentPane\.tsx hands fieldState a person not taken/)
   // The rule reached another way than a named import (B8b, B8c, B8f), or a rule function not called by its name.
   const ns = (s: Record<string, string>) => swap(s, F, "import {useCurrentUser} from '../lib/person-source'", "import {useCurrentUser} from '../lib/person-source'\nimport * as C from '../lib/conditions'")
@@ -387,6 +461,13 @@ test('fails cases: what a rule call is handed, and how the person goes on', () =
   fails(src, 'lib/rules-late.ts', "export const late = (m: string) => import(`./${m}`)\n", /rules-late\.ts reaches the rule by import\(\) of a computed path/)
   fails(src, 'lib/rules-late.ts', "export const late = () => require('./paste-reads')\n", /rules-late\.ts reaches the rule by require/)
   fails(src, 'lib/rules-late.ts', "export const late = import.meta.glob('./*.ts')\n", /rules-late\.ts reaches the rule by import\.meta\.glob/)
+  // whoAmI's answer forged in a client (P4: a new one handed to personOf; P3: the page's own).
+  red(swap(src, F, 'const user = useCurrentUser()', "const asked = new QueryClient()\n  asked.setQueryData(meQuery.queryKey, {unchecked: false, canWrite: true})\n  const user = personOf(asked)", 0), /Fields\.tsx makes a query client[\s\S]*Fields\.tsx writes or reshapes whoAmI's answer[\s\S]*Fields\.tsx takes the person another way \(line \d+: const user = personOf\(asked\)/)
+  const PB = 'components/PersonCheckBanner.tsx'
+  red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery(meQuery)\n  qc.setQueryData(meQuery.queryKey, {...me.data, unchecked: false})"), /PersonCheckBanner\.tsx writes or reshapes whoAmI's answer[^\n]*\(line \d+: qc\.setQueryData\(meQuery\.queryKey/)
+  red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery(meQuery)\n  qc.setQueryData(['me'], {...me.data, unchecked: false})"), /PersonCheckBanner\.tsx names whoAmI's key to write it/)
+  red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery({...meQuery, queryFn: async () => ({unchecked: false})})"), /PersonCheckBanner\.tsx writes or reshapes whoAmI's answer/)
+  red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery({queryKey: meQuery.queryKey, queryFn: async () => ({unchecked: false})})"), /PersonCheckBanner\.tsx writes or reshapes whoAmI's answer/)
   // Around the type: as, any, @ts-.
   red(swap(src, DP, 'keptEditsWait(user)', 'keptEditsWait(user as never)'), /DocumentPane\.tsx writes `as` on a line with the person/)
   red(swap(src, HM, TAKEN, `${TAKEN}\n  const any0: any = user`), /DocHeaderMenu\.tsx writes `any` on a line with the person/)

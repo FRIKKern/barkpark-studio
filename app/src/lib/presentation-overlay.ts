@@ -211,7 +211,7 @@ export function overlayEditing({visual, qc, perspective, pageDocs, read, panelDo
     const field = arrayField(schema, path, doc)
     if (!field) return notSaved('not an array of this document type a page may change'), false
     // No pane may show this doc, so the save's own field check (lib/doc-lock.ts) may not judge it: the one rule is asked here.
-    const person = personOf(qc)
+    const person = personOf()
     if (!schema || pathReadOnly(type, schema.fields, doc, person, studio.form?.conditions, path)) return notSaved('the field is read-only for this person'), false
     const result = applyArrayOp(getPath(doc, path), op, field)
     if ('refused' in result) return notSaved(result.refused), false

@@ -87,11 +87,19 @@ test('the markers and the person never leave the rule: a callback gets a copy, o
   for (const p of [admin, nobody, unknown] as Person[]) assert.equal(symbols(await answers(p)), false)
 })
 
-test('the maker is handed out once: a second taker throws, and only its holder can hand it back', () => {
+test('the maker is handed out once, and one handed back makes nothing more: nothing it made is believed', () => {
   assert.throws(() => takeMint(), /taken/)
   giveMintBack(() => unknown)
   assert.throws(() => takeMint(), /taken/, 'a look-alike hands nothing back')
+  // A module that took the maker first, made an administrator and a nobody, and gave it back (the
+  // fixture's maker stands in for it), before lib/person-source.ts takes it.
+  const forged: Person[] = [known('administrator'), nobody]
   giveMintBack(mint)
-  const again = takeMint()
-  assert.equal(again, mint, 'the holder handed it back (a dev reload), and the next run takes the same maker')
+  assert.throws(() => mint(undefined), /handed back/)
+  const real = takeMint()
+  assert.throws(() => takeMint(), /taken/)
+  const asUnknown = fieldState('post', title, doc, real(undefined), rules)
+  for (const p of forged) assert.deepEqual(fieldState('post', title, doc, p, rules), asUnknown)
+  const admin = real({email: 'a@example.com', name: 'A', userId: 'u1', role: 'admin', canWrite: true})
+  assert.equal(fieldState('post', title, doc, admin, rules).readOnly, false)
 })

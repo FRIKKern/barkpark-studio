@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import {meOf, type Read} from './me-of.ts'
 import {UNKNOWN_SELF, type TokenSelf} from './token-self.ts'
-import {mint, unknown} from './persons.fixture.ts'
+import {mint, nobody, unknown} from './persons.fixture.ts'
 
 const editor = {email: 'e@example.com'}
 const read = (self: TokenSelf | undefined, more: Partial<Read> = {}): Read => ({mode: 'account', cloud: false, editor, self, name: 'E', presenceName: 'p', editorKey: 'k', ...more})
@@ -26,8 +26,8 @@ test('a check Barkpark answered: checked, and the person is known, or nobody', (
   assert.deepEqual(mint(me), {id: 'u1', name: 'E', email: 'e@example.com', roles: [{name: 'editor', title: 'Editor'}]})
   const shared = meOf(read({permissions: ['read', 'write'], boundDataset: null}, {mode: 'shared', editor: null}))
   assert.equal(shared.unchecked, false)
-  assert.equal(String(mint(shared)), 'Symbol(nobody)')
+  assert.equal(mint(shared), nobody)
   // The editor's own token refused (401): the session ends, and nobody is signed in.
   const ended = meOf(read({permissions: [], boundDataset: null, refused: true}))
-  assert.deepEqual([ended.unchecked, ended.email, String(mint(ended))], [false, null, 'Symbol(nobody)'])
+  assert.deepEqual([ended.unchecked, ended.email, mint(ended) === nobody], [false, null, true])
 })

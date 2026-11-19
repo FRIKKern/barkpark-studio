@@ -43,7 +43,7 @@ test('readOnly ({currentUser}) locks the field for an editor and leaves it open 
   assert.equal(fieldState('author', stage, doc, mint(me('member')), rules).readOnly, false)
   // Nobody signed in (shared sign-in): currentUser is null, and this config leaves the field open.
   assert.equal(fieldState('post', stage, doc, nobody, rules).readOnly, false)
-  assert.equal(String(mint({...me('owner'), email: null})), 'Symbol(nobody)')
+  assert.equal(mint({...me('owner'), email: null}), nobody)
   // Barkpark not answered yet (no answer, or the server render's provisional stand-in): not known, so the rule locks it (fieldrule.test.ts).
   assert.equal(mint({...me('owner'), provisional: true}), unknown)
   assert.equal(mint(undefined), unknown)
