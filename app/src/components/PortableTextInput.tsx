@@ -378,6 +378,11 @@ function SanityPlugins({field, stored}: {field: Field; stored: PtBlock[]}) {
 
 /** How long after this editor's last keystroke another editor's text waits (a word's letters come faster). */
 const WORD_PAUSE_MS = 500
+// The longest another editor's patches wait for this editor's own change to be emitted
+// (the editor emits a paste's within a second): past it they go regardless.
+const MINE_WAIT_MS = 3000
+/** A text patch's span, as `block/span` (lib/pt-value.ts spanTexts). */
+const spanKeys = (p: RemotePatch) => p.path.flatMap((s) => (typeof s === 'string' ? [] : [(s as {_key: string})._key])).join('/')
 
 /**
  * The text, with the other editors' carets over it where they are, as Sanity's: a line in their
@@ -541,8 +546,9 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     if (event.type === 'invalid value') return onInvalid()
     // The editor's own reading of the stored value, before any edit: what an untouched block looks like.
     if (event.type === 'ready') (seen.current = (editor.getSnapshot().context.value ?? []) as PtBlock[]), onReady()
-    if (event.type === 'patch') typing.current = Date.now() // each keystroke as it lands; `mutation` comes batched
+    if (event.type === 'patch') (typing.current = Date.now()), (unsent.current ||= Date.now()) // each keystroke as it lands; `mutation` comes batched
     if (event.type !== 'mutation') return
+    unsent.current = 0
     seen.current ??= stored
     const merged = mergeValue(stored, seen.current, (event.value ?? []) as PtBlock[])
     const next = merged.length ? merged : undefined
@@ -569,6 +575,7 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
         sentWhen.current.set(t.block, Date.now())
         editPath(`${id}${t.path}`, (now: unknown) => applyText(own, typeof now === 'string' ? now : ''))
       }
+      release.current()
       return
     }
     if (equal(next ?? [], last.current ?? [])) return
@@ -621,13 +628,36 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     // still waits for (held until this editor's typing pauses): it stays at their text, or
     // their next patch was made from what the editor draws now and put the waiting one's words in twice.
     const had = new Map(spanTexts(prior))
-    const waiting = new Set(held.current.flatMap((p) => (p.type === 'diffMatchPatch' ? [p.path.flatMap((s) => (typeof s === 'string' ? [] : [s._key])).join('/')] : [])))
+    // Their text held for a span this change rewrote (a paste that split its block): made on
+    // the span as it was, put on it now it lands on the wrong letters. The save merged it in
+    // (from the document as held), and show() puts that on the screen.
+    const rewrote = new Set(spanTexts(next).flatMap(([at, t]) => (had.get(at) !== t ? [at] : [])))
+    held.current = held.current.filter((p) => p.type !== 'diffMatchPatch' || !rewrote.has(spanKeys(p)))
+    const waiting = new Set(held.current.flatMap((p) => (p.type === 'diffMatchPatch' ? [spanKeys(p)] : [])))
     for (const [at, t] of spanTexts(next)) if (had.get(at) !== t && !waiting.has(at)) text.current.set(at, t)
     // Measured from the texts just accounted for: from older ones, their words went in twice.
     show(next, saved)
+    release.current()
   }
   const typing = useRef(0)
   const held = useRef<RemotePatch[]>([])
+  // Since when this editor has changes the editor has not emitted yet (its `mutation` comes
+  // up to a second after a paste). Another editor's patches wait for them: given before, the
+  // screen's split block took them on the wrong letters while `drawn` took them as made, and
+  // the save measured from that put back the letters they had taken out (task-ab6d751fa53fbda5).
+  const unsent = useRef(0)
+  const waitsForMine = () => unsent.current > 0 && Date.now() - unsent.current < MINE_WAIT_MS
+  const releaseTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const release = useRef(() => {})
+  release.current = () => {
+    clearTimeout(releaseTimer.current)
+    if (!held.current.length) return
+    if (waitsForMine()) releaseTimer.current = setTimeout(() => release.current(), unsent.current + MINE_WAIT_MS - Date.now())
+    // Their text alone waits while this editor is typing a word (flushText); the rest goes now.
+    else if (held.current.every((p) => p.type === 'diffMatchPatch')) flushText.current()
+    else give(held.current.splice(0), known.current)
+  }
+  useEffect(() => () => clearTimeout(releaseTimer.current), [])
   const give = (patches: RemotePatch[], snapshot: unknown) => {
     editor.send({type: 'patches', patches: patches as never, snapshot: snapshot as never})
     drawn.current = withRemote(drawn.current, patches, true)
@@ -650,7 +680,7 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     clearTimeout(flushTimer.current)
     const wait = typing.current + WORD_PAUSE_MS - Date.now()
     if (wait > 0) flushTimer.current = setTimeout(() => flushText.current(), wait)
-    else if (held.current.length) give(held.current.splice(0), known.current)
+    else if (held.current.length && !waitsForMine()) give(held.current.splice(0), known.current)
   }
   const flushTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(flushTimer.current), [])
@@ -701,10 +731,10 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     if (!patches.length) return
     // Their text alone waits while this editor is typing a word: put in mid-word it splits
     // this editor's undo step there (the editor merges letters into one step only while each
-    // lands right after the last). Anything else goes now, with what waited before it.
+    // lands right after the last). Anything else goes now, with what waited before it, unless
+    // this editor's own change is not emitted yet (release).
     held.current.push(...patches)
-    if (patches.every((p) => p.type === 'diffMatchPatch')) flushText.current()
-    else give(held.current.splice(0), incoming)
+    release.current()
     // The next save is measured from the last one with their blocks in: they are not sent back
     // as this editor's own, and its typing not emitted yet still goes.
     last.current = withRemote(last.current, patches)
