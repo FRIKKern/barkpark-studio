@@ -1,6 +1,6 @@
 // sync-pack.yml's act job runs scripts/sync-act.sh; here the same file runs with bash against a local bare
 // repo as origin, a local Barkpark and a stub gh. The plan's files are made by hand, as a hostile plan job could.
-// Every commit is made once, up front, by one `git fast-import` per side; each case gets its own origin, a
+// The commits are made once, up front, most by one `git fast-import` per side; each case gets its own origin, a
 // bare repo that borrows those objects (objects/info/alternates) with its refs written in, and the cases run
 // side by side.
 import assert from 'node:assert/strict'
@@ -139,8 +139,8 @@ const REFUSED = [
   ['a workflow moved into the pack', {'.github/workflows/unit.yml': null, 'conformance/pack/unit.yml': 'name: unit\n'}, /\.github\/workflows\/unit\.yml/],
   ['a symlink in the pack', {'conformance/pack/link': ['120000', '../../app/x.ts']}, /120000 conformance\/pack\/link/],
   ['an executable in the pack', {'conformance/pack/run.sh': ['100755', 'x\n']}, /100755 conformance\/pack\/run\.sh/],
-  // A tree entry named `..` (git refuses to make one from a work tree; fast-import writes it).
-  ['a .. entry in the pack', {'conformance/pack/..': '{}\n'}, /conformance\/pack\/\.\./],
+  // A tree entry named `..`: its commit is made by hand below (dotDot), as git refuses to make one otherwise.
+  ['a .. entry in the pack', {}, /conformance\/pack\/\.\./],
   ['a commit on top of another commit', pack('{"v": 2}\n', B.b2), /not on main/, {from: 'app-y'}],
   ['a pack file name outside [A-Za-z0-9._/-]', {'conformance/pack/a b.json': '{}\n'}, /conformance\/pack\/a b\.json/],
   // The pack's bytes: Barkpark's own at the commit SOURCE.md names, on Barkpark's main.
@@ -171,6 +171,16 @@ const S = importNow(STUDIO, [
   {name: 'main-2', from: 'main', files: {'app/x.ts': 'moved\n'}},
   {name: 'main-3', from: 'main-2', files: {'app/x.ts': 'main again\n', 'README.md': 'r\n'}},
 ])
+S[`refused-${REFUSED.findIndex(([name]) => name === 'a .. entry in the pack')}`] = dotDot(S.main)
+/** A commit on `main` whose conformance/pack holds a tree entry named `..` (and a.json). */
+function dotDot(main) {
+  const [a, report, github, app] = git(STUDIO, 'rev-parse', ...['conformance/pack/a.json', 'conformance/barkpark-studio.json', '.github', 'app'].map((p) => `${main}:${p}`)).split('\n')
+  const entry = (mode, name, sha) => Buffer.concat([Buffer.from(`${mode} ${name}\0`), Buffer.from(sha, 'hex')])
+  const tree = (...entries) => execFileSync('git', ['hash-object', '-t', 'tree', '--literally', '-w', '--stdin'], {cwd: STUDIO, env, input: Buffer.concat(entries), encoding: 'utf8'}).trim()
+  const pack = tree(entry('100644', '..', a), entry('100644', 'a.json', a))
+  const top = tree(entry('40000', '.github', github), entry('40000', 'app', app), entry('40000', 'conformance', tree(entry('100644', 'barkpark-studio.json', report), entry('40000', 'pack', pack))))
+  return git(STUDIO, 'commit-tree', top, '-p', main, '-m', 'sync')
+}
 /** A case's origin: main at `main`, the sync branch at `branch` if given; Barkpark's main as `barkpark` holds it. */
 const world = (main = S.main, branch, barkpark = BARKPARK) => ({origin: borrower([STUDIO], {'refs/heads/main': main, ...(branch && {[`refs/heads/${BRANCH}`]: branch})}), barkpark})
 const branchAt = (w) => (existsSync(join(w.origin, 'refs/heads', BRANCH)) ? readFileSync(join(w.origin, 'refs/heads', BRANCH), 'utf8').trim() : '')
