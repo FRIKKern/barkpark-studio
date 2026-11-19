@@ -111,3 +111,26 @@ test('restore of a kept block: flagged untold only when it cannot be told; an ed
   assert.deepEqual(flag('the cat sat', 'the sat', ['A dog']), [['A dog'], true], 'C12: rewritten')
   assert.deepEqual(flag('the cat sat', 'the sat', ['The cat sat down']), [['The sat down'], false], 'applied')
 })
+
+// #1318 review (verdict3), the reviewer's inputs: "done" only when it is proved. Their word at the
+// spot of an inserted run (starting or ending with it, or holding it) is cannot-tell, not done.
+// And a run typed over, whose new text stands right there already, is not put in again (3a/3b).
+const untold = (base: string, mine: string, now: string) => {
+  const p: Pending = {at: 0, type: 'post', fields: [['body[_key=="b"]', blk('b', mine)]], base: [['body[_key=="b"]', blk('b', base)]], keys: [['body', ['b']]], tab: 't'}
+  const r = restoreBlock(p, 'body[_key=="b"]', blk('b', mine), {_id: 'x', _type: 'post', body: [blk('b', now)]} as unknown as Doc)!
+  return [texts(r[1]), r[2] ?? false]
+}
+for (const [name, base, mine, now] of [
+  ['1a they typed ". sat" after it', 'the cat', 'the cat sat', 'the cat. sat'],
+  ['1b mine " now", theirs " nowhere"', 'go home', 'go home now', 'go home nowhere'],
+  ['1c mine " the", theirs " then we go"', 'Start text', 'Start text the', 'Start text then we go'],
+  ['1d mine "not ", theirs "nothing "', 'I like it', 'I like not it', 'I like nothing it'],
+  ['1e mine "A ", theirs "As "', 'cat sat', 'A cat sat', 'As cat sat'],
+  ['1f mine " big", theirs "bigger"', 'Hello world', 'Hello big world', 'Hello bigger world'],
+  ['1g mine "un", theirs "un-"', 'I am happy', 'I am unhappy', 'I am un-happy'],
+  ['5c base gone, mine inside theirs with more around', 'one two', 'one two three', 'zero one two three four'],
+  ['5d base gone, they retyped mine with a word inside', 'go', 'go home now', 'go home right now'],
+  ['3a half landed, insert in: not put in again ("the dogdog sat")', 'the cat sat', 'the dog sat', 'the dogcat sat'],
+  ['3b half landed, insert in (space): not put in again', 'the cat sat', 'the dog sat', 'the dog cat sat'],
+] as const)
+  test(`restore of a kept block, ${name}: cannot tell, the server's text as it is`, () => assert.deepEqual(untold(base, mine, now), [[now], true]))
