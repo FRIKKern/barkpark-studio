@@ -1,6 +1,7 @@
 import {createElement, Fragment} from 'react'
 import {defineBehavior, raise} from '@portabletext/editor/behaviors'
 import {BehaviorPlugin} from '@portabletext/editor/plugins'
+import {getBlockTextBefore, isSelectionCollapsed} from '@portabletext/editor/selectors'
 import {OneLinePlugin} from '@portabletext/plugin-one-line'
 import type {Field} from './data'
 import {isOneLine} from './pt-value.ts'
@@ -8,7 +9,22 @@ import {isOneLine} from './pt-value.ts'
 const LINE_BREAKS = /(?:\r\n|\r|\n)+/g
 
 const behaviors = [
-  // Shift+Enter breaks no line either, as Sanity's (core/form/inputs/PortableText/object/Plugins.tsx).
+  // A soft break, by where it comes from; this is the one place that decides it.
+  // - Typed: Shift+Enter, a real keydown with key "Enter". Nothing, as Sanity's
+  //   (core/form/inputs/PortableText/object/Plugins.tsx): the keydown is taken, so the browser
+  //   sends no line break after it.
+  // - Arriving text: on Android the editor splits text put in with a line break at each "\n" and
+  //   sends a soft break between the pieces (@portabletext/editor lib/index.js, its input path);
+  //   no Enter keydown comes first (an Android keyboard's is "Unidentified", or none). One space,
+  //   none where the text just before the caret already ends in one, so a run of breaks is one
+  //   space. Only before: the next piece lands between the caret and any space after it. A lone
+  //   break right before a space so gives two spaces; joined words would be worse.
+  defineBehavior({on: 'keyboard.keydown', guard: ({event}) => event.originEvent.key === 'Enter' && event.originEvent.shiftKey, actions: []}),
+  defineBehavior({
+    on: 'insert.soft break',
+    guard: ({snapshot}) => !isSelectionCollapsed(snapshot) || !/\s$/.test(getBlockTextBefore(snapshot)),
+    actions: [() => [raise({type: 'insert.text', text: ' '})]],
+  }),
   defineBehavior({on: 'insert.soft break', actions: []}),
   // Text put in with a line break in it (dictation, a text service, an autocorrect replacement: the
   // browser's insertText or insertReplacementText) would hold the break inside the span. Each run of
@@ -22,7 +38,8 @@ const behaviors = [
 
 /**
  * A Portable Text field with `options.oneLine`, as Sanity's: its OneLinePlugin, the version
- * Sanity 6.17 ships. Enter never splits the block (over a selection it deletes it), a paste of
+ * Sanity 6.17 ships. Enter never splits the block (over a selection it deletes it), Shift+Enter
+ * does nothing, a line break in text put in is one space (the behaviors above), a paste of
  * several lines or blocks joins into the caret's block, and a block inserted before or after
  * it is dropped. A stored value holding several blocks is not rewritten: it opens as it is.
  * Mounted before the editor's other plugins: behaviors run in the order they register, and
