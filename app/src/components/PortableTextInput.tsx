@@ -578,7 +578,8 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
       release.current()
       return
     }
-    if (equal(next ?? [], last.current ?? [])) return
+    // Nothing new: frames that waited for this emit go now (else they wait for the timer).
+    if (equal(next ?? [], last.current ?? [])) return void release.current()
     // Blocks edited in place go as `field[_key=="…"]` sets, those blocks only (a 300-block
     // body sent 337 KB a keystroke whole); a block that came, went or moved sends the field.
     const parts = editPath && next ? changedBlocks(prior, next)?.filter((p) => !theirs(p.key, p.block)) ?? null : null
@@ -643,7 +644,8 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     // Their text held for a span this change rewrote (a paste that split its block): made on
     // the span as it was, put on it now it lands on the wrong letters. The save merged it in
     // (from the document as held), and show() puts that on the screen.
-    const rewrote = new Set(spanTexts(next).flatMap(([at, t]) => (had.get(at) !== t ? [at] : [])))
+    // Not for a change that goes through onChange (no merge brings their words back there).
+    const rewrote = new Set(editPath ? spanTexts(next).flatMap(([at, t]) => (had.get(at) !== t ? [at] : [])) : [])
     held.current = held.current.filter((p) => p.type !== 'diffMatchPatch' || !rewrote.has(spanKeys(p)))
     const waiting = new Set(held.current.flatMap((p) => (p.type === 'diffMatchPatch' ? [spanKeys(p)] : [])))
     for (const [at, t] of spanTexts(next)) if (had.get(at) !== t && !waiting.has(at)) text.current.set(at, t)
