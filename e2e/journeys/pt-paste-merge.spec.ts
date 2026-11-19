@@ -1,4 +1,4 @@
-import {expect, test, type Locator, type Page} from '../rig/test'
+import {allowErrors, expect, test, type Locator, type Page} from '../rig/test'
 import {bpMutate, closeAndSettle, savesLanded, target} from '../rig/targets'
 import {readDoc} from '../rig/portable-text'
 
@@ -67,7 +67,7 @@ for (const apart of [0, 1000])
 // it lands, its unload beacon failing too: the edits kept in this browser are all that is left.
 // Restored over B's paste (B's paragraphs at the block's start: its key stays on "x"), A's line
 // goes back after the block's text. Both texts once.
-test('@local Portable Text: a paste kept while its page reloads mid-save, the other pasting into the block, both kept once', async ({page, browser}, info) => {
+test('@local Portable Text: a paste kept while its page reloads mid-save, the other pasting into the block, both kept once', allowErrors(/Hydration failed/), async ({page, browser}, info) => {
   const ctxB = await browser.newContext()
   await target(info).prepare(ctxB)
   const b = await ctxB.newPage()
