@@ -2,6 +2,7 @@ import {QueryClient, useQuery} from '@tanstack/react-query'
 import {setPresenceSelf, usePresenceStream} from './presence'
 import {Navbar} from '../components/Navbar'
 import {Structure} from '../components/Structure'
+import {LoadedAtContext} from './pane-clock'
 import {anyDocQuery, cachedDoc, deskQuery, docQuery, ensureAnyDocs, ensureDocs, refId, fetchModelScope, fetchResumeMark, fetchViewportHint, listQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Field, type Schema} from './data'
 import {deskIndex, deskSort, listFilter, parseDeskPanes, rootDesk, unsupportedOps, type DeskNode} from './desk'
 import {parseSingletonPanes, type Pane} from './panes'
@@ -56,7 +57,7 @@ function startChain(): QueryClient {
 const SSR_BUDGET_MS = 1500
 
 /** What a pane chain renders: its panes, or (`deferred`) the shell a slow Barkpark leaves, the browser filling it in. */
-export type PanesData = {panes: Pane[]; widthHint: number; listPrefs: ListPrefs; resume?: number | null; deferred?: true}
+export type PanesData = {panes: Pane[]; widthHint: number; listPrefs: ListPrefs; resume?: number | null; deferred?: true; at: number}
 
 /**
  * The route's loader. On the server a slow Barkpark (9–10 s schema and desk reads were seen)
@@ -67,7 +68,8 @@ export type PanesData = {panes: Pane[]; widthHint: number; listPrefs: ListPrefs;
  * the chain itself. A normal Barkpark answers well inside the budget: the page is as before.
  */
 export async function loadPanes(queryClient: QueryClient, splat: string | undefined, published = false): Promise<PanesData> {
-  if (typeof window !== 'undefined') return loadPaneChain(queryClient, splat, published)
+  // `at`: the load's time, read here once and never in a render (lib/pane-clock.ts).
+  if (typeof window !== 'undefined') return {...(await loadPaneChain(queryClient, splat, published)), at: Date.now()}
   // On a scratch client, so a chain past the budget never holds the page: the request's
   // client streams every query it holds, and the page waited for each to land. The one
   // requireEditor began beside `me`, when it let this person in.
@@ -78,17 +80,17 @@ export async function loadPanes(queryClient: QueryClient, splat: string | undefi
   const inTime = await Promise.race([chain, new Promise<null>((r) => setTimeout(r, SSR_BUDGET_MS, null))])
   if (!inTime) {
     chain.catch(() => {})
-    return {panes: [{kind: 'types'}], widthHint: await fetchViewportHint(), listPrefs: {}, deferred: true}
+    return {panes: [{kind: 'types'}], widthHint: await fetchViewportHint(), listPrefs: {}, deferred: true, at: Date.now()}
   }
   // In time: what it read is the page's, as before.
   for (const q of scratch.getQueryCache().getAll()) if (q.state.status === 'success') queryClient.setQueryData(q.queryKey, q.state.data)
-  return inTime
+  return {...inTime, at: Date.now()}
 }
 
 /** The content model a server render last read, per workspace, project and dataset. */
 const models = modelMemory<[DeskNode | null, Schema[]]>()
 
-async function loadPaneChain(queryClient: QueryClient, splat: string | undefined, published = false, readAhead = false): Promise<PanesData> {
+async function loadPaneChain(queryClient: QueryClient, splat: string | undefined, published = false, readAhead = false): Promise<Omit<PanesData, 'at'>> {
   const onServer = typeof window === 'undefined'
   // The desk and the schemas are settled reads, kept across the resume mark (server/barkpark.ts
   // forgetReads): they start with it rather than after it.
@@ -250,7 +252,7 @@ async function ensureRefs(qc: QueryClient, schemas: Schema[], docs: (readonly [D
 /** The structure tool; its shell and its panes are two mounts (the list prefs start again from the chain's). */
 export const StructureView = (data: PanesData) => <StructureTool key={data.deferred ? 'shell' : 'panes'} {...data} />
 
-function StructureTool({panes, widthHint, listPrefs, resume, deferred}: PanesData) {
+function StructureTool({panes, widthHint, listPrefs, resume, deferred, at}: PanesData) {
   resumeLive(resume)
   // The server sent the shell (Barkpark was slow): the browser runs the pane chain now.
   const router = useRouter()
@@ -267,7 +269,9 @@ function StructureTool({panes, widthHint, listPrefs, resume, deferred}: PanesDat
       <PresenceStream />
       <Reconnecting />
       <Navbar />
-      <Structure panes={panes} widthHint={widthHint} />
+      <LoadedAtContext.Provider value={at}>
+        <Structure panes={panes} widthHint={widthHint} />
+      </LoadedAtContext.Provider>
     </ListPrefsContext.Provider>
   )
 }

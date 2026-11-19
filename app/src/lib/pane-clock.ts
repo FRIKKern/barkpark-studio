@@ -1,0 +1,16 @@
+// task-96c28256661a6179: when the route's loader made the page's data (lib/structure-route.tsx
+// loadPanes), for a render that compares a time with now. The loader reads the clock, once, outside
+// any render; the value travels with the route's data, so the server's page and the browser's
+// first paint (which hydrates on the server's data) compare with the same now and draw the same.
+import {createContext} from 'react'
+import type {Doc} from './data.ts'
+
+/** The pane chain's load time (ms since epoch); none outside a pane chain. */
+export const LoadedAtContext = createContext<number | undefined>(undefined)
+
+/** D04: how long after its creation a doc saved but never published still counts as just made. */
+export const JUST_MADE_MS = 15_000
+
+/** D04: a doc never published, created less than JUST_MADE_MS before the page's data was loaded. */
+export const madeJustBefore = (doc: Doc, at: number | undefined): boolean =>
+  at !== undefined && doc._hasPublished === false && at - Date.parse(String(doc._createdAt ?? '')) < JUST_MADE_MS

@@ -13,7 +13,6 @@ import {SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
 import {pasteFieldWith} from '../lib/paste-reads'
 import {setPath} from '../lib/paths'
 import {useCurrentUser} from '../lib/person-source'
-import {useHydrated} from '../lib/use-hydrated'
 import {mapCaret} from '../lib/merge'
 import {textDiff} from '../lib/changes'
 import {FieldClashCard} from './FieldClash'
@@ -85,18 +84,11 @@ export type OpenRef = (type: string, id: string, parentRefPath: string) => {href
 type FieldProps = {field: Field; path: string; value: unknown; openRef: OpenRef; onChange: (v: unknown) => void; readOnly?: boolean}
 
 export const ProblemsContext = createContext<Problem[]>([])
-const NO_PROBLEMS: Problem[] = []
 /**
- * task-96c28256661a6179: the form's problems as a field draws them (its mark, `data-invalid`,
- * an input's `invalid`). None on the server and in a hydrating render, the form's after: the two
- * sides can know different problems (a doc made a moment ago stays quiet by the clock, which moves
- * between the server's page and the browser's first paint), so both draw the same first frame (no
- * hydration mismatch, React #418). Read problems here, never from ProblemsContext itself.
+ * task-96c28256661a6179: the form's problems as a field draws them (its mark, `data-invalid`, an
+ * input's `invalid`), the one door to them. Read problems here, never from ProblemsContext itself.
  */
-export function useProblems(): Problem[] {
-  const all = useContext(ProblemsContext)
-  return useHydrated() ? all : NO_PROBLEMS
-}
+export const useProblems = (): Problem[] => useContext(ProblemsContext)
 /**
  * J13/J14: which collapsible objects are open (Sanity's `options.collapsible` /
  * `collapsed`). The pane owns it, so a validation click can open the way to a field.

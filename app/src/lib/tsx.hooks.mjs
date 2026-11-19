@@ -1,4 +1,4 @@
-// Module hooks for field-problems.test.ts: components/Fields.tsx runs as it is, as the server build
+// Module hooks for doc-quiet.test.ts, which renders the document pane: it runs as it is, as the server build
 // has it. The app's own TS and TSX go through Vite's own transform (oxc: types out, JSX in React's
 // automatic runtime), with `import.meta.env` the server build's (SSR), JSON as a module and a
 // stylesheet as nothing.
