@@ -7,7 +7,7 @@ plan (no key, read-only token): Barkpark main api/priv/portable_doc ── daily
    │ no: done (a stamp-only difference rides along; a leftover sync PR is closed)      │ yes
    │                                    pack-sync: copy, SOURCE.md, conformance ◄──────┘
    ▼ the sync commit as a bundle
-act (deploy key, installs and runs nothing): the commit touches only the pack ─► push sync/barkpark-pack, open or update the PR
+act (deploy key, git/gh/jq): the commit is the pack, as Barkpark holds it ─► push sync/barkpark-pack, open or update the PR
    └ every required check green: the next run squash-merges it at its head, then starts main's checks
 ```
 
@@ -21,13 +21,13 @@ act (deploy key, installs and runs nothing): the commit touches only the pack �
   with its own stamp is refused. Barkpark's stamp alone changes several times a day (gettext and render
   versions); such a change opens no PR, the run summary names it, and the next real change carries it.
 - Two jobs. `plan` installs the app and runs `scripts/pack-sync-pr.mjs`, which writes nothing to GitHub.
-  `act` has the deploy key and trusts nothing `plan` hands it. It finds the sync PR itself, checks the
-  bundle, the commit's parent (main, or with the PR open its head with main merged in) and both sides of
-  every changed path (plain files under the pack or its report), then pushes that branch. After a keyed
-  checkout every workflow runs only git, gh, jq, sleep and shell built-ins (a unit test reads them all).
-- Conformance runs on the new pack; the report takes the new stamp only when no row moved, else the PR's
-  `unit` fails (the renderer is behind). Fix the renderer, or accept the rows on the sync branch
-  (`conformance:write`) and say why; the next sync builds on that branch, so the commit stays.
+  `act` has the deploy key and runs main's `scripts/sync-act.sh`: it trusts nothing from `plan` but the
+  report and SOURCE.md's text. It finds the sync PR itself, checks the bundle, the parent (main, or the
+  PR's head with main merged in), both sides of every path (plain files in the pack or its report), and
+  every other pack file against Barkpark's blob at the commit SOURCE.md names, on Barkpark's main. Each
+  workflow job holds no key or is pinned whole with the files it runs (`scripts/lib/keyed-jobs.json`).
+- Conformance runs on the new pack; the report takes the new stamp only when no row moved, else `unit` fails.
+  Fix the renderer, or accept the rows on the sync branch (`conformance:write`) and say why; the next sync keeps it.
 - Pushes use `HOUSEKEEPING_DEPLOY_KEY`: a workflow-token push starts no checks (a new PR gets an empty
   commit after it opens). The merge uses the workflow token, which the ruleset holds to green checks, then
   dispatches `unit` and `e2e` on main. Needs "Allow GitHub Actions to create and approve pull requests"

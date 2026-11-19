@@ -1,191 +1,143 @@
-// A job that checks out with a key (`ssh-key`, or a `token` from secrets, in any quotes) keeps it on the
-// runner for every later step. So every later step is held to an allow-list: `uses:` only GitHub's own
-// checkout and artifact actions, and `run:` only the commands in ALLOWED (git, gh, jq, sleep and shell
-// built-ins that run no other program). Anything else is named, and so is shell this reader cannot follow
-// (backticks, heredocs, eval-like built-ins). Read from the workflow text, in this repo's layout (steps as
-// `- ` items under `steps:`). scripts/lib/sync-plan.test.mjs runs it over .github/workflows/.
+// Every job in .github/workflows is one of two kinds, read from the parsed YAML (js-yaml; comments are
+// not data). It "holds no key" when every checkout has `persist-credentials: false`, its token may write
+// nothing, and it reads no secret but the data-only ones below. Every other job is keyed: it is pinned,
+// whole, in scripts/lib/keyed-jobs.json, with the sha256 of its YAML (and the workflow's own keys, which
+// it inherits) and of each repo file it runs. Changing a keyed job, or a file it runs, changes its pin in
+// the same PR. scripts/lib/keyed-jobs.test.mjs holds the repo to it; `node scripts/lib/workflow-keys.mjs
+// --pin` rewrites the hashes of the jobs already listed.
+import {createHash} from 'node:crypto'
+import {readdirSync, readFileSync, writeFileSync} from 'node:fs'
+import {createRequire} from 'node:module'
+import {join} from 'node:path'
+import {fileURLToPath} from 'node:url'
 
-export const ALLOWED = new Set(['git', 'gh', 'jq', 'sleep', 'set', 'echo', 'printf', 'read', 'test', '[', '[[', 'exit', 'true', 'false', ':', 'break', 'continue'])
-const USES = /^actions\/(checkout|download-artifact|upload-artifact)@/
-// Words that open or close a compound command: the next word is a command again.
-const RESERVED = new Set(['if', 'then', 'else', 'elif', 'fi', 'do', 'done', 'while', 'until', '!', '{', '}', 'esac'])
-// Words whose arguments up to the next separator are not commands.
-const HEADS = new Set(['for', 'case', 'select'])
+const yaml = createRequire(new URL('../../app/package.json', import.meta.url))('js-yaml')
 
-/** Each job's steps as text, `{job: [step text]}`. */
-export function jobSteps(text) {
-  const jobs = {}
-  let job
-  let steps
-  let indent
-  for (const line of text.split('\n')) {
-    const j = line.match(/^ {2}([\w-]+):\s*$/)
-    if (j && /^jobs:/m.test(text.slice(0, text.indexOf(line)))) {
-      job = jobs[j[1]] = []
-      steps = false
-      continue
-    }
-    if (!job) continue
-    if (/^\s+steps:\s*$/.test(line)) {
-      steps = true
-      indent = undefined
-      continue
-    }
-    if (!steps || /^\s*#/.test(line)) continue
-    const item = line.match(/^(\s*)- /)
-    if (item && (indent === undefined || item[1].length === indent)) {
-      indent = item[1].length
-      job.push(line.slice(indent + 2))
-    } else if (job.length && (line.trim() === '' || line.search(/\S/) > indent)) job[job.length - 1] += `\n${line}`
-    else if (line.trim()) steps = false
-  }
-  return jobs
+/** Secrets that give no write to this repo, each with why. */
+export const DATA_SECRETS = {
+  BARKPARK_TOKEN: 'reads and writes the studio-parity workspace on Barkpark; no write to this repo',
+}
+export const PINS = 'scripts/lib/keyed-jobs.json'
+
+const sha256 = (text) => createHash('sha256').update(text).digest('hex')
+/** JSON with every object's keys sorted: the same YAML, however written, gives the same text. */
+export const canonical = (v) =>
+  Array.isArray(v) ? `[${v.map(canonical).join(',')}]` : v && typeof v === 'object' ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical(v[k])}`).join(',')}}` : JSON.stringify(v ?? null)
+// What GitHub reads as expressions: an `if:` value whole, and any other string from its first `${{` on
+// (the rest of the line too, so a `}}` inside a quoted string hides nothing).
+const expressions = (v, key, out = []) => {
+  if (typeof v === 'string') {
+    if (key === 'if') out.push(v)
+    else if (v.includes('${{')) out.push(v.slice(v.indexOf('${{')))
+  } else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) expressions(x, k, out)
+  return out
 }
 
-/** A step's `run:` script: a `|` or `>` block (its lines, dedented) or the one-line value. */
-export function runOf(step) {
-  const lines = step.split('\n')
-  const at = lines.findIndex((l) => /^\s*run:/.test(l))
-  if (at < 0) return undefined
-  const key = lines[at].search(/\S/)
-  const value = lines[at].replace(/^\s*run:\s*/, '')
-  if (!/^[|>][-+]?\s*$/.test(value)) return value.replace(/^(['"])(.*)\1$/, '$2')
-  const body = []
-  for (const l of lines.slice(at + 1)) {
-    if (l.trim() && l.search(/\S/) <= key) break
-    body.push(l)
-  }
-  const pad = Math.min(...body.filter((l) => l.trim()).map((l) => l.search(/\S/)))
-  return body.map((l) => l.slice(pad)).join('\n')
+/** Why a job does not hold "no key" (empty: it holds none). */
+export function keyReasons(workflow, job) {
+  const why = []
+  if (!job || typeof job !== 'object' || Array.isArray(job)) return ['not a job this reader knows']
+  if ('uses' in job) why.push(`calls ${job.uses}`)
+  const steps = job.steps ?? []
+  if (!Array.isArray(steps)) why.push('steps is not a list')
+  else
+    for (const [i, step] of steps.entries()) {
+      if (!step || typeof step !== 'object' || Array.isArray(step)) why.push(`step ${i + 1} is not a mapping`)
+      else if (/^actions\/checkout@/i.test(String(step.uses ?? '')) && step.with?.['persist-credentials'] !== false)
+        why.push(`step ${i + 1} checks out without persist-credentials: false`)
+    }
+  const permissions = 'permissions' in job ? job.permissions : workflow.permissions
+  if (writes(permissions)) why.push(`its token may write (permissions: ${JSON.stringify(permissions ?? 'the repo default')})`)
+  for (const name of secrets([job, workflow.env, workflow.defaults])) if (!(name in DATA_SECRETS)) why.push(`reads secret ${name}`)
+  return why
 }
+const LEVELS = new Set(['read', 'none'])
+function writes(p) {
+  if (p === 'read-all' || (p && typeof p === 'object' && !Array.isArray(p) && Object.values(p).every((v) => LEVELS.has(v)))) return false
+  return true // write, write-all, unset (the repo default) or anything else
+}
+/** The secret names these values' expressions read; one written in a way not read here is `?`. */
+function secrets(values) {
+  const names = new Set()
+  for (const text of expressions(values))
+    for (const m of text.matchAll(/secrets/gi)) {
+      const rest = text.slice(m.index + m[0].length)
+      const name = rest.match(/^\s*\.\s*([A-Za-z_][\w-]*)/)?.[1] ?? rest.match(/^\s*\[\s*'([^']*)'\s*\]/)?.[1]
+      names.add(name ? name.toUpperCase() : '?')
+    }
+  return names
+}
+
+/** A keyed job's pin: its YAML with the workflow's own keys (all but `jobs`), as canonical JSON. */
+export const jobHash = (workflow, name) => sha256(canonical({workflow: {...workflow, jobs: undefined}, job: workflow.jobs[name]}))
 
 /**
- * The commands a shell script runs, as far as this reader follows shell: each simple command's first
- * word (after `NAME=value` assignments), in `$( )` and `<( )` too, quotes and `$(( ))` skipped.
- * Shell it cannot follow comes back as a `!`-prefixed entry, so the caller refuses it.
+ * Every problem: a workflow this reader cannot parse, a keyed job not pinned, a pin that no longer
+ * matches its job or a file it runs, a pin for a job that holds no key or is gone. `files` maps workflow
+ * file names to their text; `read(path)` gives a repo file's bytes.
  */
-export function commands(src) {
+export function keyProblems(files, pins, read) {
   const out = []
-  let i = 0
-  let start = true // the next word is a command
-  let skip = false // words up to the next separator are not commands (for/case heads)
-  const sep = () => ((start = true), (skip = false))
-  const word = () => {
-    let w = ''
-    while (i < src.length && !/[\s;&|()<>`]/.test(src[i])) {
-      const c = src[i]
-      if (c === "'") {
-        const end = src.indexOf("'", i + 1)
-        w += src.slice(i, end + 1)
-        i = end + 1
-      } else if (c === '"') dq(), (w += '""')
-      else if (c === '$' && src.startsWith('$((', i)) arith(), (w += '$')
-      else if (c === '$' && src[i + 1] === '(') (i += 2), sub(), (w += '$')
-      else if (c === '\\') (w += src.slice(i, i + 2)), (i += 2)
-      else (w += c), i++
+  const pinned = new Map(pins.jobs.map((p) => [p.job, p]))
+  const seen = new Set()
+  for (const [file, text] of Object.entries(files)) {
+    let workflow
+    try {
+      workflow = yaml.load(text)
+    } catch (e) {
+      out.push(`${file}: not parsed (${e.reason ?? e.message})`)
+      continue
     }
-    return w
-  }
-  // Inside double quotes only $( ) runs anything.
-  const dq = () => {
-    i++
-    while (i < src.length && src[i] !== '"') {
-      if (src[i] === '\\') i += 2
-      else if (src.startsWith('$((', i)) arith()
-      else if (src.startsWith('$(', i)) (i += 2), sub()
-      else if (src[i] === '`') out.push('!backtick'), i++
-      else i++
+    if (!workflow?.jobs || typeof workflow.jobs !== 'object') {
+      out.push(`${file}: no jobs this reader knows`)
+      continue
     }
-    i++
-  }
-  const arith = () => {
-    let depth = 0
-    for (; i < src.length; i++) {
-      if (src[i] === '(') depth++
-      else if (src[i] === ')' && --depth === 0) return void i++
-    }
-  }
-  // A command substitution: its own commands, up to its closing parenthesis.
-  const sub = () => {
-    const keep = [start, skip]
-    sep()
-    scan(true)
-    ;[start, skip] = keep
-  }
-  const scan = (inner) => {
-    while (i < src.length) {
-      const c = src[i]
-      if (c === '\n' || c === ';') (i++, sep())
-      else if (c === ' ' || c === '\t') i++
-      else if (c === '#' && (i === 0 || /\s/.test(src[i - 1]))) while (i < src.length && src[i] !== '\n') i++
-      else if (c === '&' || c === '|') (i++, sep())
-      else if (c === '(') (i++, sep())
-      else if (c === ')') {
-        i++
-        if (inner) return
-        sep()
-      } else if (c === '`') (out.push('!backtick'), i++)
-      else if (c === '<' || c === '>') {
-        if (src.startsWith('<<', i) && !src.startsWith('<<<', i)) out.push('!heredoc')
-        if (src.startsWith('<(', i)) (i += 2, sub())
-        else {
-          while (src[i] === '<' || src[i] === '>' || src[i] === '&') i++
-          while (src[i] === ' ') i++
-          if (/[\d-]/.test(src[i] ?? '')) while (/[\d-]/.test(src[i] ?? '')) i++
-          else word() // the redirection's target
-        }
-      } else {
-        const w = word()
-        if (!w) {
-          i++
+    for (const name of Object.keys(workflow.jobs)) {
+      const id = `${file} ${name}`
+      const why = keyReasons(workflow, workflow.jobs[name])
+      const pin = pinned.get(id)
+      seen.add(id)
+      if (!why.length) {
+        if (pin) out.push(`${id}: holds no key; drop its pin`)
+        continue
+      }
+      if (!pin) {
+        out.push(`${id}: holds a key (${why.join('; ')}) and is not pinned in ${PINS}`)
+        continue
+      }
+      const hash = jobHash(workflow, name)
+      if (hash !== pin.sha256) out.push(`${id}: changed since its pin (now ${hash})`)
+      for (const [path, want] of Object.entries(pin.runs)) {
+        let bytes
+        try {
+          bytes = read(path)
+        } catch {
+          out.push(`${id}: runs ${path}, which is gone`)
           continue
         }
-        // A case pattern (`close)`, `*)`): a word right before an unopened `)`.
-        if (!inner && src[i] === ')') {
-          i++
-          sep()
-          continue
-        }
-        if (skip || !start) continue
-        if (/^[A-Za-z_]\w*(\[[^\]]*\])?\+?=/.test(w)) continue // an assignment: the command, if any, follows
-        if (RESERVED.has(w)) continue
-        if (HEADS.has(w)) {
-          skip = true
-          continue
-        }
-        if (w === 'in') continue
-        out.push(w)
-        start = false
-        // A [[ ]] test: its && || ( ) are its own, not separators; only $( ) inside runs anything.
-        if (w === '[[')
-          while (i < src.length) {
-            if (/[\s&|()<>]/.test(src[i])) i++
-            else if (word() === ']]') break
-          }
+        if (sha256(bytes) !== want) out.push(`${id}: ${path} changed since its pin (now ${sha256(bytes)})`)
       }
     }
   }
-  scan(false)
+  for (const id of pinned.keys()) if (!seen.has(id)) out.push(`${id}: pinned, but no such job`)
   return out
 }
 
-const keyed = (step) => /uses:\s*actions\/checkout@/.test(step) && /\b(ssh-key|token):\s*['"]?\$\{\{\s*secrets\./.test(step) && !/persist-credentials:\s*(['"]?)false\1/.test(step)
+const root = fileURLToPath(new URL('../..', import.meta.url))
+/** The repo's own workflows, its pins and its files. */
+export const repo = () => {
+  const dir = join(root, '.github/workflows')
+  const files = Object.fromEntries(readdirSync(dir).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => [f, readFileSync(join(dir, f), 'utf8')]))
+  return {files, pins: JSON.parse(readFileSync(join(root, PINS), 'utf8')), read: (path) => readFileSync(join(root, path))}
+}
 
-/** Every step after a keyed checkout that goes past the allow-list: `job: step: what` lines. */
-export function codeAfterKey(text) {
-  const out = []
-  for (const [job, steps] of Object.entries(jobSteps(text))) {
-    let key = false
-    for (const step of steps) {
-      if (key) {
-        const name = step.split('\n')[0].trim()
-        const uses = step.match(/uses:\s*['"]?([^\s'"]+)/)?.[1]
-        if (uses && !USES.test(uses)) out.push(`${job}: ${name}: uses ${uses}`)
-        const run = runOf(step)
-        if (run !== undefined) for (const c of new Set(commands(run))) if (!ALLOWED.has(c)) out.push(`${job}: ${name}: ${c}`)
-      }
-      if (keyed(step)) key = true
-    }
+// --pin: rewrite the hashes of the jobs already listed (adding a job, or a file it runs, is by hand).
+if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2] === '--pin') {
+  const {files, pins, read} = repo()
+  for (const pin of pins.jobs) {
+    const [file, name] = pin.job.split(' ')
+    pin.sha256 = jobHash(yaml.load(files[file]), name)
+    for (const path of Object.keys(pin.runs)) pin.runs[path] = sha256(read(path))
   }
-  return out
+  writeFileSync(join(root, PINS), `${JSON.stringify(pins, null, 2)}\n`)
 }

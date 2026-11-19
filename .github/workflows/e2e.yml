@@ -49,6 +49,7 @@ jobs:
       BUDGET_NETWORK_SCALE: '4' # runner is far from guerrilla; see e2e/rig/feel.ts
     steps:
       - uses: actions/checkout@v5
+        with: { persist-credentials: false }
       - uses: pnpm/action-setup@v4
         with: { version: 9.12.0 }
       - uses: actions/setup-node@v5

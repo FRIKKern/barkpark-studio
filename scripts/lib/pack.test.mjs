@@ -126,4 +126,5 @@ test('landing: merge only when every required check passed at the head; a red on
   assert.equal(landing(required, [...all('pass'), at('fail', 'unit', '2026-11-18T09:00:00Z')]).verdict, 'merge', 'an older failed run, rerun green')
   assert.equal(landing(required, [...all('pass'), at('fail', 'unit', '2026-11-18T11:00:00Z')]).verdict, 'red', 'the newest run failed')
   assert.equal(landing([], all('pass')).verdict, 'wait', 'no ruleset read: never merges')
+  assert.deepEqual(landing(required, [...all('pass'), at('pending', 'unit', '0001-01-01T00:00:00Z')]), {verdict: 'wait', names: ['unit']}, 'a queued rerun, not started')
 })

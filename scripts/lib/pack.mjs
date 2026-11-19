@@ -120,7 +120,9 @@ export function rowsMoved(committed, report) {
  */
 export function landing(required, checks) {
   const newest = new Map()
-  for (const c of checks) if (!newest.has(c.name) || (c.startedAt ?? '') > (newest.get(c.name).startedAt ?? '')) newest.set(c.name, c)
+  // A run not started yet (no startedAt, or GitHub's zero time 0001-01-01) is the newest: a queued rerun.
+  const at = (c) => (!c.startedAt || c.startedAt.startsWith('0001-') ? '9999' : c.startedAt)
+  for (const c of checks) if (!newest.has(c.name) || at(c) > at(newest.get(c.name))) newest.set(c.name, c)
   const bucket = (name) => newest.get(name)?.bucket ?? 'absent'
   const red = required.filter((name) => ['fail', 'cancel'].includes(bucket(name)))
   if (red.length) return {verdict: 'red', names: red}

@@ -1,5 +1,5 @@
-// sync-pack.yml's act job, its own script as the workflow holds it, run with bash against a local bare
-// repo as origin and a stub gh. The plan's files are made by hand here, as a hostile plan job could.
+// sync-pack.yml's act job runs scripts/sync-act.sh; here the same file runs with bash against a local bare
+// repo as origin, a local Barkpark and a stub gh. The plan's files are made by hand, as a hostile plan job could.
 import assert from 'node:assert/strict'
 import {execFileSync, spawnSync} from 'node:child_process'
 import {chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
@@ -8,10 +8,10 @@ import {join} from 'node:path'
 import test, {after} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
-import {jobSteps, runOf} from './workflow-keys.mjs'
+import {COPIED} from './pack.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
-const ACT = runOf(jobSteps(readFileSync(join(root, '.github/workflows/sync-pack.yml'), 'utf8')).act.find((s) => /id: write/.test(s)))
+const ACT = join(root, 'scripts/sync-act.sh')
 const BRANCH = 'sync/barkpark-pack'
 const made = []
 const tmp = (prefix) => (made.push(mkdtempSync(join(tmpdir(), prefix))), made.at(-1))
@@ -21,17 +21,40 @@ const env = {...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_
 const git = (cwd, ...args) => execFileSync('git', args, {cwd, env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']}).trim()
 const write = (dir, path, text) => (mkdirSync(join(dir, path, '..'), {recursive: true}), writeFileSync(join(dir, path), text))
 
-/** An origin with main (a pack, its report, an app file, a workflow) and a work clone on main. */
+/**
+ * A Barkpark (main: api/priv/portable_doc with a.json and conformance/conformance.mjs), an origin with main
+ * (that pack as the sync writes it, SOURCE.md naming the Barkpark commit, the report, an app file, a
+ * workflow) and a work clone on main.
+ */
 function world() {
   const base = tmp('act-')
+  const barkpark = join(base, 'barkpark')
+  git(base, 'init', '-q', '-b', 'main', 'barkpark')
+  git(barkpark, 'config', 'uploadpack.allowFilter', 'true')
   git(base, 'init', '-q', '--bare', '-b', 'main', 'origin.git')
   const work = join(base, 'work')
   git(base, 'clone', '-q', 'origin.git', 'work')
-  for (const [p, t] of [['conformance/pack/a.json', '{}\n'], ['conformance/barkpark-studio.json', '{}\n'], ['app/x.ts', 'x\n'], ['.github/workflows/unit.yml', 'name: unit\n']]) write(work, p, t)
+  const w = {base, work, barkpark, origin: join(base, 'origin.git')}
+  bark(w, '{}\n')
+  for (const [p, t] of [['conformance/barkpark-studio.json', '{}\n'], ['app/x.ts', 'x\n'], ['.github/workflows/unit.yml', 'name: unit\n']]) write(work, p, t)
   git(work, 'add', '-A')
   git(work, 'commit', '-q', '-m', 'main')
   git(work, 'push', '-q', 'origin', 'HEAD:main')
-  return {base, work, origin: join(base, 'origin.git'), main: git(work, 'rev-parse', 'HEAD')}
+  return {...w, main: git(work, 'rev-parse', 'HEAD')}
+}
+/** Barkpark's main moves to a.json = `text`; the work tree takes it as the sync does (not committed). */
+function bark(w, text, branch = 'main') {
+  write(w.barkpark, 'api/priv/portable_doc/a.json', text)
+  write(w.barkpark, 'api/priv/portable_doc/conformance/conformance.mjs', 'export {}\n')
+  if (branch !== 'main') git(w.barkpark, 'checkout', '-q', '-B', branch)
+  git(w.barkpark, 'add', '-A')
+  git(w.barkpark, 'commit', '-q', '--allow-empty', '-m', 'pack')
+  const at = git(w.barkpark, 'rev-parse', 'HEAD')
+  if (branch !== 'main') git(w.barkpark, 'checkout', '-q', 'main')
+  write(w.work, 'conformance/pack/a.json', text)
+  write(w.work, 'conformance/pack/conformance.mjs', 'export {}\n')
+  write(w.work, 'conformance/pack/SOURCE.md', `Written by \`scripts/pack-sync.mjs\` from \`FRIKKern/barkpark\` commit \`${at}\`, path \`api/priv/portable_doc\`.\n`)
+  return at
 }
 const branchAt = (w) => git(w.base, 'ls-remote', w.origin, `refs/heads/${BRANCH}`).split('\t')[0] || ''
 
@@ -56,7 +79,7 @@ function act(w, runnerTemp, prs = []) {
   const checkout = join(tmp('checkout-'), 'repo')
   git(w.base, 'clone', '-q', w.origin, checkout)
   const out = join(bin, 'out')
-  const r = spawnSync('bash', ['-c', ACT], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out}})
+  const r = spawnSync('bash', [ACT], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark}})
   const calls = existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []
   return {status: r.status, err: r.stdout + r.stderr, writes: calls.filter((c) => !/^pr (list|view)/.test(c))}
 }
@@ -65,12 +88,14 @@ const commit = (w, msg) => (git(w.work, 'add', '-A'), git(w.work, 'commit', '-q'
 
 test('act pushes a sync commit on main and opens the PR; it refuses to push one that leaves the pack', () => {
   const ok = world()
-  write(ok.work, 'conformance/pack/a.json', '{"v": 2}\n')
-  commit(ok, 'sync')
+  bark(ok, '{"v": 2}\n')
+  const synced = commit(ok, 'sync')
   const r = act(ok, plan(ok, {action: 'push', main: ok.main}))
   assert.equal(r.status, 0, r.err)
-  assert.notEqual(branchAt(ok), '')
   assert.match(r.writes.join('\n'), /^pr create --head sync\/barkpark-pack --base main/m)
+  // The empty commit that starts the checks, on the sync commit, made without a checkout.
+  assert.equal(git(ok.origin, 'rev-parse', `${BRANCH}^`), synced)
+  assert.equal(git(ok.origin, 'log', '-1', '--format=%s', BRANCH), 'Start the checks')
 
   const refused = (name, change, needle) => {
     const w = world()
@@ -87,7 +112,26 @@ test('act pushes a sync commit on main and opens the PR; it refuses to push one 
   refused('a symlink in the pack', (w) => (execFileSync('ln', ['-s', '../../app/x.ts', join(w.work, 'conformance/pack/link')]), commit(w, 'sync')), /120000 conformance\/pack\/link/)
   refused('an executable in the pack', (w) => (write(w.work, 'conformance/pack/run.sh', 'x\n'), chmodSync(join(w.work, 'conformance/pack/run.sh'), 0o755), commit(w, 'sync')), /100755 conformance\/pack\/run\.sh/)
   refused('a .. entry in the pack', (w) => dotDot(w), /conformance\/pack\/\.\./)
-  refused('a commit on top of another commit', (w) => (write(w.work, 'app/x.ts', 'y\n'), commit(w, 'app'), write(w.work, 'conformance/pack/a.json', '[]\n'), commit(w, 'sync')), /not on main/)
+  refused('a commit on top of another commit', (w) => (write(w.work, 'app/x.ts', 'y\n'), commit(w, 'app'), bark(w, '[]\n'), commit(w, 'sync')), /not on main/)
+  refused('a pack file name outside [A-Za-z0-9._/-]', (w) => (write(w.work, 'conformance/pack/a b.json', '{}\n'), commit(w, 'sync')), /conformance\/pack\/a b\.json/)
+  // The pack's bytes: Barkpark's own at the commit SOURCE.md names, on Barkpark's main.
+  refused('a pack file not as Barkpark holds it', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/a.json', '{"v": 666}\n'), commit(w, 'sync')), /the pack differs from Barkpark [0-9a-f]{40}: a\.json/)
+  refused('a pack file Barkpark lacks', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/extra.mjs', 'x\n'), commit(w, 'sync')), /the pack differs from Barkpark [0-9a-f]{40}: extra\.mjs/)
+  refused('a Barkpark commit off its main', (w) => (bark(w, '{"v": 2}\n', 'side'), commit(w, 'sync')), /is not on Barkpark's main/)
+  refused('SOURCE.md naming no commit', (w) => (bark(w, '{"v": 2}\n'), write(w.work, 'conformance/pack/SOURCE.md', 'hand-written\n'), commit(w, 'sync')), /SOURCE\.md names no Barkpark commit/)
+  // A plan value with a line break stays on the error line.
+  const w = world()
+  bark(w, '{"v": 2}\n')
+  commit(w, 'sync')
+  const forged = act(w, plan(w, {action: 'push', main: 'x\n::set-output name=merged::true'}))
+  assert.equal(forged.status, 1)
+  assert.match(forged.err, /^::error::main x%0A::set-output name=merged::true$/m)
+  assert.doesNotMatch(forged.err, /^::set-output/m)
+})
+
+test("act's Barkpark paths are the sync's: conformance.mjs and its types from Barkpark's conformance/", () => {
+  assert.deepEqual(Object.entries(COPIED).filter(([mine, theirs]) => mine !== theirs), [['conformance.mjs', 'conformance/conformance.mjs'], ['conformance.d.mts', 'conformance/conformance.d.mts']])
+  assert.match(readFileSync(ACT, 'utf8'), /^ {8}conformance\.mjs \| conformance\.d\.mts\) src=conformance\/\$rel ;;$/m)
 })
 
 /** A tree entry named `..` under conformance/pack (git refuses to make one from a work tree). */
@@ -123,7 +167,7 @@ test('act finds the sync PR itself: a plan naming another PR is refused for clos
     assert.deepEqual(r.writes, [])
   }
   // The sync PR: closed and merged by its own number.
-  assert.deepEqual(act(w, plan(w, {action: 'close', number: 9}), [syncPr(9)]).writes, ["pr close 9 --delete-branch --comment main already carries these files: nothing left to sync."])
+  assert.deepEqual(act(w, plan(w, {action: 'close', number: 9}), [syncPr(9)]).writes, ['pr close 9 --comment main already carries these files: nothing left to sync.'], 'the branch stays')
   assert.match(act(w, plan(w, {action: 'land', number: 9, head: w.main}), [syncPr(9)]).writes[0], /^pr merge 9 --squash --delete-branch --match-head-commit [0-9a-f]{40}$/)
 })
 
@@ -135,7 +179,7 @@ test('act, with the sync PR open: the commit sits on its head with main merged i
   git(w.work, 'push', '-q', 'origin', `HEAD:refs/heads/${BRANCH}`)
   // Straight on main, the hand commit dropped: refused.
   git(w.work, 'reset', '-q', '--hard', w.main)
-  write(w.work, 'conformance/pack/a.json', '{"v": 3}\n')
+  bark(w, '{"v": 3}\n')
   commit(w, 'sync')
   const r = act(w, plan(w, {action: 'push', number: 9, main: w.main}), [syncPr(9)])
   assert.equal(r.status, 1, r.err)
@@ -143,7 +187,7 @@ test('act, with the sync PR open: the commit sits on its head with main merged i
   assert.equal(branchAt(w), hand)
   // On the head, which holds that main already: pushed, the hand commit kept, the PR edited.
   git(w.work, 'reset', '-q', '--hard', hand)
-  write(w.work, 'conformance/pack/a.json', '{"v": 3}\n')
+  bark(w, '{"v": 3}\n')
   const first = commit(w, 'sync')
   const ok = act(w, plan(w, {action: 'push', number: 9, main: w.main}, [hand]), [syncPr(9)])
   assert.equal(ok.status, 0, ok.err)
@@ -156,7 +200,7 @@ test('act, with the sync PR open: the commit sits on its head with main merged i
   git(w.work, 'push', '-q', 'origin', 'HEAD:main')
   git(w.work, 'reset', '-q', '--hard', first)
   git(w.work, 'merge', '-q', '--no-edit', main2)
-  write(w.work, 'conformance/pack/a.json', '{"v": 4}\n')
+  bark(w, '{"v": 4}\n')
   const second = commit(w, 'sync')
   const ok2 = act(w, plan(w, {action: 'push', number: 9, main: main2}, [first, main2]), [syncPr(9)])
   assert.equal(ok2.status, 0, ok2.err)
@@ -173,7 +217,7 @@ test('act, with the sync PR open: the commit sits on its head with main merged i
   git(w.work, 'merge', '-q', '--no-commit', main3)
   write(w.work, 'app/evil.ts', 'x\n')
   commit(w, 'merge')
-  write(w.work, 'conformance/pack/a.json', '{"v": 5}\n')
+  bark(w, '{"v": 5}\n')
   commit(w, 'sync')
   const r3 = act(w, plan(w, {action: 'push', number: 9, main: main3}, [second, main3]), [syncPr(9)])
   assert.equal(r3.status, 1, r3.err)

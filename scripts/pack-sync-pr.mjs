@@ -1,6 +1,6 @@
 // The daily sync's plan (.github/workflows/sync-pack.yml, job `plan`; docs/decisions/0009-pack-syncs-itself.md).
 // It reads GitHub and git and writes nothing to either: every write (push, PR, merge, close) is printed
-// as `would:` and left to the workflow's `act` job, which runs no project code.
+// as `would:` and left to the workflow's `act` job (scripts/sync-act.sh), which checks it all again.
 //
 //   a file other than the stamp differs from Barkpark main? ── no ─► an open sync PR is closed; done
 //        │ yes                                                       (a stamp-only difference rides along)
@@ -70,7 +70,7 @@ if (here.lines.some((l) => l.startsWith('source '))) fail(`Barkpark's pack is no
 if (!here.real) {
   say(here.lines.length ? `${PACK_DIR}: only the stamp differs from Barkpark; it rides along with the next real change` : `${PACK_DIR}: same as Barkpark`)
   if (!number) plan({action: 'none'})
-  say(`would: gh pr close ${number} --delete-branch (main already carries these files)`)
+  say(`would: gh pr close ${number} (main already carries these files; the branch stays)`)
   plan({action: 'close', number})
 }
 
