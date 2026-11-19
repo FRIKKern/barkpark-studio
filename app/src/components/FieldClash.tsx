@@ -12,8 +12,10 @@ const show = (v: unknown) => (typeof v === 'string' ? v : v === undefined || v =
  * Someone else rewrote the text this editor had changed (lib/edits.ts clash): both
  * versions on the field, who and when, and the editor's answer, in the canvas's D20
  * words. Until then the editor's text stays on screen, not saved (the footer says so).
+ * On a field read-only for them now (`readOnly`, the one rule) Keep mine is an edit they
+ * may not make: the card offers theirs, and shows their words to copy.
  */
-export function FieldClashCard({path}: {path: string}) {
+export function FieldClashCard({path, readOnly = false}: {path: string; readOnly?: boolean}) {
   const id = useContext(DocIdContext)
   const type = useContext(DocTypeContext)
   const clash = useFieldClash(id, path)
@@ -43,10 +45,13 @@ export function FieldClashCard({path}: {path: string}) {
         <dt>{t('Yours, not saved')}</dt>
         <dd data-version="mine">{show(clash.mine)}</dd>
       </dl>
+      {readOnly && <p className="field-clash-note">{t('This field is read-only for you now: copy your text to keep it.')}</p>}
       <div>
-        <button type="button" className="btn-text" onClick={() => settleClash(qc, id, path, 'mine')}>
-          {t('Keep mine')}
-        </button>
+        {!readOnly && (
+          <button type="button" className="btn-text" onClick={() => settleClash(qc, id, path, 'mine')}>
+            {t('Keep mine')}
+          </button>
+        )}
         <button type="button" className="btn-text" onClick={() => settleClash(qc, id, path, 'theirs')}>
           {t('Take theirs')}
         </button>

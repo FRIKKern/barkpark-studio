@@ -1,5 +1,5 @@
 import type {Field} from './data'
-import {fieldLock, pasteSkips, type CurrentUser, type FieldConditions} from './conditions.ts'
+import {fieldLock, pasteSkips, type FieldConditions, type Person} from './conditions.ts'
 import {memberFor, membersOf} from './array-members.ts'
 import {dialogFields, usesSchemas, type PtKind, type SchemaLike} from './pt-value.ts'
 
@@ -18,7 +18,7 @@ import {dialogFields, usesSchemas, type PtKind, type SchemaLike} from './pt-valu
  * `after`: the document as the paste leaves it (Paste document works it out itself).
  * `schemas`: the studio's schemas, as the Portable Text dialog has them; undefined while not loaded.
  */
-export type PasteContext = {type: string; doc: Record<string, unknown>; after?: Record<string, unknown>; user: CurrentUser | null; rules: Record<string, FieldConditions> | undefined; schemas?: SchemaLike[]}
+export type PasteContext = {type: string; doc: Record<string, unknown>; after?: Record<string, unknown>; user: Person; rules: Record<string, FieldConditions> | undefined; schemas?: SchemaLike[]}
 
 /** A Portable Text object of a named type and the schemas not loaded: its dialog's fields are unknown, so the paste is refused. */
 export class SchemasNotLoaded extends Error {}

@@ -40,10 +40,13 @@ test('readOnly ({currentUser}) locks the field for an editor and leaves it open 
   // A seat that may not write is Sanity's viewer; another type's field is not this rule's.
   assert.deepEqual(currentUserOf(me('member', false))?.roles, [{name: 'viewer', title: 'Viewer'}])
   assert.equal(fieldState('author', stage, doc, currentUserOf(me('member')), rules).readOnly, false)
-  // Nobody signed in (shared sign-in) or Barkpark not answered yet: currentUser is null, and this config leaves the field open.
+  // Nobody signed in (shared sign-in): currentUser is null, and this config leaves the field open.
   assert.equal(fieldState('post', stage, doc, null, rules).readOnly, false)
   assert.equal(currentUserOf({...me('owner'), email: null}), null)
-  assert.equal(currentUserOf({...me('owner'), provisional: true}), null)
+  // Barkpark not answered yet (no answer, or the server render's provisional stand-in): not known, so the rule locks it (fieldrule.test.ts).
+  assert.equal(currentUserOf({...me('owner'), provisional: true}), undefined)
+  assert.equal(currentUserOf(undefined), undefined)
+  assert.equal(fieldState('post', stage, doc, undefined, rules).readOnly, true)
 })
 
 test('a callback gets Sanity\'s context; one that throws, or answers anything but true, leaves the field open', () => {
