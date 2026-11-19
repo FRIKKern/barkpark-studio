@@ -34,3 +34,19 @@ export function keyShims(dir, key) {
   }
   return {dir, check, seen}
 }
+
+/**
+ * The lines of a keyed script before the one that sources scripts/lib/deploy-push.sh which are not `set`
+ * or a plain assignment (no `$(`, backtick, `<(`/`>(`, `;`, `|` or `&`, no command word). Until that line
+ * DEPLOY_KEY is still in the env, so nothing may start a process there. Comments and blank lines are skipped.
+ */
+export function beforeTheHelper(text) {
+  const lines = text.split('\n')
+  const at = lines.findIndex((l) => /^\. "\$\{BASH_SOURCE\[0\]%\/\*\}\/lib\/deploy-push\.sh"$/.test(l))
+  if (at < 0) return ['no line sources lib/deploy-push.sh']
+  const plain = (l) =>
+    /^set( -[a-z]+)+( pipefail)?$/.test(l) ||
+    /^[A-Za-z_]\w*='[^']*'$/.test(l) ||
+    (/^[A-Za-z_]\w*=("[^"]*"|[^\s"'`]*)$/.test(l) && !/\$\(|`|[<>]\(|[;|&]/.test(l))
+  return lines.slice(0, at).filter((l) => !/^\s*(#|$)/.test(l) && !plain(l))
+}
