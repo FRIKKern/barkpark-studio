@@ -4,7 +4,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {anyDocQuery, docQuery, previewTitle, schemaOf, searchAllDocs, type Doc, type Schema} from '../lib/data'
 import {canvasAtLeast, loadCanvas} from '../lib/canvas-bundle'
 import {applyBlockOps, readBlocks, type Block, type BlockOp, type Blocks, type OpsResult, type Rev} from '../lib/blocks'
-import {unlessDocLocked} from '../lib/doc-lock'
+import {canvasLocked, docLocked} from '../lib/doc-lock'
 import {paceMs, paced} from '../lib/write-pace'
 
 import {toast} from './Toasts'
@@ -37,13 +37,16 @@ import {focusCanvas} from '../lib/canvas-focus'
 // batch keeps the edit on screen with Retry / Discard.
 
 // The canvas's one write (a batch, Put the words back, Undo of another's edit), past the lock where
-// edits are written (lib/doc-lock.ts): refused for a doc every pane shows locked, as Barkpark
-// refuses a batch, so its words stay kept on this computer.
+// edits are written (lib/doc-lock.ts): refused for a doc every pane shows locked, and for a field
+// this person may not change (a field canvas's field; any field of the whole-document canvas), as
+// Barkpark refuses a batch, so its words stay kept on this computer with the reason.
 type OpsArgs = Parameters<typeof applyBlockOps>[0]
-const lockedSend = unlessDocLocked(([args]: [OpsArgs]) => args.data.id, applyBlockOps)
+const refusal = (message: string) => ({ok: false, status: 423, message: translate(message), rev: ''}) as OpsResult
 const sendOps = async (args: OpsArgs) => {
-  const sent = lockedSend(args)
-  return sent === false ? ({ok: false, status: 423, message: translate('This document is read-only here: nothing was saved.'), rev: ''} as OpsResult) : ((await sent) as unknown as OpsResult)
+  const {id, field} = args.data
+  if (docLocked(id)) return refusal('This document is read-only here: nothing was saved.')
+  if (canvasLocked(id, field)) return refusal('Part of this document is read-only for you: nothing was saved.')
+  return (await applyBlockOps(args)) as unknown as OpsResult
 }
 
 /** The element's host-facing surface (barkpark api/assets/paper-editor/src/canvas/index.js). */

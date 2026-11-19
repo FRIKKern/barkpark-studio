@@ -13,7 +13,7 @@ import {errorsOf, formOrder, validate, worst, type Problem} from '../lib/validat
 import {advisoryProblems} from '../lib/findings'
 import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
-import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
+import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setByAction, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
 import {choiceById} from '../lib/templates'
 import {reportFocus} from '../lib/presence'
@@ -68,7 +68,8 @@ import {IncomingReferencesInputs} from './IncomingReferencesInput'
 const INCOMING = 'sanity/structure/incoming-references'
 import {EditIcon, EyeOpenIcon, PreviewView} from './PreviewView'
 import {previewViewTemplate} from '../lib/preview-url'
-import {formLocked, freeformCanvas, unlessLocked} from '../lib/form-lock'
+import {formLocked, freeformCanvas, paneFieldLock, unlessLocked} from '../lib/form-lock'
+import {segments} from '../lib/paths'
 import {hideDoc, showDoc} from '../lib/doc-lock'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
@@ -350,13 +351,37 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const locked = formLocked(lockState)
   const lockedNow = useRef(locked)
   lockedNow.current = locked
-  // The same lock where edits are written (lib/doc-lock.ts): edit() and the canvas's batches.
-  const lockHolder = useRef({}).current
-  useLayoutEffect(() => showDoc(pane.id, lockHolder, locked), [pane.id, locked])
-  useLayoutEffect(() => () => hideDoc(pane.id, lockHolder), [pane.id])
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
-  // Published and a revision are read in Classic: the canvas holds the draft. Locked, it is read-only.
+  // Published and a revision are read in Classic: the canvas holds the draft. Locked, or a field
+  // of it read-only for this person, it is read-only; a field of it hidden from them, not drawn.
   const canvasMode = freeformCanvas(lockState, {schema, doc, user, rules: studio.form?.conditions})
+  // The same lock where edits are written (lib/doc-lock.ts): edit() and the canvas's batches,
+  // field by field as the form judges them (the one rule), on the doc and person at the write.
+  const lockHolder = useRef({}).current
+  const judged = useRef({schema, doc, user, rules: studio.form?.conditions, canvas: canvasMode})
+  judged.current = {schema, doc, user, rules: studio.form?.conditions, canvas: canvasMode}
+  const fieldLock = useMemo(
+    () =>
+      paneFieldLock(
+        () => judged.current,
+        (path) => {
+          const names = segments(path).flatMap((x) => ('name' in x ? [x.name] : [])).join('.')
+          const field = fieldTitle(judged.current.schema?.fields ?? [], names) ?? path
+          toast({key: `read-only-${pane.id}-${path}`, tone: 'caution', title: tt('“{field}” is read-only for you: the change was not saved.', {field})})
+        },
+      ),
+    [pane.id],
+  )
+  useLayoutEffect(() => showDoc(pane.id, lockHolder, locked, fieldLock), [pane.id, locked, fieldLock])
+  // Kept edits to fields read-only for this person now: not put back, named, and still kept in this browser.
+  const notPutBack = (refused: string[], date: string, others: boolean) => {
+    const fields = refused.map((f) => fieldTitle(judged.current.schema?.fields ?? [], f) ?? f).join(', ')
+    const title = others
+      ? tt('Unsaved changes from {date} were put back, except to {fields}: read-only for you. Those are kept in this browser.', {fields, date})
+      : tt('Unsaved changes to {fields} from {date} were not put back: read-only for you. They are kept in this browser.', {fields, date})
+    toast({tone: 'caution', title})
+  }
+  useLayoutEffect(() => () => hideDoc(pane.id, lockHolder), [pane.id])
   const freeform = mode !== 'none' && canvasMode !== 'hidden' && (mode === 'main' || Array.isArray(doc?.blocks))
   const view: View = viewOf(pane.view, mode) === 'freeform' && !freeform ? 'classic' : viewOf(pane.view, mode)
   const [canvasSeen, setCanvasSeen] = useState<string | null>(null)
@@ -402,7 +427,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // name, and context values that change only when their content does.
   const latestDoc = useRef(doc)
   latestDoc.current = doc
-  const onEdit = useCallback(unlessLocked(() => lockedNow.current, (field: string, value: unknown) => latestDoc.current && edit(qc, latestDoc.current, field, value)), [qc])
+  const onEdit = useCallback(unlessLocked(() => lockedNow.current, (field: string, value: unknown): boolean => !!latestDoc.current && edit(qc, latestDoc.current, field, value) !== false), [qc])
   // F7's undo and redo write the draft too: refused while locked (a revision shows another version).
   const undoDoc = useCallback(unlessLocked(() => lockedNow.current, (back: boolean) => undo(qc, pane.id, back)), [qc, pane.id])
   const onChangeOf = useMemo(() => {
@@ -425,15 +450,18 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useEffect(() => {
     setRecovered(null)
     // Judged against the schema as it is now (a field it dropped or retyped is not sent).
-    if (!keepScope || !editable || !draftQ.data || !schema) return
+    // And once the person is known: a field a rule may lock for them refuses its kept edits until then.
+    if (!keepScope || !editable || !draftQ.data || !schema || user === undefined) return
     let live = true
     void recoverPending(qc, draftQ.data, schema).then((r) => {
       if (!live || !r) return
-      if ('ask' in r) setRecovered(r.ask)
-      else toast({title: tt('Unsaved changes from {date} were put back.', {date: longDate(new Date(r.replayed).toISOString(), locale)})})
+      if ('ask' in r) return setRecovered(r.ask)
+      const date = longDate(new Date(r.replayed).toISOString(), locale)
+      if (!r.refused.length) return toast({title: tt('Unsaved changes from {date} were put back.', {date})})
+      notPutBack(r.refused, date, r.put > 0)
     })
     return () => void (live = false)
-  }, [keepScope, pane.id, editable, !!schema])
+  }, [keepScope, pane.id, editable, !!schema, user === undefined])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   // Sanity's Inspect is in the URL (`inspect=on`): Back closes and reopens it, a link or a
   // reload opens it, and it takes the inspector's place (History closes), as there.
@@ -805,7 +833,11 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             </span>
             <span className="pane-banner-actions">
               {recovered.fields.length > 0 && (
-                <button type="button" className="btn-text" onClick={() => (restorePending(qc, doc, recovered), setRecovered(null))}>
+                <button type="button" className="btn-text" onClick={() => {
+                  const refused = restorePending(qc, doc, recovered)
+                  if (refused?.length) notPutBack(refused, longDate(new Date(recovered.pending.at).toISOString(), locale), refused.length < recovered.fields.length)
+                  setRecovered(null)
+                }}>
                   {t('Restore')}
                 </button>
               )}
@@ -1183,7 +1215,8 @@ function DocFooter({doc, closeHref, blocked, validating = false, checkRules, sin
   const paused = schedule?.status === 'paused'
   // Discard needs a draft to drop and a published version to fall back to.
   const canDiscard = !!doc._draft && doc._hasPublished !== false
-  const set = (field: string, value: unknown) => edit(qc, doc, field, value)
+  // An action's set is the action's code, not an edit by hand: the document lock only (lib/doc-lock.ts).
+  const set = (field: string, value: unknown) => setByAction(qc, doc, field, value) !== false
   const actions = (studio.document?.actions?.(doc._type) ?? []).flatMap((action) => action({doc, set}) ?? [])
   const schemaActions = useSchemaActions(doc, () => setMenu(false), menu)
   const alt = useAltName()

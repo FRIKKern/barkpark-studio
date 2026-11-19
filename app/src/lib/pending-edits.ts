@@ -90,6 +90,19 @@ export async function readDocPending(docKey: string): Promise<[string, Pending][
  * Several dead pages' entries for one doc as one: a later edit of a field wins, with the
  * base it was made from; the rev only when all were made against the same one.
  */
+/** `p` with only the edits to `fields` (and their bases): what stays kept when those were not put back. */
+export const keptOnly = (p: Pending, fields: string[]): Pending => ({...p, fields: p.fields.filter(([f]) => fields.includes(f)), base: p.base.filter(([f]) => fields.includes(f))})
+
+/**
+ * After a put-back of the dead pages' kept edits (their `keys`, combined as `p`): what is kept and
+ * what goes. The edits to `refused` fields are kept first, under the page that made them, then the
+ * rest of the keys go, so nothing is lost if the page closes in between.
+ */
+export function keepPlan(docKey: string | undefined, keys: string[], p: Pending, refused: string[]): {keep?: [string, Pending]; drop: string[]} {
+  const at = docKey && refused.length ? pendingKey(docKey, p.tab) : undefined
+  return {...(at && {keep: [at, keptOnly(p, refused)] as [string, Pending]}), drop: keys.filter((k) => k !== at)}
+}
+
 export function combine(entries: Pending[]): Pending | null {
   if (!entries.length) return null
   const fields = new Map<string, unknown>()
