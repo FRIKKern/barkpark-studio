@@ -48,12 +48,40 @@ export function spansOnto(field: unknown, spans: [inner: string, from: string, m
 export function spanAnswer(field: unknown, spans: [inner: string, from: string, mine: string][], before: unknown, saved: unknown): unknown[] | null {
   const there = (v: unknown) => ([inner]: [string, string, string]) => typeof getPath({v}, `v${inner}`) === 'string'
   const merged = spansOnto(field, spans.filter(there(field)), before)
-  if (!merged || JSON.stringify(merged) === JSON.stringify(saved)) return null
+  if (!merged || sameText(merged, saved)) return null
   const since = spans.filter((s) => !there(field)(s))
   return since.length ? spansOnto(before, since, merged) : merged
 }
 
+type Run = {_key?: string; _type?: string; text?: unknown; marks?: unknown}
+/** A field's blocks as read: span keys left out and spans of the same marks run together. */
+const read = (v: unknown) =>
+  JSON.stringify(
+    Array.isArray(v)
+      ? v.map((b) => {
+          const {children, ...rest} = (b ?? {}) as {children?: Run[]}
+          if (!Array.isArray(children)) return b
+          const runs: Run[] = []
+          for (const {_key, ...c} of children) {
+            const last = runs.at(-1)
+            if (last && c._type === 'span' && last._type === 'span' && JSON.stringify(last.marks ?? []) === JSON.stringify(c.marks ?? [])) last.text = `${last.text}${c.text}`
+            else runs.push({...c})
+          }
+          return {...rest, children: runs}
+        })
+      : v,
+  )
+/** The same blocks and text, however the spans are cut or keyed: nothing to put right. */
+const sameText = (a: unknown, b: unknown) => read(a) === read(b)
+
 const keysOf = (v: unknown) => (Array.isArray(v) ? v.map((b) => (b as {_key?: unknown})?._key) : null)
+
+/** The field's blocks, by key, are not the same list in `was` and `now` (one added, removed or moved). */
+export function blocksMoved(was: unknown, now: unknown) {
+  const a = keysOf(was)
+  const b = keysOf(now)
+  return !!a && !!b && JSON.stringify(a) !== JSON.stringify(b)
+}
 
 /**
  * A frame from the server under spans typed and not yet sent (`dirty`: path → text, `base`:
@@ -64,8 +92,5 @@ const keysOf = (v: unknown) => (Array.isArray(v) ? v.map((b) => (b as {_key?: un
  * span it is), or nothing to merge from.
  */
 export function spansLifted(field: unknown, theirs: unknown, spans: [inner: string, from: string, mine: string][]): unknown[] | null {
-  const was = keysOf(field)
-  const now = keysOf(theirs)
-  if (!was || !now || JSON.stringify(was) === JSON.stringify(now)) return null
-  return spansOnto(field, spans, theirs)
+  return blocksMoved(field, theirs) ? spansOnto(field, spans, theirs) : null
 }

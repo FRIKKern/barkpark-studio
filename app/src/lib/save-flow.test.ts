@@ -295,17 +295,13 @@ const end = (w: string) => (t: string) => `${t} ${w}`
 const typing = {before: [['b1', end('four')], ['b1', end('five')]] as Typed[], after: [['r', end('six')]] as Typed[]}
 const deleting = {before: [['b1', (t: string) => t.replace('e', '')], ['b1', (t: string) => t.replace('x', '')]] as Typed[]}
 
-test('typing sent as a span patch, and more, while another paste split the block', () =>
-  spanSave('spanType', typing, ['Above', 'Start QQ', 'rr text four five six', 'Below']))
+test('typing sent as a span patch, and more, while another paste split the block', async () => void (await spanSave('spanType', typing, ['Above', 'Start QQ', 'rr text four five six', 'Below'])))
 
-test('letters deleted as a span patch while another paste split the block stay deleted', () =>
-  spanSave('spanDelete', deleting, ['Above', 'Start QQ', 'rr tt', 'Below']))
+test('letters deleted as a span patch while another paste split the block stay deleted', async () => void (await spanSave('spanDelete', deleting, ['Above', 'Start QQ', 'rr tt', 'Below'])))
 
-test('typing, the last of it not yet sent when the frame of another paste that split the block comes', () =>
-  spanSave('spanFrame', typing, ['Above', 'Start QQ', 'rr text four five six', 'Below'], false))
+test('typing, the last of it not yet sent when the frame of another paste that split the block comes', async () => void (await spanSave('spanFrame', typing, ['Above', 'Start QQ', 'rr text four five six', 'Below'], false)))
 
-test('letters deleted, the last not yet sent when the frame of another paste that split the block comes', () =>
-  spanSave('spanFrameDelete', deleting, ['Above', 'Start QQ', 'rr tt', 'Below'], false))
+test('letters deleted, the last not yet sent when the frame of another paste that split the block comes', async () => void (await spanSave('spanFrameDelete', deleting, ['Above', 'Start QQ', 'rr tt', 'Below'], false)))
 
 // The field put right goes whole; a span typed only since (the tail's first span here) keeps
 // no base from before, or its next key sends the earlier words again.
@@ -323,3 +319,28 @@ for (const at of [0, -1])
     for (const w of ['four', 'five', 'six', 'X', 'Y']) assert.equal(all.split(w).length - 1, 1, `${w} once in ${all}`)
     assert.deepEqual(texts(page.held().ptBody), texts(server.doc.ptBody), 'this page equals stored')
   })
+
+// Two editors typing in one span with no block added or removed: the answer's text is what the
+// merge exit gives, so no whole-field write goes and the span keeps its one key.
+test('both typing in one span, no split: no write but the span patch, one span', async () => {
+  server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'Start text'), blk('c', 'Below')]})
+  const page = await open('sameSpan')
+  let reads = 0
+  const fetch = server.fetch.bind(server)
+  server.fetch = async (p: string, url: string, init: {body?: string}) => (url.includes('/v1/data/history/') && reads++, fetch(p, url, init))
+  for (let i = 0; i < 3; i++) {
+    // Their key at the span's start lands first (its frame not here yet), then this page's at its end.
+    server.theirs('ptBody', (now) => (now as Block[]).map((b) => (b._key === 'b1' ? blk('b1', `Q${b.children[0]!.text}`) : b)))
+    const now = (page.held().ptBody as Block[])[1]!.children[0]!.text
+    page.type('b1', now, `${now}x`)
+    await page.drain()
+    for (const d of server.history) page.frame(d)
+    await page.drain()
+  }
+  assert.deepEqual(texts(server.doc.ptBody), ['Above', 'QQQStart textxxx', 'Below'])
+  assert.deepEqual(texts(page.held().ptBody), texts(server.doc.ptBody))
+  assert.equal((server.doc.ptBody as Block[])[1]!.children.length, 1, 'one span')
+  // The cost: an answer that is not what was sent (their key landed in the span first) is
+  // checked against the field just before the patch, one history read per such save.
+  assert.equal(reads, 3, 'history reads')
+})
