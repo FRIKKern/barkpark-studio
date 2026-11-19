@@ -123,7 +123,7 @@ test('the structure route reads ahead only on a render the head start let in, af
   assert.match(route, /const ahead = headStarts\.take\(queryClient\)\n/)
   assert.match(route, /loadPaneChain\(scratch, splat, published, !!ahead\)/, 'readAhead is the head start, taken: chainMayStart said yes and me let them in')
   assert.equal(count(route, /loadPaneChain\(/), 3, 'its definition, the server render and the browser')
-  assert.match(route, /return loadPaneChain\(queryClient, splat, published\)\n/, 'the browser never reads ahead')
+  assert.match(route, /return \{\.\.\.\(await loadPaneChain\(queryClient, splat, published\)\), at: Date\.now\(\)\}\n/, 'the browser never reads ahead')
   assert.equal(count(route, /modelWithReadsAhead\(/), 1)
   const chain = route.slice(route.indexOf('async function loadPaneChain'))
   assert.ok(chain.indexOf('await fetchResumeMark()') < chain.indexOf('modelWithReadsAhead('), 'document reads come after the resume mark')
