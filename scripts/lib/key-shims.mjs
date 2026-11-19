@@ -36,17 +36,30 @@ export function keyShims(dir, key) {
 }
 
 /**
- * The lines of a keyed script before the one that sources scripts/lib/deploy-push.sh which are not `set`
- * or a plain assignment (no `$(`, backtick, `<(`/`>(`, `;`, `|` or `&`, no command word). Until that line
- * DEPLOY_KEY is still in the env, so nothing may start a process there. Comments and blank lines are skipped.
+ * The lines of a keyed script before the one that sources scripts/lib/deploy-push.sh that are not on the
+ * short list of what may stand there. Until that line DEPLOY_KEY is still in the env, so nothing may start a
+ * process: only comments and blank lines, `set -euo pipefail` as spelled, and an assignment to a lowercase
+ * name (so never PATH, PS4, IFS or BASH_ENV) of a literal, single-quoted or of [A-Za-z0-9_./:-] alone. No
+ * line may end in a backslash, which would join the next line to it.
  */
 export function beforeTheHelper(text) {
   const lines = text.split('\n')
-  const at = lines.findIndex((l) => /^\. "\$\{BASH_SOURCE\[0\]%\/\*\}\/lib\/deploy-push\.sh"$/.test(l))
+  const at = lines.indexOf('. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"')
   if (at < 0) return ['no line sources lib/deploy-push.sh']
-  const plain = (l) =>
-    /^set( -[a-z]+)+( pipefail)?$/.test(l) ||
-    /^[A-Za-z_]\w*='[^']*'$/.test(l) ||
-    (/^[A-Za-z_]\w*=("[^"]*"|[^\s"'`]*)$/.test(l) && !/\$\(|`|[<>]\(|[;|&]/.test(l))
-  return lines.slice(0, at).filter((l) => !/^\s*(#|$)/.test(l) && !plain(l))
+  const allowed = (l) =>
+    !/\\$/.test(l) && (/^\s*(#.*)?$/.test(l) || l === 'set -euo pipefail' || /^[a-z_][a-z0-9_]*=('[^']*'|[A-Za-z0-9_./:-]*)$/.test(l))
+  return lines.slice(0, at).filter((l) => !allowed(l))
 }
+
+/** Lines a test adds after `set -euo pipefail` that beforeTheHelper must name: [added, named (default: added)]. */
+export const PRELUDE_BREAKS = [
+  ...['x=$(/bin/date)', 'x=$(command -p date)', 'x=`date`', 'x="$(date)"', 'date', 'x=1 date', 'read -r x < <(date)', 'x=1; date', 'x=$(<f)'].map((l) => [l]),
+  ['x=\\\n# date', 'x=\\'],
+  ["PS4='$(date)'\nset -x"],
+  ["y='a[$(date)]'\nx=${!y}", 'x=${!y}'],
+  ['PATH=/tmp'],
+  ['set -a'],
+  ['set -e'],
+  ['x="$RUNNER_TEMP/a"'],
+  ['x=${y:-a}'],
+]

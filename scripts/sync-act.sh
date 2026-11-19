@@ -9,8 +9,6 @@
 # Barkpark's main and not older than main's; and writes the commit message, PR title and body itself.
 # docs/decisions/0009-pack-syncs-itself.md
 set -euo pipefail
-plan="$RUNNER_TEMP/plan"
-barkpark="${BARKPARK_GIT:-https://github.com/FRIKKern/barkpark}"
 branch=sync/barkpark-pack
 new=refs/sync-pack/new
 re_sha='^[0-9a-f]{40}$'
@@ -19,6 +17,8 @@ re_sha='^[0-9a-f]{40}$'
 # shellcheck source=scripts/lib/deploy-push.sh
 # (Its path by parameter expansion, a builtin: nothing forks while DEPLOY_KEY is still in the env.)
 . "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"
+plan="$RUNNER_TEMP/plan"
+barkpark="${BARKPARK_GIT:-https://github.com/FRIKKern/barkpark}"
 
 action=$(jq -r .action "$plan/plan.json")
 # The sync PR, found here: this repo's (not a fork's) open PR from sync/barkpark-pack into main.

@@ -8,7 +8,7 @@ import {join} from 'node:path'
 import test, {after} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
-import {BASH, beforeTheHelper, keyShims} from './key-shims.mjs'
+import {BASH, beforeTheHelper, keyShims, PRELUDE_BREAKS} from './key-shims.mjs'
 import {COPIED} from './pack.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
@@ -126,11 +126,12 @@ test('sync-act.sh handles no key itself: it sources scripts/lib/deploy-push.sh a
   assert.deepEqual(code.filter((l) => /deploy_push/.test(l)).map((l) => l.trim()), ['deploy_push "$sync:refs/heads/$branch" --force-with-lease="$branch:$lease"', 'deploy_push "$start:refs/heads/$branch" --force-with-lease="$branch:$sync"'])
   assert.deepEqual(code.filter((l) => /DEPLOY_|deploy_key|keyfile/.test(l) || /ssh|git push|\btrap\b/i.test(l)), [], 'nothing else touches the key')
 
-  // Before that line DEPLOY_KEY is still in the env: only `set` and plain assignments, nothing that starts a process.
+  // Before that line DEPLOY_KEY is still in the env: only what beforeTheHelper allows, nothing that starts a process.
   const text = readFileSync(ACT, 'utf8')
   assert.deepEqual(beforeTheHelper(text), [])
-  for (const added of ['x=$(/bin/date)', 'x=$(command -p date)', 'x=`date`', 'x="$(date)"', 'date', 'x=1 date', 'read -r x < <(date)', 'x=1; date', 'x=$(<f)'])
-    assert.deepEqual(beforeTheHelper(text.replace('set -euo pipefail\n', `set -euo pipefail\n${added}\n`)), [added], added)
+  assert.deepEqual(beforeTheHelper(text.replace('set -euo pipefail\n', `set -euo pipefail\ny='a[b]'\n`)), [], 'a single-quoted value holds anything')
+  for (const [added, named = added] of PRELUDE_BREAKS)
+    assert.deepEqual(beforeTheHelper(text.replace('set -euo pipefail\n', `set -euo pipefail\n${added}\n`)), named.split('\n'), added)
 })
 
 test('act pushes a sync commit on main and opens the PR; it refuses to push one that leaves the pack', () => {
