@@ -63,6 +63,46 @@ function breaksMoved(diffs: [number, string][]): [number, string][] {
       : null
     if (fix) out.splice(i, 3, ...fix.filter(([, t]) => t))
   }
+  return farMoves(out)
+}
+
+/**
+ * The same, with more changed around the break (task-39ac4770a54b587a): the other deleted the
+ * break and pasted paragraphs or split there. Letters taken out before the break and put in
+ * again in what is typed after it (`p|q` → `x|p`: p out, x in; q out, p in), or typed before it
+ * and taken out after it, are the base's letters with the break moved past them.
+ */
+function farMoves(diffs: [number, string][]): [number, string][] {
+  const out = diffs.map((d) => [...d] as [number, string])
+  const brk = (t: string) => !!t && [...t].every((c) => c === SEP)
+  // The changes next to index `at` on one side (up to a deletion and an insertion), and where they span.
+  const side = (from: number, step: 1 | -1) => {
+    let del = ''
+    let ins = ''
+    let n = 0
+    for (let j = from; j >= 0 && j < out.length && n < 2 && out[j]![0] !== DIFF_EQUAL; j += step, n++) {
+      const [op, t] = out[j]!
+      if (op === DIFF_DELETE && !del) del = t
+      else if (op === DIFF_INSERT && !ins) ins = t
+      else break
+    }
+    return {del, ins, n}
+  }
+  for (let i = 1; i + 1 < out.length; i++) {
+    const [eq, gap] = out[i]!
+    if (eq !== DIFF_EQUAL || !brk(gap)) continue
+    const pre = side(i - 1, -1)
+    const post = side(i + 1, 1)
+    if (!pre.n || !post.n) continue
+    let fix: [number, string][] | null = null
+    // Taken out before the break, in what is typed after it.
+    const k = pre.del ? post.ins.indexOf(pre.del) : -1
+    if (k >= 0) fix = [[DIFF_INSERT, pre.ins + gap + post.ins.slice(0, k)], [DIFF_EQUAL, pre.del], [DIFF_DELETE, gap + post.del], [DIFF_INSERT, post.ins.slice(k + pre.del.length)]]
+    // Typed before the break, in what is taken out after it.
+    const h = pre.ins ? post.del.indexOf(pre.ins) : -1
+    if (!fix && h >= 0) fix = [[DIFF_DELETE, pre.del + gap + post.del.slice(0, h)], [DIFF_EQUAL, pre.ins], [DIFF_DELETE, post.del.slice(h + pre.ins.length)], [DIFF_INSERT, gap + post.ins]]
+    if (fix) out.splice(i - pre.n, pre.n + 1 + post.n, ...fix.filter(([, t]) => t))
+  }
   return out
 }
 /** `base` → `side` letter by letter (a raw diff: no semantic clean-up), a moved block break read as one. */
