@@ -20,7 +20,7 @@ const env = {...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_
 const git = (cwd, ...args) => execFileSync('git', args, {cwd, env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']}).trim()
 const write = (dir, path, text) => (mkdirSync(join(dir, path, '..'), {recursive: true}), writeFileSync(join(dir, path), text))
 
-/** An origin whose main holds the picture and an app file, and a work clone on main. */
+/** An origin whose main holds the picture and an app file, and a work clone on main; shared by the tests. */
 function world() {
   const base = tmp('hk-')
   git(base, 'init', '-q', '--bare', '-b', 'main', 'origin.git')
@@ -47,30 +47,52 @@ function run(w, picture, {first = '', key = 'the deploy key'} = {}) {
   picture(join(temp, 'roadmap'))
   const pushed = join(bin, 'pushed-key.log')
   const once = join(bin, 'hook-ran')
-  writeFileSync(join(w.origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "${temp}/housekeeping-deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
+  writeFileSync(join(w.origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "${temp}/deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
   chmodSync(join(w.origin, 'hooks/pre-receive'), 0o755)
   const keyWhile = join(bin, 'key-while.log')
   writeFileSync(join(bin, 'first.sh'), `cd "${w.origin}"\n${first}\n`)
   const firstPush = `[ "$1" != push ] || [ -e "${once}" ] || { touch "${once}"; PATH="${process.env.PATH}" sh "${join(bin, 'first.sh')}"; }`
-  writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ ! -e "$RUNNER_TEMP/housekeeping-deploy-key" ] || echo "$1" >> "${keyWhile}"\n${firstPush}\nexec "${REAL_GIT}" "$@"\n`)
+  writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ ! -e "$RUNNER_TEMP/deploy-key" ] || echo "$1" >> "${keyWhile}"\n${firstPush}\nexec "${REAL_GIT}" "$@"\n`)
   chmodSync(join(bin, 'git'), 0o755)
   const checkout = join(tmp('checkout-'), 'repo')
   git(w.base, 'clone', '-q', w.origin, checkout)
-  const r = spawnSync('bash', [PUSH], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: temp, HOUSEKEEPING_DEPLOY_KEY: key, HOUSEKEEPING_PUSH_URL: w.origin}})
+  const r = spawnSync('bash', [PUSH], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: temp, DEPLOY_KEY: key, DEPLOY_PUSH_URL: w.origin}})
   const lines = (f) => (existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n') : [])
   return {
     status: r.status,
     err: r.stdout + r.stderr,
     keyWhile: lines(keyWhile).filter((c) => c !== 'receive-pack'),
     pushedWith: lines(pushed),
-    keyLeft: readdirSync(temp).filter((f) => f.startsWith('housekeeping-')),
+    keyLeft: readdirSync(temp).filter((f) => f !== 'roadmap'),
     worktree: git(checkout, 'status', '--porcelain'),
   }
 }
 const svg = (text) => (dir) => writeFileSync(join(dir, 'roadmap.svg'), text)
+const w = world()
+
+test('housekeeping-push.sh handles no key itself: it sources scripts/lib/deploy-push.sh and pushes with deploy_push', () => {
+  const code = readFileSync(PUSH, 'utf8').split('\n').filter((l) => !/^\s*#/.test(l))
+  assert.deepEqual(code.filter((l) => /deploy-push\.sh/.test(l)), ['. "$(dirname "${BASH_SOURCE[0]}")/lib/deploy-push.sh"'])
+  assert.deepEqual(code.filter((l) => /deploy_push/.test(l)), ['  deploy_push "$commit:refs/heads/main" && exit 0'])
+  assert.deepEqual(code.filter((l) => /DEPLOY_|deploy_key|keyfile/.test(l) || /ssh|git push|\btrap\b/i.test(l)), [], 'nothing else touches the key')
+})
+
+test('housekeeping push: no change, or a picture refused, pushes nothing and never writes the key', () => {
+  const quiet = (name, picture, needle, status = 1) => {
+    const r = run(w, picture)
+    assert.equal(r.status, status, `${name}: ${r.err}`)
+    assert.match(r.err, needle, name)
+    assert.equal(mainAt(w), w.main, `${name}: main as it was`)
+    assert.deepEqual([r.keyWhile, r.pushedWith, r.keyLeft], [[], [], []], `${name}: the key never written`)
+  }
+  quiet('the same picture', svg('<svg>old</svg>\n'), /^no change$/m, 0)
+  quiet('no picture', () => {}, /no roadmap\.svg from refresh/)
+  quiet('a link to another file', (dir) => symlinkSync('/etc/hosts', join(dir, 'roadmap.svg')), /no roadmap\.svg from refresh/)
+  quiet('not an SVG', svg('#!/bin/sh\n'), /roadmap\.svg is not an SVG/)
+  quiet('1 MB or more', svg(`<svg>${'x'.repeat(1 << 20)}</svg>`), /1 MB or more/)
+})
 
 test('housekeeping push: one commit on main, the picture only; the key a file only while git pushes', () => {
-  const w = world()
   const r = run(w, svg('<svg>new</svg>\n'))
   assert.equal(r.status, 0, r.err)
   const at = mainAt(w)
@@ -85,39 +107,18 @@ test('housekeeping push: one commit on main, the picture only; the key a file on
 })
 
 test('housekeeping push: main moves during the push; the commit is made again on the new main', () => {
-  const w = world()
+  const before = mainAt(w)
   // Just before the first push, main moves (a merge lands), so that push is refused.
   const first = 'git update-ref refs/heads/main "$(git commit-tree main^{tree} -p main -m landed)"'
-  const r = run(w, svg('<svg>new</svg>\n'), {first})
+  const r = run(w, svg('<svg>newer</svg>\n'), {first})
   assert.equal(r.status, 0, r.err)
   assert.match(r.err, /push 1 rejected \(main moved\)/)
   const at = mainAt(w)
   git(w.work, 'fetch', '-q', 'origin', 'main')
-  assert.equal(git(w.work, 'log', '-1', '--format=%s', `${at}^`), 'landed')
+  assert.equal(git(w.work, 'log', '-1', '--format=%s %P', `${at}^`), `landed ${before}`)
   assert.equal(git(w.work, 'diff', '--name-only', `${at}^`, at), SVG)
   // git refuses the first push itself (not a fast-forward); the second reaches origin with the key.
   assert.deepEqual(r.pushedWith, ['the deploy key'])
   assert.deepEqual(r.keyWhile, ['push', 'push'])
   assert.deepEqual(r.keyLeft, [])
-})
-
-test('housekeeping push: no change, or a picture refused, pushes nothing and never writes the key', () => {
-  const w = world()
-  const quiet = (name, picture, needle, status = 1) => {
-    const r = run(w, picture)
-    assert.equal(r.status, status, `${name}: ${r.err}`)
-    assert.match(r.err, needle, name)
-    assert.equal(mainAt(w), w.main, `${name}: main as it was`)
-    assert.deepEqual([r.keyWhile, r.pushedWith, r.keyLeft], [[], [], []], `${name}: the key never written`)
-  }
-  quiet('the same picture', svg('<svg>old</svg>\n'), /^no change$/m, 0)
-  quiet('no picture', () => {}, /no roadmap\.svg from refresh/)
-  quiet('a link to another file', (dir) => symlinkSync('/etc/hosts', join(dir, 'roadmap.svg')), /no roadmap\.svg from refresh/)
-  quiet('not an SVG', svg('#!/bin/sh\n'), /roadmap\.svg is not an SVG/)
-  quiet('1 MB or more', svg(`<svg>${'x'.repeat(1 << 20)}</svg>`), /1 MB or more/)
-  // No key: refused at the push, with nothing pushed.
-  const r = run(w, svg('<svg>new</svg>\n'), {key: ''})
-  assert.equal(r.status, 1, r.err)
-  assert.match(r.err, /^::error::no deploy key$/m)
-  assert.equal(mainAt(w), w.main)
 })

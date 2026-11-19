@@ -78,18 +78,18 @@ function act(w, runnerTemp, prs = []) {
   const bin = tmp('gh-')
   const log = join(bin, 'calls.log')
   const pushed = join(bin, 'pushed-key.log')
-  writeFileSync(join(w.origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "$RUNNER_TEMP/sync-deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
+  writeFileSync(join(w.origin, 'hooks/pre-receive'), `#!/bin/sh\ncat "$RUNNER_TEMP/deploy-key" >> "${pushed}" 2>/dev/null || echo none >> "${pushed}"\n`)
   chmodSync(join(w.origin, 'hooks/pre-receive'), 0o755)
   const keyWhile = join(bin, 'key-while.log')
-  writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ ! -e "$RUNNER_TEMP/sync-deploy-key" ] || echo "$1" >> "${keyWhile}"\nexec "${REAL_GIT}" "$@"\n`)
+  writeFileSync(join(bin, 'git'), `#!/bin/sh\n[ ! -e "$RUNNER_TEMP/deploy-key" ] || echo "$1" >> "${keyWhile}"\nexec "${REAL_GIT}" "$@"\n`)
   chmodSync(join(bin, 'git'), 0o755)
-  writeFileSync(join(bin, 'gh'), `#!/bin/sh\n[ -z "$SYNC_DEPLOY_KEY" ] || echo "KEY IN ENV" >> "${log}"\necho "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
+  writeFileSync(join(bin, 'gh'), `#!/bin/sh\n[ -z "$DEPLOY_KEY" ] || echo "KEY IN ENV" >> "${log}"\necho "$*" >> "${log}"\ncase "$1 $2" in\n  "pr list") cat "${join(bin, 'prs.json')}" ;;\n  "pr view") echo MERGED ;;\nesac\n`)
   writeFileSync(join(bin, 'prs.json'), JSON.stringify(prs))
   chmodSync(join(bin, 'gh'), 0o755)
   const checkout = join(tmp('checkout-'), 'repo')
   git(w.base, 'clone', '-q', w.origin, checkout)
   const out = join(bin, 'out')
-  const r = spawnSync('bash', [ACT], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, SYNC_DEPLOY_KEY: 'the deploy key', SYNC_PUSH_URL: w.origin}})
+  const r = spawnSync('bash', [ACT], {cwd: checkout, encoding: 'utf8', env: {...env, PATH: `${bin}:${process.env.PATH}`, RUNNER_TEMP: runnerTemp, GITHUB_OUTPUT: out, BARKPARK_GIT: w.barkpark, DEPLOY_KEY: 'the deploy key', DEPLOY_PUSH_URL: w.origin}})
   const calls = existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []
   const sshCommand = spawnSync('git', ['config', '--get', 'core.sshCommand'], {cwd: checkout, env, encoding: 'utf8'}).stdout.trim()
   return {
@@ -100,7 +100,7 @@ function act(w, runnerTemp, prs = []) {
     pushedWith: existsSync(pushed) ? readFileSync(pushed, 'utf8').trim().split('\n') : [],
     temp: runnerTemp,
     body: existsSync(join(runnerTemp, 'sync-body.md')) ? readFileSync(join(runnerTemp, 'sync-body.md'), 'utf8') : '',
-    keyLeft: readdirSync(runnerTemp).filter((f) => f.startsWith('sync-deploy-key')),
+    keyLeft: readdirSync(runnerTemp).filter((f) => f.startsWith('deploy-key')),
     sshCommand,
   }
 }
@@ -115,6 +115,13 @@ function landed(w, planned) {
 }
 const syncPr = (number = 9, more = {}) => ({number, headRefName: BRANCH, baseRefName: 'main', isCrossRepository: false, ...more})
 const commit = (w, msg) => (git(w.work, 'add', '-A'), git(w.work, 'commit', '-q', '-m', msg), git(w.work, 'rev-parse', 'HEAD'))
+
+test('sync-act.sh handles no key itself: it sources scripts/lib/deploy-push.sh and pushes with deploy_push', () => {
+  const code = readFileSync(ACT, 'utf8').split('\n').filter((l) => !/^\s*#/.test(l))
+  assert.deepEqual(code.filter((l) => /deploy-push\.sh/.test(l)), ['. "$(dirname "${BASH_SOURCE[0]}")/lib/deploy-push.sh"'])
+  assert.deepEqual(code.filter((l) => /deploy_push/.test(l)).map((l) => l.trim()), ['deploy_push "$sync:refs/heads/$branch" --force-with-lease="$branch:$lease"', 'deploy_push "$start:refs/heads/$branch" --force-with-lease="$branch:$sync"'])
+  assert.deepEqual(code.filter((l) => /DEPLOY_|deploy_key|keyfile/.test(l) || /ssh|git push|\btrap\b/i.test(l)), [], 'nothing else touches the key')
+})
 
 test('act pushes a sync commit on main and opens the PR; it refuses to push one that leaves the pack', () => {
   const ok = world()

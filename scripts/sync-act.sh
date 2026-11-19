@@ -13,27 +13,10 @@ barkpark="${BARKPARK_GIT:-https://github.com/FRIKKern/barkpark}"
 branch=sync/barkpark-pack
 new=refs/sync-pack/new
 re_sha='^[0-9a-f]{40}$'
-# An error line; % CR LF escaped as GitHub reads them, so a plan value never starts a line of its own.
-fail() {
-  local m=${1//'%'/%25}
-  m=${m//$'\r'/%0D}
-  printf '::error::%s\n' "${m//$'\n'/%0A}"
-  exit 1
-}
-# The deploy key, from this step's env only: out of every child's env, written to a file just for each push
-# (after every check on the bundle), and that file removed after the push or when this script ends.
-key=${SYNC_DEPLOY_KEY:-}
-unset SYNC_DEPLOY_KEY
-keyfile="$RUNNER_TEMP/sync-deploy-key"
-trap 'rm -f "$keyfile" "$keyfile.hosts"' EXIT
-push() { # <lease> <refspec>
-  [ -n "$key" ] || fail 'no deploy key'
-  (umask 077 && printf '%s\n' "$key" > "$keyfile")
-  printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$keyfile.hosts"
-  GIT_SSH_COMMAND="ssh -F /dev/null -i $keyfile -o IdentitiesOnly=yes -o UserKnownHostsFile=$keyfile.hosts -o StrictHostKeyChecking=yes" \
-    git push -q --force-with-lease="$1" "${SYNC_PUSH_URL:-git@github.com:$GH_REPO.git}" "$2"
-  rm -f "$keyfile" "$keyfile.hosts"
-}
+# fail, and deploy_push: the one place the deploy key is handled (a file only while each push runs, after
+# every check on the bundle).
+# shellcheck source=scripts/lib/deploy-push.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/deploy-push.sh"
 
 action=$(jq -r .action "$plan/plan.json")
 # The sync PR, found here: this repo's (not a fork's) open PR from sync/barkpark-pack into main.
@@ -137,7 +120,7 @@ case "$action" in
     printf '%s\n' "Written by \`scripts/pack-sync.mjs\` from [\`FRIKKern/barkpark\` ${at:0:12}](https://github.com/FRIKKern/barkpark/commit/$at) \`api/priv/portable_doc\`, and checked by \`scripts/sync-act.sh\`: every pack file but \`SOURCE.md\` is Barkpark's own at that commit. Barkpark is the source: fix the pack there, never here." \
       '' "If \`unit\` fails here, conformance rows moved: the studio renderer is behind Barkpark. Fix the renderer, or accept the rows on this branch (\`pnpm --dir app conformance:write\`) and say why. The run summary of the sync job lists the rows." > "$body"
     sync=$(git commit-tree "$new^{tree}" -p "$base" -m "$title")
-    push "$branch:$lease" "$sync:refs/heads/$branch"
+    deploy_push "$sync:refs/heads/$branch" --force-with-lease="$branch:$lease"
     if [ -n "$number" ]; then
       gh pr edit "$number" --title "$title" --body-file "$body"
     else
@@ -145,7 +128,7 @@ case "$action" in
         fail 'The sync PR cannot be opened. Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests" must be on.'
       # A PR the workflow token opens starts no checks; a push by the deploy key does.
       start=$(git commit-tree "$sync^{tree}" -p "$sync" -m 'Start the checks')
-      push "$branch:$sync" "$start:refs/heads/$branch"
+      deploy_push "$start:refs/heads/$branch" --force-with-lease="$branch:$sync"
     fi
     ;;
   *) fail "unknown action $action" ;;

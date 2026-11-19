@@ -2,23 +2,25 @@
   "jobs": [
     {
       "job": "housekeeping.yml hygiene",
-      "sha256": "ace9cc9f2371c97658d7ac83e02f920e244b110d783757b77f862db0cae531d0",
+      "sha256": "2d417c5b6f4faee611698f6305ca73e6376f3ca16656e06ef83f7ba14bdd00cc",
       "runs": {
         "scripts/check-docs.mjs": "37a8c5f09926e2badf5273be3e298fdc540a123a502042347dba5c6236448f6a"
       }
     },
     {
       "job": "housekeeping.yml push",
-      "sha256": "d22a066fe8e15ad6eeed41babd62b48ff9e7c25bd82adbb36dafb10c645dabfa",
+      "sha256": "1040be981e96a32428f977d32abdbe344e6cd5f0ae5de281b8dd34f68f3e0746",
       "runs": {
-        "scripts/housekeeping-push.sh": "811ebd34839cbc0f9178222a269dd4862df9c4eb5789659b677757891b634210"
+        "scripts/housekeeping-push.sh": "88fdc3cf294623643ee83cc23c142f4eef56970048c97aca24bea942248b0729",
+        "scripts/lib/deploy-push.sh": "507754c4b0a1e907f09350e7a02716bce0ffa2216dc726f32948e5f1067279b3"
       }
     },
     {
       "job": "sync-pack.yml act",
-      "sha256": "6f8cef43e2e8266ea065d070aff1f626029c4e9cdd221f1a67a5c7457f6c51fc",
+      "sha256": "9a1b13f037cdaf0a4001eff5eeceadb55b9cc28ac2531b7ad2c9452c930774f6",
       "runs": {
-        "scripts/sync-act.sh": "82d0a15c1b254f20b1910862db29706ba6ce4a62ffd7ede6fd1d1220880e1789"
+        "scripts/sync-act.sh": "3a7c5c64798046afcbd36038553bb396ee3d02f4b3c0628d73fca095ce908957",
+        "scripts/lib/deploy-push.sh": "507754c4b0a1e907f09350e7a02716bce0ffa2216dc726f32948e5f1067279b3"
       }
     },
     {

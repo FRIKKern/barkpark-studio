@@ -52,7 +52,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with: { fetch-depth: 0, persist-credentials: false }
       - name: Commit the picture on main and push it
-        env: { HOUSEKEEPING_DEPLOY_KEY: '${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}' }
+        env: { DEPLOY_KEY: '${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}' }
         run: bash scripts/housekeeping-push.sh
 
   # The workflow token may write here (delete branches, comment on PRs): pinned in scripts/lib/keyed-jobs.json.
@@ -70,10 +70,11 @@ jobs:
       - name: Delete merged branches left on the remote
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          gh pr list --state merged --limit 200 --json headRefName,headRefOid \
-            --jq '.[] | select(.headRefName != "main") | "\(.headRefName) \(.headRefOid)"' |
+          # Only a branch of this repo whose merged PR's head SHA is still its tip, matched by full ref.
+          gh pr list --state merged --limit 200 --json headRefName,headRefOid,isCrossRepository \
+            --jq '.[] | select((.isCrossRepository | not) and .headRefName != "main") | "\(.headRefName) \(.headRefOid)"' |
           while read -r branch sha; do
-            tip=$(git ls-remote --heads origin "$branch" | cut -f1)
+            tip=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
             [ "$tip" = "$sha" ] || continue # gone, or reused with new commits
             echo "deleting merged branch $branch"
             gh api -X DELETE "repos/$GH_REPO/git/refs/heads/$branch" --silent
