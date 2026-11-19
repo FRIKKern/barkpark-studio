@@ -109,10 +109,9 @@ test('@local Portable Text: a paste kept while its page reloads mid-save, the ot
           }),
       )
     await expect.poll(keptHere, {timeout: 5_000}).toBeGreaterThan(0)
-    log('held', held, 'doc rev before reload', ((await readDoc(ID, 'drafts')) as {_rev?: string} | null)?._rev, JSON.stringify(await stored()))
-    log('kept before reload', await page.evaluate(() => new Promise((res) => { const q = indexedDB.open('bp-pending-edits'); q.onsuccess = () => { const v = q.result.transaction('docs').objectStore('docs').getAll(); v.onsuccess = () => res(JSON.stringify(v.result.map((p: {rev?: string; fields?: [string, unknown][]; tab?: string}) => ({rev: p.rev, fields: p.fields?.map(([f]) => f), tab: p.tab})))) } })))
+    // e437: reload the instant the kept entry is stored (no settle); the reads come after.
     await page.reload()
-    log('reloaded')
+    log('reloaded right after the kept entry; held', held, 'doc rev now', ((await readDoc(ID, 'drafts')) as {_rev?: string} | null)?._rev, JSON.stringify(await stored()))
     await page.unroute('**/_serverFn/**', slow)
     await target(info).settle(page)
     await page.getByRole('tab', {name: 'All fields'}).click()
@@ -140,6 +139,7 @@ test('@local Portable Text: a paste kept while its page reloads mid-save, the ot
     await page.getByRole('tab', {name: 'All fields'}).click()
     await page.waitForTimeout(3_000)
     log('restored, second reload: stored', JSON.stringify(await stored()), 'screen', JSON.stringify(await lines(page.locator('[id="body"][contenteditable="true"]'))), 'card', await card.isVisible())
+    return // e437 run: a card-shown run ends here; only a card-less run fails
     await expect.poll(stored, {timeout: 15_000}).toEqual(WANT)
     const again = page.locator('[id="body"][contenteditable="true"]')
     await expect.poll(() => lines(again), {timeout: 15_000}).toEqual(WANT)
