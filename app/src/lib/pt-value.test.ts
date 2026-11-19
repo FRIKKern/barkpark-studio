@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {applyPatches, parsePatch} from '@sanity/diff-match-patch'
-import {caretOf, changedBlocks, remoteBlockPatches, remoteCarets, spanTextChanges, textPatches, withRemote, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
+import {caretOf, changedBlocks, remoteBlockPatches, remoteCarets, spanTextChanges, textPatches, unseen, withRemote, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
 
 // Made-up content only (the repo is public).
 const stored = (): PtBlock[] => [
@@ -382,4 +382,17 @@ test('pt: a caret goes out as block and span keys; others\' carets land where th
   assert.deepEqual(up.map((c) => c.kind), ['selection', 'caret'])
   assert.equal((up[0]!.selection as {backward?: boolean}).backward, true)
   assert.deepEqual(up[1]!.selection.focus, {path: [{_key: 'b1'}, 'children', {_key: 's1'}], offset: 4})
+})
+
+test('their split, held while this editor\'s paste was not emitted yet, is not inserted again after the save\'s merge put it on screen (task-30946f2255a30d93)', () => {
+  const blk = (key: string, text: string, span = `${key}s`) => ({_type: 'block', _key: key, style: 'normal', markDefs: [], children: [{_type: 'span', _key: span, text, marks: []}]}) as PtBlock
+  // What arrived while this editor's change was not emitted yet: their split, made on the block as it was.
+  const before = [blk('p1', 'Start text')]
+  const held = remoteBlockPatches(before, [blk('p1', 'Start QQ'), blk('r', 'rr text')], before, [], new Set(), new Map())
+  // The screen once this editor's save merged it and show() put that on.
+  const shown = [blk('p1', 'Start QQ'), blk('r', 'rr text four')]
+  const texts = (v: PtBlock[]) => v.map((b) => (b.children as {text: string}[]).map((c) => c.text).join(''))
+  // Given as they were, their block went in a second time.
+  assert.deepEqual(texts(withRemote(shown, held)).filter((t) => t.startsWith('rr')).length, 2)
+  assert.deepEqual(texts(withRemote(shown, unseen(held, shown))), ['Start QQ', 'rr text four'])
 })

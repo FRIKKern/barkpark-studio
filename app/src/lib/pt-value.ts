@@ -430,6 +430,21 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
  * its own typing not yet emitted (a save is measured from this, so that typing still goes).
  * Their text too with `text` (what the editor has drawn of theirs: a merge's base).
  */
+/**
+ * `patches` without the blocks `value` (the editor's) holds already: an insert of a block whose
+ * key is in the field. Given patches can be older than the screen (held while this editor's own
+ * change was not emitted yet, then its save's merge brought the same block): inserted again, the
+ * block showed twice and the next save stored it twice (task-30946f2255a30d93).
+ */
+export function unseen(patches: RemotePatch[], value: unknown): RemotePatch[] {
+  const keys = new Set((Array.isArray(value) ? value : []).map((b) => (b as PtBlock)?._key))
+  return patches.flatMap((p) => {
+    if (p.type !== 'insert' || p.path.length !== 1) return [p]
+    const items = p.items.filter((b) => !keys.has(b._key))
+    return items.length === p.items.length ? [p] : items.length ? [{...p, items}] : []
+  })
+}
+
 export function withRemote(value: unknown, patches: RemotePatch[], text = false): PtBlock[] {
   let out = (Array.isArray(value) ? value : []) as PtBlock[]
   // The editor's text: its next change is sent as patches, not measured from this.

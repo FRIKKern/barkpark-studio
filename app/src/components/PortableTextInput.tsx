@@ -30,7 +30,7 @@ import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
 import {insertItemProps, ptDeprecated} from '../lib/deprecated'
 import {OneLine, oneLineEditable} from '../lib/pt-one-line'
-import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, settledRemovals, noteKept, keptBase, type KeptFrom, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, dialogFields, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, settledRemovals, noteKept, keptBase, type KeptFrom, spanTexts, textPatches, unseen, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, dialogFields, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
 import {mergeBlock} from '../lib/pt-keep'
@@ -623,6 +623,9 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
       let sent: unknown = next
       editPath(id, (now: unknown) => (sent = freshItems(base, next, now, (b) => theirs(b._key as string, b))))
       saved = sent
+      // Their patches held meanwhile came in frames that are in `now`: the merge has them, and
+      // show() puts it on the screen. Given after it as well, their blocks went in twice.
+      held.current = []
     } else onChange(next)
     // The span texts this change made are accounted for. Not a span another editor's patch
     // still waits for (held until this editor's typing pauses): it stays at their text, or
@@ -658,7 +661,9 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     else give(held.current.splice(0), known.current)
   }
   useEffect(() => () => clearTimeout(releaseTimer.current), [])
-  const give = (patches: RemotePatch[], snapshot: unknown) => {
+  const give = (all: RemotePatch[], snapshot: unknown) => {
+    const patches = unseen(all, editor.getSnapshot().context.value ?? [])
+    if (!patches.length) return
     editor.send({type: 'patches', patches: patches as never, snapshot: snapshot as never})
     drawn.current = withRemote(drawn.current, patches, true)
   }
