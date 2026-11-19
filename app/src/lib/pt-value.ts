@@ -1,8 +1,10 @@
 import {CODE_FIELDS, codeOptions, isCodeBlock, type CodeOptions} from './code-input.ts'
 import type {Field} from './data'
 import {refId} from './refs.ts'
-import {makePatches, stringifyPatches} from '@sanity/diff-match-patch'
+import {applyPatches, DIFF_DELETE, makeDiff, makePatches, parsePatch, stringifyPatches} from '@sanity/diff-match-patch'
 import {isTable, TABLE_FIELDS, tablesIn} from './pt-table.ts'
+import {mergeBlocks} from './pt-keep.ts'
+import {hasTextBlocks} from './pt-merge.ts'
 
 // S4a (task-7f77f41c95cc6d9f): Portable Text in a richText field, edited with
 // @portabletext/editor. S4b: annotations. S4c: custom blocks and inline objects. The jobs
@@ -269,6 +271,62 @@ export function asEditorHolds(b: unknown, depth = 0): unknown {
   return {style: 'normal', markDefs: [], ...b, children}
 }
 
+/** A block the server changed or removed while this screen kept its own version: the server's before (`after`: the block before it there). */
+export type KeptFrom = Map<string, {block: unknown; after: string | null}>
+
+/**
+ * Notes which blocks this screen kept as they were when the server changed them (`known` →
+ * `incoming`, not in `patches`, still shown), with the server's version they were made on;
+ * forgets one the screen took in or shows as the server has it. keptBase gives the field
+ * as this screen's own edits are measured from.
+ */
+export function noteKept(kept: KeptFrom, known: unknown, incoming: unknown, shown: unknown, patches: RemotePatch[]) {
+  if (!Array.isArray(known) || !Array.isArray(incoming) || !Array.isArray(shown)) return
+  const now = byKey<PtBlock>(incoming)
+  const here = byKey<PtBlock>(shown)
+  // What the screen takes in: the block a patch is at, or the blocks an insert brings (its path is where).
+  const took = new Set(patches.flatMap((p) => (p.type === 'insert' ? p.items.map((b) => b._key) : [p.path[0]].map((s) => (isObj(s) ? s._key : undefined)))).filter((k): k is string => typeof k === 'string'))
+  known.forEach((b, i) => {
+    const k = isObj(b) ? b._key : undefined
+    if (typeof k !== 'string' || took.has(k) || !here.has(k) || kept.has(k) || (now.has(k) && equal(now.get(k), b))) return
+    const prev = known[i - 1]
+    kept.set(k, {block: b, after: isObj(prev) && typeof prev._key === 'string' ? prev._key : null})
+  })
+  for (const k of [...kept.keys()]) if (took.has(k) || !here.has(k) || (now.has(k) && equal(asEditorHolds(now.get(k)), asEditorHolds(here.get(k))))) kept.delete(k)
+}
+
+/** The server's value `server` with each block this screen kept (noteKept) as the server had it before. */
+export function keptBase(server: unknown, kept: KeptFrom): unknown {
+  if (!Array.isArray(server) || !kept.size) return server
+  const out = server.map((b) => (isObj(b) && typeof b._key === 'string' ? (kept.get(b._key)?.block ?? b) : b))
+  for (const [k, {block, after}] of kept) {
+    if (out.some((b) => isObj(b) && b._key === k)) continue
+    const at = after === null ? -1 : out.findIndex((b) => isObj(b) && b._key === after)
+    out.splice(at + 1, 0, block)
+  }
+  return out
+}
+
+/**
+ * Blocks remoteBlockPatches kept on screen though the server removed them (`keep`: this editor
+ * had just sent them), asked again once this editor's saves have landed: one the server's value
+ * (`server`) still lacks, shown as this editor last sent it (`sent`, oldest first), is gone
+ * (another editor's join took its words in). A keyed save that missed it sends the field again,
+ * so the server has it back. Unset patches; a block typed in since stays.
+ */
+export function settledRemovals(server: unknown, shown: unknown, sent: unknown[], keys: Iterable<string>): RemotePatch[] {
+  if (!Array.isArray(server) || !Array.isArray(shown)) return []
+  const has = (l: unknown, k: string) => (Array.isArray(l) ? (l as PtBlock[]).find((b) => isObj(b) && b._key === k) : undefined)
+  const out: RemotePatch[] = []
+  for (const k of keys) {
+    const here = has(shown, k)
+    const last = [...sent].reverse().find((l) => has(l, k))
+    if (has(server, k) || !here || !last || !equal(asEditorHolds(here), asEditorHolds(has(last, k)))) continue
+    out.push({type: 'unset', path: [{_key: k}], origin: 'remote'})
+  }
+  return out
+}
+
 /**
  * Another editor's changes (`known` → `incoming`, the stored value before and now) as
  * patches onto what this editor shows: a block it changed, came or went, where this editor
@@ -302,9 +360,9 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
   for (const [k, b] of now) {
     const old = was.get(k)
     const mine = here.get(k)
-    if (!old || !mine || equal(old, b) || ours(k, b)) continue
-    const theirs = spanTextChanges(old, b)
-    if (theirs && spanTextChanges(old, mine)) {
+    if (!mine || ours(k, b) || (old && equal(old, b))) continue
+    const theirs = old ? spanTextChanges(old, b) : null
+    if (old && theirs && spanTextChanges(old, mine)) {
       for (const {span, text} of theirs) {
         const from = seen.get(name(k, span)) ?? (((old.children as Obj[]).find((c) => c._key === span)?.text ?? '') as string)
         if (text === from || echo(name(k, span), text)) continue
@@ -313,6 +371,21 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
       }
       continue
     }
+    // This editor's own block (its spans, as it shows them) back from a save with another
+    // editor's words merged in (lib/pt-merge.ts: a paste and their typing in one block): their
+    // words go in as text. Never a letter of this editor's taken out: an older answer lacks
+    // keys typed since, and the next one has them.
+    const grown = spanTextChanges(mine, b)
+    if (grown && !(old && theirs)) {
+      for (const {span, text} of grown) {
+        const from = seen.get(name(k, span)) ?? (((mine.children as Obj[]).find((c) => c._key === span)?.text ?? '') as string)
+        if (text === from || echo(name(k, span), text) || makeDiff(from, text).some(([op]) => op === DIFF_DELETE)) continue
+        out.push({type: 'diffMatchPatch', path: [...at(k), 'children', {_key: span}, 'text'], value: stringifyPatches(makePatches(from, text)), origin: 'remote'})
+        seen.set(name(k, span), text)
+      }
+      continue
+    }
+    if (!old) continue
     // A table (a row, a cell): their change goes into the rows, cells and blocks this editor
     // has not changed, each as a block of the field does (the caret in another cell stays).
     // A field beside the items (the header row) is theirs where this editor left it alone.
@@ -328,13 +401,21 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
     const inside = (v: unknown) => (Array.isArray(v) ? (v as PtBlock[]).find((x) => x?._key === k)?.[field] : undefined)
     out.push(...remoteBlockPatches(old[field], b[field], mine[field], sent.map(inside), keep, seen, echo, [...at(k), field]))
   }
-  // New blocks, in place: after the block before them that this editor has (or will have).
+  // New blocks, in place: after the block before them that this editor has (or will have),
+  // and after the text blocks this editor made next to it, not saved yet (a paste that split it):
+  // where their save puts them too (lib/merge.ts mergeList3, freshItems).
   const present = new Set([...here.keys()].filter((k) => now.has(k) || !was.has(k)))
+  const shownKeys = [...here.keys()]
+  const past = (k: string) => {
+    let i = shownKeys.indexOf(k)
+    while (i >= 0 && i + 1 < shownKeys.length && !was.has(shownKeys[i + 1]!) && !now.has(shownKeys[i + 1]!) && isText(here.get(shownKeys[i + 1]!))) i++
+    return i >= 0 ? shownKeys[i]! : k
+  }
   let prev: string | undefined
   for (const [k, b] of now) {
     if (!was.has(k) && !here.has(k)) {
       const first = [...here.keys()].find((x) => present.has(x))
-      if (prev) out.push({type: 'insert', path: at(prev), position: 'after', items: [b], origin: 'remote'})
+      if (prev) out.push({type: 'insert', path: at(past(prev)), position: 'after', items: [b], origin: 'remote'})
       else if (first) out.push({type: 'insert', path: at(first), position: 'before', items: [b], origin: 'remote'})
       else continue
       present.add(k)
@@ -347,19 +428,21 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
 /**
  * `value` with another editor's patches applied: what the editor holds after them, minus
  * its own typing not yet emitted (a save is measured from this, so that typing still goes).
+ * Their text too with `text` (what the editor has drawn of theirs: a merge's base).
  */
-export function withRemote(value: unknown, patches: RemotePatch[]): PtBlock[] {
+export function withRemote(value: unknown, patches: RemotePatch[], text = false): PtBlock[] {
   let out = (Array.isArray(value) ? value : []) as PtBlock[]
   // The editor's text: its next change is sent as patches, not measured from this.
-  for (const p of patches) if (p.type !== 'diffMatchPatch') out = patched(out, p.path, p)
+  for (const p of patches) if (text || p.type !== 'diffMatchPatch') out = patched(out, p.path, p)
   return out
 }
 
 /** `list` with one patch applied at `path`: an item of it, or on into that item (a table's rows, cells, blocks, fields). */
-function patched(list: PtBlock[], path: Step[], p: Exclude<RemotePatch, {type: 'diffMatchPatch'}>): PtBlock[] {
+function patched(list: PtBlock[], path: Step[], p: RemotePatch): PtBlock[] {
   const [head, field, ...rest] = path
   const at = isObj(head) ? list.findIndex((b) => b?._key === head._key) : -1
   if (path.length === 1) {
+    if (p.type === 'diffMatchPatch') return list
     if (p.type === 'unset') return at < 0 ? list : list.filter((_, i) => i !== at)
     if (p.type === 'set') return at < 0 ? list : list.map((b, i) => (i === at ? (p.value as PtBlock) : b))
     return at < 0 ? list : [...list.slice(0, p.position === 'after' ? at + 1 : at), ...p.items, ...list.slice(p.position === 'after' ? at + 1 : at)]
@@ -371,6 +454,7 @@ function patched(list: PtBlock[], path: Step[], p: Exclude<RemotePatch, {type: '
     node[field] = patched(node[field] as PtBlock[], rest, p)
   } else if (p.type === 'unset') delete node[field]
   else if (p.type === 'set') node[field] = p.value
+  else if (p.type === 'diffMatchPatch') node[field] = applyPatches(parsePatch(p.value), typeof node[field] === 'string' ? node[field] : '', {allowExceedingIndices: true})[0]
   return list.map((b, i) => (i === at ? node : b))
 }
 
@@ -402,20 +486,35 @@ export function changedBlocks(prev: unknown, next: unknown): {key: string; block
  */
 export function freshItems(prior: unknown, next: unknown[], now: unknown, theirs: (item: Obj) => boolean = () => false): unknown[] {
   if (!Array.isArray(now)) return next
+  // A text block this editor changed that another editor changed too: their words go into
+  // it as text, never this editor's copy over them; the net then checks no word is lost
+  // (lib/pt-keep.ts).
+  if (Array.isArray(prior) && hasTextBlocks(next)) return mergeBlocks(prior, next, now, (m, consumed, own) => fresh(prior, m, now, theirs, consumed, own))!
+  return fresh(prior, next, now, theirs, new Set(), new Set())
+}
+
+/** freshItems' list merge; `own`: items a text merge made, as they are. */
+function fresh(prior: unknown, next: unknown[], now: unknown[], theirs: (item: Obj) => boolean, consumed: Set<string>, own: Set<string>): unknown[] {
   const was = byKey<Obj>(prior)
   const held = byKey<Obj>(now)
   const mine = byKey<Obj>(next)
-  const out = next.map((item) => {
-    const fresh = isObj(item) && typeof item._key === 'string' ? held.get(item._key) : undefined
-    if (!fresh) return item
-    const before = was.get((item as Obj)._key as string)
-    return (before && equal(before, item)) || theirs(item as Obj) ? fresh : item
-  })
+  const out = next
+    // A text block the other editor removed (a join, a delete across blocks) that this one left as it was: gone.
+    .filter((item) => !(isText(item) && typeof item._key === 'string' && !own.has(item._key) && !held.has(item._key) && was.has(item._key) && equal(was.get(item._key), item)))
+    .map((item) => {
+      const fresh = isObj(item) && typeof item._key === 'string' ? held.get(item._key) : undefined
+      if (!fresh || own.has((item as Obj)._key as string)) return item
+      const before = was.get((item as Obj)._key as string)
+      return (before && equal(before, item)) || theirs(item as Obj) ? fresh : item
+    })
   now.forEach((item, i) => {
     const key = isObj(item) && typeof item._key === 'string' ? item._key : undefined
-    if (!key || was.has(key) || mine.has(key)) return
+    if (!key || was.has(key) || mine.has(key) || consumed.has(key)) return
     let at = -1
     for (let j = i - 1; j >= 0 && at < 0; j--) at = out.findIndex((x) => isObj(x) && isObj(now[j]) && x._key !== undefined && x._key === (now[j] as Obj)._key)
+    // Past the text blocks this editor added right after that one (a paste that split it).
+    const added = (x: unknown) => isText(x) && typeof x._key === 'string' && !was.has(x._key) && !held.has(x._key)
+    if (at >= 0) while (at + 1 < out.length && added(out[at + 1])) at++
     out.splice(at + 1, 0, item)
   })
   return out

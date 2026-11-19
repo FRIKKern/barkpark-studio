@@ -27,14 +27,13 @@ per-trial attribution is unavailable. This matrix does not certify overlapping d
 
 ## Consequences and server work
 
-Prioritize [write/presence budgets](https://github.com/FRIKKern/barkpark/issues/21708)
-and [atomic draft creation](https://github.com/FRIKKern/barkpark/issues/21709); both
-already have BP tasks. Measure steady editing and conflict retries before J06 closes.
-Yjs preserved concurrent inserts using [binary updates](https://docs.yjs.dev/api/document-updates)
-and [relative carets](https://docs.yjs.dev/api/relative-positions), but production
-adoption also needs scoped auth, durable update storage/compaction, reconnect
-state exchange, and a defined bridge to drafts, publish, history and undo.
+Prioritize [write/presence budgets](https://github.com/FRIKKern/barkpark/issues/21708) and [atomic draft creation](https://github.com/FRIKKern/barkpark/issues/21709); both already have BP tasks. Measure steady editing and conflict retries before J06 closes.
+Yjs preserved concurrent inserts using [binary updates](https://docs.yjs.dev/api/document-updates) and [relative carets](https://docs.yjs.dev/api/relative-positions), but production adoption also needs scoped auth, durable update storage/compaction, reconnect state exchange, and a defined bridge to drafts, publish, history and undo.
 
-Reproduce: `cd spikes/concurrent-text && pnpm install && pnpm measure` (local only).
-Real app: `node measure-studio.mjs`; set `STUDIO_URL`, Barkpark credentials and `BARKPARK_DATASET=e2e-local-*`.
-Output goes to `e2e/evidence/`; `node summarize.mjs` assembles the raw results.
+Reproduce: `cd spikes/concurrent-text && pnpm install && pnpm measure` (local only). Real app: `node measure-studio.mjs`; set `STUDIO_URL`, Barkpark credentials and `BARKPARK_DATASET=e2e-local-*`. Output goes to `e2e/evidence/`; `node summarize.mjs` assembles the raw results.
+
+## Rich-text blocks both editors changed (2026-11-19, `task-7777e1ba8c35d896`)
+
+A paste, split or join saves the block (or the field) whole, not as span patches. Blocks both editors changed merge as text ([pt-merge.ts](../../app/src/lib/pt-merge.ts)): base blocks one side joined read as one text, with the new blocks a split made; both sides' changes go in letter by letter, each letter back to its span, and either save order stores the same text. The same text added at the same place by both is stored once; at two places, twice.
+Every Portable Text merge leaves through one net ([pt-keep.ts](../../app/src/lib/pt-keep.ts)): each side's added text, read as a diff from the base, must be in the result; what is not goes at the end of the run of the block it was added to (never the end of the document). A seeded fuzz (pt-fuzz.test.ts) holds all of this.
+Invariant: a save fenced on revision R is built from R's value. The step that moves the fence (a frame, a refused save's read) merges each pending spot onto R and makes R its base (edit-bases.ts `rebase`); an edit takes its value, base and rev from one held document (edits.ts `write`).

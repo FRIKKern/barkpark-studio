@@ -13,7 +13,7 @@ status lives on the task board. A scout's honest gap adds a row: never a shrinki
 | J03 | 2 | Edit title: instant, no save button, "edited" state | F1 F7 |
 | J04 | 2 | Draft lifecycle: edit → draft, publish, unpublish, discard; toast per action, "last published" time, action shortcuts | F9 F10 |
 | J05 | 3 | Two browsers, different fields of one post, both see each other | F4 F6 |
-| J06 | 3 | Two browsers type in the **same** field; converge, no focus jump | F4 F6 F7 |
+| J06 | 3 | Two browsers type in the **same** field; converge, no focus jump. Two (or three) paste into one rich-text block at once: every text stored once, each browser shows it ([0002](docs/decisions/0002-concurrent-text.md), pt-paste-merge.spec) | F4 F6 F7 |
 | J07 | 3 | Presence everywhere: avatars on doc, field, list rows, array items/blocks; navbar "who's online" jumps to them; above/below hints | F4 |
 | J08 | 1 ★ | Pick author by search; open it in the next pane | F2 F5 |
 | J09 | 4 | Arrays of refs and objects: add, drag by handle and keyboard, item "…" menu (remove, copy, duplicate, add before/after); at Rule.max Add item, duplicate and add before/after say "Maximum items reached", and a paste or an image drop that would add past it is refused | F1 F5 F7 |
