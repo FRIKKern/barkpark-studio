@@ -57,9 +57,20 @@ class Server {
   /** For the next writes, in order: refused with a 500, landed with its answer lost, held until `release`. */
   faults: ('500' | 'lost' | 'hold')[] = []
   release = () => {}
+  /** A write is held now (waiting for `release`). */
+  holding = false
+  /** Until a write is held (the save that was flushed has come in). */
+  async held() {
+    for (let i = 0; i < 400 && !this.holding; i++) await tick(5)
+    assert.ok(this.holding, 'the save came in')
+  }
   /** Pages that are gone (reloaded). */
   gone = new Set<string>()
   onRead?: () => void
+  /** Revisions the history lists (Barkpark's may leave some out): all, unless set. */
+  listed?: (d: Doc) => boolean
+  /** Writes that set a field whole (`ptBody`), by field. */
+  whole = new Map<string, number>()
   constructor(fields: Record<string, unknown>) {
     this.stamp({_id: `drafts.${ID}`, _publishedId: ID, _type: 'post', _draft: true, _hasPublished: false, ...fields})
   }
@@ -86,10 +97,10 @@ class Server {
     // A page that is gone writes nothing more (signed out there: no retry timers left behind).
     if (this.gone.has(page)) return answer(401, {error: {code: 'session_lost', message: 'The page is gone'}})
     // History reads (lib/edits.ts valuesBefore): newest first; a revision's content by its id.
-    if (url.includes('/v1/data/history/')) return answer(200, {revisions: [...this.history].reverse().map((h) => ({id: h._rev, rev: h._rev, status: 'draft'}))})
+    if (url.includes('/v1/data/history/')) return answer(200, {revisions: [...this.history].reverse().filter((h) => this.listed?.(h) ?? true).map((h) => ({id: h._rev, rev: h._rev, status: 'draft'}))})
     if (url.includes('/v1/data/revision/')) return answer(200, {revision: {content: clone(this.history.find((h) => h._rev === url.split('/').at(-1)))}})
     const fault = this.faults.shift()
-    if (fault === 'hold') await new Promise<void>((go) => (this.release = go))
+    if (fault === 'hold') await new Promise<void>((go) => ((this.holding = true), (this.release = () => ((this.holding = false), go()))))
     if (fault === '500') return answer(500, {error: {code: 'internal_error', message: 'Internal Server Error'}})
     let doc: Record<string, unknown> = this.doc
     const warnings: {code: string}[] = []
@@ -102,6 +113,7 @@ class Server {
         const ok = p.fence === 'fields' ? !!at && roots.every((f) => J(at[f]) === J(doc[f])) : p.ifRevisionID === this.doc._rev
         if (!ok) return answer(412, {error: {code: 'precondition_failed', message: 'document revision mismatch'}})
       }
+      for (const f of Object.keys(p.set ?? {})) if (/^\w+$/.test(f)) this.whole.set(f, (this.whole.get(f) ?? 0) + 1)
       doc = applyPaths(doc, Object.entries(p.set ?? {}))
       for (const u of p.unset ?? []) doc = setPath(doc, u, undefined)
       // A span patch goes onto the text there now (not fenced); a span that is gone: unmatched.
@@ -277,7 +289,7 @@ async function spanSave(name: string, {before, after = []}: {before: Typed[]; af
   if (sent) server.faults.push('hold')
   typeIn(first!)
   if (sent) page.E.flush(page.qc, ID)
-  await tick(5)
+  await (sent ? server.held() : tick(5))
   for (const t of more) typeIn(t)
   page.frame(server.theirs('ptBody', split))
   for (const t of after) typeIn(t)
@@ -359,7 +371,7 @@ for (const frameFirst of [false, true])
       server.faults.push('hold')
       add(mine[i]!)
       page.E.flush(page.qc, ID)
-      await tick(5)
+      await server.held()
       if (i < 3) {
         // Their word after "Pour …" (where their caret is), as Barkpark merges their span patch.
         const d = server.theirs('ptBody', (v) => (v as Block[]).map((b) => (b._key === 'b1' ? blk('b1', b.children[0]!.text.replace(/^(Pour(?: \w+)*?)( slowly)/, `$1${theirs[i]}$2`)) : b)))
@@ -375,4 +387,33 @@ for (const frameFirst of [false, true])
     if (process.env.FLOW_LOG) console.log(J({stored, held: texts(page.held().ptBody)}))
     assert.equal(stored[1], 'Pour gently and so slowly from! a height! up')
     assert.deepEqual(texts(page.held().ptBody), stored)
+    assert.equal(server.whole.get('ptBody') ?? 0, 0, 'no whole-field write')
   })
+  // The answer to a patch is never written back whole for the order of words two typed at one
+  // spot (Barkpark's patch and the merge order them differently; both are right), nor merged
+  // from a revision the patch did not land on (a history that leaves one out).
+  for (const listed of [undefined, (d: Doc) => d._rev !== 'r3'])
+    test(`both typing at the end of one span${listed ? ', the revision before not in the history' : ''}: the span patch's answer stands, no whole write`, async () => {
+      server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'Pour slowly'), blk('c', 'Below')]})
+      server.listed = listed
+      const page = await open(`atEnd${!!listed}`)
+      const now = () => (page.held().ptBody as Block[])[1]!.children[0]!.text
+      server.faults.push('hold')
+      page.type('b1', now(), 'Pour slowly gently')
+      page.E.flush(page.qc, ID)
+      await server.held()
+      // Theirs at the same spot, two keys, each its own revision (r2, r3), before this page's patch.
+      const at = (w: string) => server.theirs('ptBody', (v) => (v as Block[]).map((b) => (b._key === 'b1' ? blk('b1', `${b.children[0]!.text}${w}`) : b)))
+      // One key of theirs, or two with the one just before this patch left out of the history.
+      if (listed) at(' so')
+      at(' and')
+      server.release()
+      await page.drain()
+      for (const d of server.history) page.frame(d)
+      await page.drain()
+      const stored = texts(server.doc.ptBody)[1]!
+      if (process.env.FLOW_LOG) console.log(J({stored, held: texts(page.held().ptBody), whole: [...server.whole]}))
+      for (const w of ['gently', 'and', ...(listed ? ['so'] : []), 'slowly']) assert.equal(stored.split(w).length - 1, 1, `${w} once in ${stored}`)
+      assert.equal(server.whole.get('ptBody') ?? 0, 0, 'no whole-field write')
+      assert.deepEqual(texts(page.held().ptBody), texts(server.doc.ptBody))
+    })

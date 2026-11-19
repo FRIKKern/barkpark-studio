@@ -1,4 +1,5 @@
 import {mergeList3} from './merge.ts'
+import {applyPatches, makePatches} from '@sanity/diff-match-patch'
 import {getPath, setPath} from './paths.ts'
 import {SPAN_TEXT} from './pt-dmp.ts'
 
@@ -45,11 +46,27 @@ export function spansOnto(field: unknown, spans: [inner: string, from: string, m
  * since that is not in `field` is in a block the other editor's frame brought (the tail of a
  * split): typed on `before`, it goes onto the merged field from there.
  */
-export function spanAnswer(field: unknown, spans: [inner: string, from: string, mine: string][], before: unknown, saved: unknown): unknown[] | null {
-  const there = (v: unknown) => ([inner]: [string, string, string]) => typeof getPath({v}, `v${inner}`) === 'string'
-  const merged = spansOnto(field, spans.filter(there(field)), before)
-  if (!merged || sameText(merged, saved)) return null
-  const since = spans.filter((s) => !there(field)(s))
+export function spanAnswer(field: unknown, spans: Typed[], before: unknown, saved: unknown): unknown[] | null {
+  const there = (v: unknown) => ([inner]: Typed) => typeof getPath({v}, `v${inner}`) === 'string'
+  const typed = spans.filter(there(field))
+  const asSent = typed.flatMap(([inner, from, , sent]): [string, string, string][] => (sent === undefined ? [] : [[inner, from, sent]]))
+  // `before` is the text the patch landed on only if the patch, applied to it here, gives the
+  // answer: else it is another revision (one between not listed), and merged from it the
+  // other editor's words since were taken out again.
+  const landed = asSent.reduce<unknown>((v, [inner, from, sent]) => {
+    const was = getPath({v}, `v${inner}`)
+    return typeof was === 'string' ? setPath({v}, `v${inner}`, applyPatches(makePatches(from, sent), was, {allowExceedingIndices: true})[0]).v : v
+  }, before)
+  if (!sameText(landed, saved)) return null
+  // Judged by what was sent: right for that, the keys typed since go onto it span by span
+  // (settleDmp), as when no block came or went. Put right whole with them in, the span came
+  // back cut where the merge met their words, under this editor's caret, and its next keys
+  // went into the wrong piece (two typing in one span lost words).
+  const right = spansOnto(field, asSent, before)
+  if (!right || sameLetters(right, saved)) return null
+  const merged = spansOnto(field, typed.map(([inner, from, mine]) => [inner, from, mine]), before)
+  if (!merged) return null
+  const since = spans.filter((s) => !there(field)(s)).map(([inner, from, mine]): [string, string, string] => [inner, from, mine])
   return since.length ? spansOnto(before, since, merged) : merged
 }
 
@@ -71,8 +88,24 @@ const read = (v: unknown) =>
         })
       : v,
   )
-/** The same blocks and text, however the spans are cut or keyed: nothing to put right. */
+/** The same blocks and text, however the spans are cut or keyed. */
 const sameText = (a: unknown, b: unknown) => read(a) === read(b)
+/**
+ * The same blocks, each with the same letters (their order inside a block aside): where two
+ * typed at one spot, Barkpark's patch and the merge may order the words differently, and
+ * both are right. A word lost, doubled or in another block is not this.
+ */
+const sameLetters = (a: unknown, b: unknown) => {
+  const letters = (v: unknown) =>
+    JSON.stringify(Array.isArray(v) ? v.map((x) => {
+      const {children, ...rest} = (x ?? {}) as {children?: Run[]}
+      return Array.isArray(children) ? {...rest, text: [...children.map((c) => (typeof c.text === 'string' ? c.text : '')).join('')].sort().join('')} : x
+    }) : v)
+  return letters(a) === letters(b)
+}
+
+/** A span typed: its path inside the field, the text it was typed from, the text now, and the text sent (if it went). */
+export type Typed = [inner: string, from: string, mine: string, sent?: string]
 
 const keysOf = (v: unknown) => (Array.isArray(v) ? v.map((b) => (b as {_key?: unknown})?._key) : null)
 

@@ -152,7 +152,7 @@ function dmpOnto(field: ReturnType<typeof pt>, key: string, span: string, patch:
   return field.map((b) => (b._key !== key ? b : {...b, children: b.children.map((c) => (c._key !== span ? c : {...c, text: applyPatches(patch, c.text, {allowExceedingIndices: true})[0]}))}))
 }
 
-test(`seeded fuzz of the span-text save (seed ${SEED}, ${CASES} pairs): typing sent as a patch while the other edits the field, either order, every added letter once, no base letter twice, no deleted letter back`, () => {
+test(`seeded fuzz of the span-text save (seed ${SEED}, ${CASES} pairs): typing sent as a patch while the other edits the field, either order gives each block the same letters (where in its block a patch put them is Barkpark's), every added letter once, no base letter twice, no deleted letter back`, () => {
   const rnd = prng(SEED + 1)
   const fails: string[] = []
   const tally = {a: 0, b: 0, c: 0, back: 0}
@@ -163,7 +163,7 @@ test(`seeded fuzz of the span-text save (seed ${SEED}, ${CASES} pairs): typing s
     const b = pt(Bv.blocks)
     const {key, span, text: from} = BASE[A.i]!
     const patch = makePatches(from, A.text)
-    const spans: [string, string, string][] = [[`[_key=="${key}"].children[_key=="${span}"].text`, from, A.text]]
+    const spans: [string, string, string, string][] = [[`[_key=="${key}"].children[_key=="${span}"].text`, from, A.text, A.text]]
     // A's patch lands first, on the text it was typed on; B's save of the field then merges onto it.
     const afterA = dmpOnto(base, key, span, patch)
     const first = texts(freshItems(base, b, afterA))
@@ -171,7 +171,8 @@ test(`seeded fuzz of the span-text save (seed ${SEED}, ${CASES} pairs): typing s
     const saved = dmpOnto(b, key, span, patch)
     const second = texts(spanAnswer(base, spans, b, saved) ?? saved)
     const why: string[] = []
-    if (JSON.stringify(first) !== JSON.stringify(second)) tally.a++, why.push('(a) orders differ')
+    const letters = (t: string[]) => JSON.stringify(t.map((x) => [...x].sort().join('')))
+    if (letters(first) !== letters(second)) tally.a++, why.push('(a) orders differ')
     const all = [first.join('|'), second.join('|')]
     const added = [...new Set([...(A.text + Bv.blocks.map((x) => x.text).join('')).replace(/ /g, '')].filter((ch) => !/[a-x]/.test(ch)))]
     const baseLetters = [...BASE.map((x) => x.text).join('')]

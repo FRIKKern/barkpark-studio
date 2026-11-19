@@ -19,7 +19,7 @@ import {answered, rebase, same, sentNotesOf, takeBase, unsent, type Spots} from 
 import {applyPaths, getPath, keyedRoots, setInside, setPath, within} from './paths'
 import {setTableKeptScope, takeTableKept} from './table-kept'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
-import {spanAnswer, spanRoot} from './pt-span'
+import {spanAnswer, spanRoot, type Typed} from './pt-span'
 import {clientGone} from '../server/client-gone'
 import {gated, putBackKept, writeAllowed} from './doc-lock'
 import {combine, dropPending, judge, keepPlan, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
@@ -733,7 +733,7 @@ async function send(qc: QueryClient, id: string) {
       const was = before?.[asked.indexOf(root)]
       // Its spans as sent, and as typed since (a span typed only since: from its own base).
       const keys = new Set([...patched, ...e.dirty.keys()].filter((f) => spanRoot(f)?.root === root))
-      const mine = [...keys].map((f) => [spanRoot(f)!.inner, (sentBase.get(f) ?? e.base.get(f)) as string, (e.dirty.get(f) ?? e.inflight!.get(f)) as string] as [string, string, string])
+      const mine = [...keys].map((f) => [spanRoot(f)!.inner, (sentBase.get(f) ?? e.base.get(f)) as string, (e.dirty.get(f) ?? e.inflight!.get(f)) as string, e.inflight!.get(f) as string | undefined] as Typed)
       const field = was === undefined || was === null ? null : spanAnswer(getPath(sentFrom, root), mine, was, getPath(saved, root))
       if (!field || [...e.dirty.keys()].some((k) => !SPAN_TEXT.test(k) && within(k, root))) continue
       for (const k of [...e.dirty.keys()]) if (within(k, root)) e.dirty.delete(k)
