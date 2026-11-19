@@ -15,8 +15,7 @@ step env DEPLOY_KEY ─► scripts/lib/deploy-push.sh: taken, unset ─► every
 - Two scripts push with it: `scripts/sync-act.sh` (sync-pack's `act`, [0009](0009-pack-syncs-itself.md))
   and `scripts/housekeeping-push.sh` (housekeeping's `push`, [0003](0003-tracking-and-hygiene.md)). Both
   source `scripts/lib/deploy-push.sh`, the only code that touches the key. It guarantees:
-  - the key comes only from the env of the one step that runs the script (`DEPLOY_KEY`), and is unset
-    at once, so no child process sees it;
+  - the key comes only from the running step's env (`DEPLOY_KEY`) and is unset at once: no child sees it;
   - it is a file, mode 600, only inside `deploy_push`, called after every check the caller makes; the
     file is removed after the push, and by an EXIT trap if the script ends mid-push;
   - GitHub's ed25519 host key is the only known host (no global known-hosts file, no SSH config);
@@ -26,6 +25,11 @@ step env DEPLOY_KEY ─► scripts/lib/deploy-push.sh: taken, unset ─► every
   no credentials, the token may write nothing, and no secret is read but a data-only one. Both pushing
   jobs are pinned, with the helper among their files, so one changed byte in it reds both pins; every
   action in a pinned job is named by a full commit SHA.
+- **Careful review** for a change to a pinned file or a guard; careful-review.test.mjs holds the list to both:
+  `.github/workflows/` `housekeeping.yml` `sync-pack.yml`; `scripts/` `check-docs.mjs` `housekeeping-push.sh`
+  `sync-act.sh`; `scripts/lib/` `careful-review.mjs` `careful-review.test.mjs` `deploy-push.sh`
+  `deploy-push.test.mjs` `housekeeping-push.test.mjs` `hygiene.test.mjs` `key-shims.mjs` `keyed-jobs.json`
+  `keyed-jobs.test.mjs` `roadmap-style.css` `svg-check.py` `sync-act.test.mjs` `workflow-keys.mjs`.
 - `scripts/lib/deploy-push.test.mjs` holds the guarantees, once. Each script's own test shows it touches
   the key nowhere but `deploy_push`, and its runs, each with every external command shimmed and its own
   key-leak log (`scripts/lib/key-shims.mjs`), show no child process with the key in its env.

@@ -87,7 +87,7 @@ case "$action" in
       [[ $old =~ $re_mode && $mode =~ $re_mode && $path =~ $re_path && ! $path =~ $re_dot ]] || bad+="$status $old $mode $path; "
     done < <(git diff --no-renames --raw -z "$base" "$new")
     [ -z "$bad" ] || fail "the sync commit changes what the pack never holds: $bad"
-    # Every pack file but SOURCE.md: Barkpark's own blob at the commit SOURCE.md names, on Barkpark's main
+    # Every pack file but SOURCE.md: Barkpark's own plain file at the commit SOURCE.md names, on Barkpark's main
     # and not older than the one main's SOURCE.md names (commits and trees only, no file contents fetched).
     # conformance.mjs and its types sit in Barkpark's conformance/.
     re_source='commit `([0-9a-f]{40})`'
@@ -117,7 +117,9 @@ case "$action" in
         conformance.mjs | conformance.d.mts) src=conformance/$rel ;;
         *) src=$rel ;;
       esac
-      [ "$(git -C "$bp" rev-parse -q --verify "$at:api/priv/portable_doc/$src" || true)" = "$oid" ] || bad+="$rel; "
+      # Barkpark's entry itself, not the blob it points at: a plain file (100644), so a symlink there whose
+      # target text is a pack file's bytes is refused.
+      [ "$(git --literal-pathspecs -C "$bp" ls-tree --format='%(objectmode) %(objecttype) %(objectname)' "$at" -- "api/priv/portable_doc/$src")" = "100644 blob $oid" ] || bad+="$rel; "
     done < <(git ls-tree -r -z "$new" -- conformance/pack/)
     [ -z "$bad" ] || fail "the pack differs from Barkpark $at: $bad"
     # The words are act's own: the plan's commit message is dropped, its tree and parent kept.
