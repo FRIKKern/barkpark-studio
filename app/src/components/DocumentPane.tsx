@@ -68,7 +68,8 @@ import {IncomingReferencesInputs} from './IncomingReferencesInput'
 const INCOMING = 'sanity/structure/incoming-references'
 import {EditIcon, EyeOpenIcon, PreviewView} from './PreviewView'
 import {previewViewTemplate} from '../lib/preview-url'
-import {formLocked, freeformCanvas, unlessLocked} from '../lib/form-lock'
+import {formLocked, freeformCanvas, paneFieldLock, unlessLocked} from '../lib/form-lock'
+import {segments} from '../lib/paths'
 import {hideDoc, showDoc} from '../lib/doc-lock'
 
 type Props = {panes: Pane[]; index: number; split?: boolean; closeHref: string; header: ReactNode; closeIcon: ReactNode}
@@ -350,13 +351,29 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const locked = formLocked(lockState)
   const lockedNow = useRef(locked)
   lockedNow.current = locked
-  // The same lock where edits are written (lib/doc-lock.ts): edit() and the canvas's batches.
-  const lockHolder = useRef({}).current
-  useLayoutEffect(() => showDoc(pane.id, lockHolder, locked), [pane.id, locked])
-  useLayoutEffect(() => () => hideDoc(pane.id, lockHolder), [pane.id])
   const mode = editorMode(pane.type, schemaOf(schemas, pane.type))
-  // Published and a revision are read in Classic: the canvas holds the draft. Locked, it is read-only.
+  // Published and a revision are read in Classic: the canvas holds the draft. Locked, or a field
+  // of it read-only for this person, it is read-only; a field of it hidden from them, not drawn.
   const canvasMode = freeformCanvas(lockState, {schema, doc, user, rules: studio.form?.conditions})
+  // The same lock where edits are written (lib/doc-lock.ts): edit() and the canvas's batches,
+  // field by field as the form judges them (the one rule), on the doc and person at the write.
+  const lockHolder = useRef({}).current
+  const judged = useRef({schema, doc, user, rules: studio.form?.conditions, canvas: canvasMode})
+  judged.current = {schema, doc, user, rules: studio.form?.conditions, canvas: canvasMode}
+  const fieldLock = useMemo(
+    () =>
+      paneFieldLock(
+        () => judged.current,
+        (path) => {
+          const names = segments(path).flatMap((x) => ('name' in x ? [x.name] : [])).join('.')
+          const field = fieldTitle(judged.current.schema?.fields ?? [], names) ?? path
+          toast({key: `read-only-${pane.id}-${path}`, tone: 'caution', title: tt('“{field}” is read-only for you: the change was not saved.', {field})})
+        },
+      ),
+    [pane.id],
+  )
+  useLayoutEffect(() => showDoc(pane.id, lockHolder, locked, fieldLock), [pane.id, locked, fieldLock])
+  useLayoutEffect(() => () => hideDoc(pane.id, lockHolder), [pane.id])
   const freeform = mode !== 'none' && canvasMode !== 'hidden' && (mode === 'main' || Array.isArray(doc?.blocks))
   const view: View = viewOf(pane.view, mode) === 'freeform' && !freeform ? 'classic' : viewOf(pane.view, mode)
   const [canvasSeen, setCanvasSeen] = useState<string | null>(null)
@@ -425,7 +442,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useEffect(() => {
     setRecovered(null)
     // Judged against the schema as it is now (a field it dropped or retyped is not sent).
-    if (!keepScope || !editable || !draftQ.data || !schema) return
+    // And once the person is known: a field a rule may lock for them refuses its kept edits until then.
+    if (!keepScope || !editable || !draftQ.data || !schema || user === undefined) return
     let live = true
     void recoverPending(qc, draftQ.data, schema).then((r) => {
       if (!live || !r) return
@@ -433,7 +451,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
       else toast({title: tt('Unsaved changes from {date} were put back.', {date: longDate(new Date(r.replayed).toISOString(), locale)})})
     })
     return () => void (live = false)
-  }, [keepScope, pane.id, editable, !!schema])
+  }, [keepScope, pane.id, editable, !!schema, user === undefined])
   // J28: Inspect (Ctrl+Alt+I) and Duplicate, which opens the copy in this pane.
   // Sanity's Inspect is in the URL (`inspect=on`): Back closes and reopens it, a link or a
   // reload opens it, and it takes the inspector's place (History closes), as there.

@@ -417,7 +417,7 @@ export function applyServer(qc: QueryClient, doc: Doc) {
  * `field` is a field name or a dotted path into an object ("seo.metaTitle"): only that path is sent. `value` may be a function of the path's value now.
  * A form edit: refused (false, nothing kept or sent) while every pane showing the doc is locked (lib/doc-lock.ts).
  */
-export const edit = unlessDocLocked(([, doc]) => doc._publishedId, write)
+export const edit = unlessDocLocked(([, doc]) => doc._publishedId, write, ([, , field]) => field)
 
 /** edit(), past the lock: a save's own resend, and Restore's put-back of the edits a delete lost (a document action). */
 function write(qc: QueryClient, doc: Doc, field: string, value: unknown, record = true): void {

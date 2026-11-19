@@ -67,6 +67,8 @@ export const groupShows = (fields: Field[], group: string, doc: Record<string, u
 
 /** Sanity's CurrentUser: who is signed in, their role here under Sanity's role names. */
 export type CurrentUser = {id: string; name: string; email: string; roles: {name: string; title: string}[]}
+/** The person a field is judged for: a CurrentUser; null with nobody signed in (shared sign-in); undefined until Barkpark has said who. */
+export type Person = CurrentUser | null | undefined
 /** Sanity's Path: field names and array items by `_key`. */
 export type PathSegment = string | {_key: string}
 export type ConditionContext = {currentUser: CurrentUser | null; document: Record<string, unknown>; parent: unknown; value: unknown; path: PathSegment[]}
@@ -88,9 +90,10 @@ export function sanityRole(role: string | null | undefined, canWrite = true): st
 }
 
 type Me = {email: string | null; name: string | null; userId: string | null; role: string | null; canWrite: boolean; provisional?: boolean}
-/** whoAmI as Sanity's currentUser; null with nobody signed in (shared sign-in) or while Barkpark has not said who. */
-export function currentUserOf(me: Me | undefined): CurrentUser | null {
-  if (!me?.email || me.provisional) return null
+/** whoAmI as Sanity's currentUser: null with nobody signed in (shared sign-in); undefined while Barkpark has not said who (not read yet, or a provisional stand-in). */
+export function currentUserOf(me: Me | undefined): Person {
+  if (!me || me.provisional) return undefined
+  if (!me.email) return null
   const role = sanityRole(me.role, me.canWrite)
   return {id: me.userId ?? '', name: me.name ?? me.email, email: me.email, roles: role ? [{name: role, title: ROLE_TITLES[role] ?? role}] : []}
 }
@@ -124,19 +127,56 @@ export function resolveConditional(property: ConditionalProperty, context: Condi
 }
 
 type Where = {path: string; value: unknown; parent?: Record<string, unknown>}
+/** A config callback, which may ask who the person is: until that is known it cannot be answered. */
+const awaitsPerson = (p: ConditionalProperty, person: Person) => person === undefined && typeof p === 'function'
 /**
- * A field's hidden and readOnly: the schema's (`hidden`, `visibleWhen`, `readOnly`) or the
- * studio config's callbacks for `type.path`. `at` defaults to a top-level field (its parent
- * the document), what the group tabs and Paste document ask about.
+ * THE rule for whether this person may see and edit a field: hidden and readOnly from the
+ * schema (`hidden`, `visibleWhen`, `readOnly`) and the studio config's callbacks for
+ * `type.path`. Every surface that shows or edits a field asks it, directly or through a
+ * helper built on it (fieldLock and pasteSkips for paste, form-lock's canvasAccess for the
+ * Freeform canvas, doc-lock at save); fieldrule.test.ts lists them. Until the person is known
+ * (`person` undefined) a field with a callback is read-only, and hidden if its hidden is one:
+ * it opens once Barkpark has said who, never the other way round. `at` defaults to a top-level
+ * field (its parent the document), what the group tabs and Paste document ask about.
  */
-export function fieldState(type: string, f: Field, doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}) {
+export function fieldState(type: string, f: Field, doc: Record<string, unknown>, person: Person, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}) {
   const key = conditionKey(type, at.path)
   const rule = rules?.[key]
-  const context = (): ConditionContext => ({currentUser, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)})
+  const context = (): ConditionContext => ({currentUser: person ?? null, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)})
   const name = (p: string) => `form.conditions['${key}'].${p}`
-  const hidden = isHidden(f, doc, at.parent) || (rule?.hidden !== undefined && resolveConditional(rule.hidden, context(), name('hidden')))
-  const readOnly = isReadOnly(f, doc, at.parent) || (rule?.readOnly !== undefined && resolveConditional(rule.readOnly, context(), name('readOnly')))
+  const asks = (p: ConditionalProperty, n: string) => p !== undefined && (awaitsPerson(p, person) || resolveConditional(p, context(), name(n)))
+  const hidden = isHidden(f, doc, at.parent) || asks(rule?.hidden, 'hidden')
+  // Not known yet, a hidden callback locks the field as well: its value is not this person's to change before they are known.
+  const readOnly = isReadOnly(f, doc, at.parent) || awaitsPerson(rule?.hidden, person) || asks(rule?.readOnly, 'readOnly')
   return {hidden, readOnly}
+}
+
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+/**
+ * A write to `path` (a field name, or a path into it as edits take it: "seo.metaTitle",
+ * `links[_key=="a"].url`) is one this person may not make: fieldState says read-only at some
+ * step on the way (a read-only object keeps all it holds). Steps the schema does not name are
+ * judged by the nearest one it does, as the form draws them.
+ */
+export function pathReadOnly(type: string, fields: Field[], doc: Record<string, unknown>, person: Person, rules: Record<string, FieldConditions> | undefined, path: string): boolean {
+  let here: Field[] | undefined = fields
+  let value: unknown = doc
+  let at = ''
+  for (const s of segments(path)) {
+    if ('key' in s) {
+      at += `[_key=="${s.key}"]`
+      value = Array.isArray(value) ? value.find((i) => isObj(i) && i._key === s.key) : undefined
+      continue
+    }
+    const f: Field | undefined = here?.find((x) => x.name === s.name)
+    if (!f) return false
+    const parent = isObj(value) ? value : {}
+    at = at ? `${at}.${s.name}` : s.name
+    if (fieldState(type, f, doc, person, rules, {path: at, value: parent[s.name], parent}).readOnly) return true
+    value = parent[s.name]
+    here = f.fields ?? f.of?.fields
+  }
+  return false
 }
 
 const KNOWN_ROLES = Object.keys(ROLE_TITLES)
@@ -148,9 +188,11 @@ const KNOWN_ROLES = Object.keys(ROLE_TITLES)
  * signed in (shared sign-in). A field shown only to another custom role, or by email, is no
  * lock either. Only the person's own answer logs a callback's error; a probe's never does.
  */
-export function roleHidden(type: string, doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, at: Where): boolean {
+export function roleHidden(type: string, doc: Record<string, unknown>, currentUser: Person, rules: Record<string, FieldConditions> | undefined, at: Where): boolean {
   const key = conditionKey(type, at.path)
   const hidden = rules?.[key]?.hidden
+  // Until the person is known, a hidden callback hides the field as fieldState does.
+  if (awaitsPerson(hidden, currentUser)) return true
   if (!currentUser || hidden === undefined) return false
   const ask = (user: CurrentUser, log = false) => resolveConditional(hidden, {currentUser: user, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)}, `form.conditions['${key}'].hidden`, log)
   if (!ask(currentUser, true)) return false
@@ -165,7 +207,7 @@ export function roleHidden(type: string, doc: Record<string, unknown>, currentUs
  * the data (`visibleWhen`, the schema's `hidden`, a rule hiding the field from every role) is
  * no lock: such a field pastes as on main.
  */
-export function fieldLock(type: string, f: Field, doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}, after?: {doc: Record<string, unknown>; at: Where}) {
+export function fieldLock(type: string, f: Field, doc: Record<string, unknown>, currentUser: Person, rules: Record<string, FieldConditions> | undefined, at: Where = {path: f.name, value: doc[f.name]}, after?: {doc: Record<string, unknown>; at: Where}) {
   const readOnly = fieldState(type, f, doc, currentUser, rules, at).readOnly
   const hidden = roleHidden(type, doc, currentUser, rules, at) || (!!after && roleHidden(type, after.doc, currentUser, rules, after.at))
   return {readOnly, roleHidden: hidden}
@@ -176,7 +218,7 @@ export function fieldLock(type: string, f: Field, doc: Record<string, unknown>, 
  * does, and a field a role rule hides as it is, unnamed (fieldLock). `after` is the document
  * as the paste leaves it.
  */
-export function pasteSkips(type: string, fields: Field[], doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, after?: Record<string, unknown>) {
+export function pasteSkips(type: string, fields: Field[], doc: Record<string, unknown>, currentUser: Person, rules: Record<string, FieldConditions> | undefined, after?: Record<string, unknown>) {
   const skip = new Set<string>()
   const named: string[] = []
   for (const f of fields) {
