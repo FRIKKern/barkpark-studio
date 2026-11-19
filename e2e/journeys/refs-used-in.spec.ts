@@ -14,6 +14,8 @@ const ID = 'post-07' // author: Alan Turing
 test.beforeEach(async ({context}, info) => {
   await Promise.all([target(info).prepare(context), installProbes(context)])
 })
+// Only the docs a test changed are put back (each a Barkpark write and a publish).
+let post07Moved = false
 let alanEdited = false
 let post02Moved = false
 test.afterEach(async ({page}, info) => {
@@ -21,10 +23,11 @@ test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
   // Each a different doc: all at once.
   await Promise.all([
-    t.restore(ID, {author: t.ref('author-alan')}),
+    post07Moved && t.restore(ID, {author: t.ref('author-alan')}),
     alanEdited && t.restore('author-alan', {bio: 'Alan Turing writes fixture posts.'}, 'author'),
     post02Moved && t.restore('post-02', {author: t.ref('author-grace')}),
   ])
+  post07Moved = false
   post02Moved = false
   alanEdited = false
 })
@@ -114,6 +117,7 @@ test('J17: Incoming references from the document menu, any time: opens the refer
   // post-07 as the seed writes it (createOrReplace): Barkpark then keeps its edge to Alan
   // some seconds after it points away (task-3fd3c0c53d08a6bd), the case that flaked.
   // Reset while Alan's page loads; done before the panel reads his references.
+  post07Moved = true
   const reset = t.resetDoc(ID, 'post')
   await page.goto(t.docPath('author', 'author-alan'))
   await t.settle(page)
