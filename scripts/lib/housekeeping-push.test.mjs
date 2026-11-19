@@ -133,8 +133,10 @@ test('svg-check.py: today\'s roadmap passes; one row per refusal', () => {
   const got = checkAll(rows.map(([bytes]) => bytes))
   rows.forEach(([, why], i) => assert.ok(got[i].startsWith(why), `${why}: ${got[i]}`))
   // The script's own run: a refusal is its exit 1 and the reason.
-  const r = spawnSync('python3', ['-I', CHECK, '/dev/stdin'], {input: svgWith('<script/>'), encoding: 'utf8'})
-  assert.deepEqual([r.status, r.stdout], [1, "holds 'script'\n"])
+  const file = join(tmp('svg-'), 'roadmap.svg')
+  writeFileSync(file, svgWith('<script/>'))
+  const r = spawnSync('python3', ['-I', CHECK, file], {encoding: 'utf8'})
+  assert.deepEqual([r.status, r.stdout], [1, "holds 'script'\n"], r.stderr)
 })
 
 test('housekeeping push: one commit on main, the picture only; the key a file only while git pushes', () => {
