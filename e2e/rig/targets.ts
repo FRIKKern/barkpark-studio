@@ -2,7 +2,8 @@ import {readFileSync} from 'node:fs'
 import {test, type BrowserContext, type Locator, type Page, type TestInfo} from '@playwright/test'
 import {sendBatches} from '../../scripts/lib/batches.mjs'
 import {idempotent, isTransient, waitOut429} from '../../scripts/lib/retry.mjs'
-import {sanityAsset, seedAssets} from '../../scripts/lib/seed-assets.mjs'
+import {sanityAsset} from '../../scripts/lib/seed-assets.mjs'
+import {deleteAsset as deleteMedia, seedRefs} from './seed-asset-cache'
 import {toBarkpark} from '../../scripts/lib/seed-map.mjs'
 
 // The rig's own Barkpark and Sanity calls (setup, teardown, reads) go over Node's fetch, which
@@ -342,6 +343,8 @@ const sanity: Target = {
 
 export const bpBase = () => `${need('BARKPARK_URL')}/w/${need('BARKPARK_WORKSPACE')}/p/${process.env.BARKPARK_PROJECT || 'default'}`
 export const bpDataset = () => process.env.BARKPARK_DATASET || 'production'
+/** Delete a media asset: the one way specs do it, so a seed file's cached id is forgotten (rig/seed-asset-cache.ts). */
+export const deleteAsset = (id: string) => deleteMedia(id, {base: bpBase(), dataset: bpDataset(), token: need('BARKPARK_TOKEN')})
 // A 429 waits out Retry-After, as the studio's own server does: here one token is
 // shared by both browsers, the rig and presence (task-2c31de0cf6597d32).
 // Deletes go in batches under Barkpark's cap (scripts/lib/batches.mjs).
@@ -433,9 +436,9 @@ const studio: Target = {
   // and is published: whatever a journey changed (a pasted document, J29) is gone.
   resetDoc: async (id, type) => {
     // A draft the run left would otherwise survive the replace and be what gets published.
-    // The seed's files looked up meanwhile: they don't depend on the draft (one round trip, not two).
+    // The seed's files come from the worker's cache (seed-asset-cache.ts), looked up meanwhile.
     const doc = seedDoc(id)
-    const [asset] = await Promise.all([seedAssets([doc], {base: bpBase(), dataset: bpDataset(), token: need('BARKPARK_TOKEN')}), bpMutate([{discardDraft: {id, type}}]).catch(() => {})]) // none: nothing to discard
+    const [asset] = await Promise.all([seedRefs([doc], {base: bpBase(), dataset: bpDataset(), token: need('BARKPARK_TOKEN')}), bpMutate([{discardDraft: {id, type}}]).catch(() => {})]) // none: nothing to discard
     await bpMutate([{createOrReplace: {_id: id, _type: type, ...toBarkpark(doc, asset)}}, {publish: {id, type}}])
   },
   publishedTitle: async (id) => {
