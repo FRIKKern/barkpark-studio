@@ -1,5 +1,5 @@
-// task-4ffed14fbf52dc47: the person is believed only from an answer the session made: whoAmI's
-// queryFn in the browser (lib/me-query.ts). Nothing registers on the server or on hydrate.
+// task-4ffed14fbf52dc47: the person is believed only from the answer of the session's latest
+// completed who-am-I ask in the browser (lib/me-query.ts). Nothing on the server or from hydrate is.
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import {dehydrate, hydrate, QueryClient, QueryObserver} from '@tanstack/react-query'
@@ -55,7 +55,7 @@ const settled = async (qc: QueryClient) => {
   while (qc.isFetching({queryKey: ['me']})) await new Promise((r) => setTimeout(r, 1))
 }
 
-test('nothing registers on the server or on hydrate: the answer in the page reads as unknown', async () => {
+test("nothing on the server or from hydrate is the session's: the answer in the page reads as unknown", async () => {
   let reads = 0
   const s = session(async () => (reads++, {...editor}))
   const page = await served(s)

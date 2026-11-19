@@ -2,8 +2,8 @@ import {queryOptions, replaceEqualDeep} from '@tanstack/react-query'
 import {roleRules, type FieldConditions} from './conditions.ts'
 
 // task-4ffed14fbf52dc47: who-am-I's query, and which of its answers the session made. Only the
-// answer whoAmI's latest completed ask returned in the browser is the session's: nothing registers
-// on the server or on hydrate, a failed ask clears it, so an answer in the server-rendered page, an
+// answer whoAmI's latest completed ask returned in the browser is the session's: nothing on the server
+// or from hydrate is, a failed ask clears it, so an answer in the server-rendered page, an
 // older answer written back, a cache write under any key, a stand-in client or a look-alike is no
 // answer of the session's, and the person stays unknown (lib/person-source.ts). The latest is the
 // closure's own: no module exports it, and another meQueryOf keeps its own, never the session's

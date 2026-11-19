@@ -6,10 +6,11 @@ import {segments} from './paths.ts'
 // as unknown, so fields with a role rule stay closed. What it does not guard: code that edits lib/session.ts, lib/person-source.ts,
 // lib/me-query.ts or this file themselves (person-scan.test.ts pins them by export, review reads
 // them), and a hostile browser (only the server can stop that).
-// Nothing registers on hydrate or on the server: only the answer whoAmI's latest completed ask
-// returned in the browser is the session's, kept by a closure no module exports (lib/me-query.ts,
-// held by lib/session.ts); a failed ask clears it, and an older answer is never believed again. Until the browser's first answer, a field with a role rule stays closed: one
-// who-am-I round trip, asked right after load (routes/__root.tsx), only where a role rule waits.
+// Nothing on the server or from hydrate is the session's: only the answer whoAmI's latest completed
+// ask returned in the browser, kept by a closure no module exports (lib/me-query.ts, held by
+// lib/session.ts); a failed ask clears it, and an older answer is never believed again. Until the
+// browser's first answer, a field with a role rule stays closed: one who-am-I round trip, asked
+// right after load (routes/__root.tsx), only where a role rule waits.
 
 // Conditional fields (J30). Barkpark's schema says when a field shows with
 // `visibleWhen: {field, operator, value}` (api content/field_visibility.ex); these are

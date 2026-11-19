@@ -15,11 +15,14 @@
 //   never set, spread into a query of its own or given another queryFn; setQueriesData names its
 //   key; a query client is made only where CLIENTS says, and personOf reads only the page's own
 //   (router.tsx hands it over once: holdAppClient); no query's state is set past the client
-//   (setData, setState, a cache's build), and setQueryData's key names a plain head;
-// - only an answer the session made is believed: person-source.ts asks madeBySession, and
-//   lib/me-query.ts registers only in whoAmI's queryFn in the browser, in a closure no module
-//   exports (meQueryOf, taken only by session.ts); routes/__root.tsx asks again after load where a
-//   role rule waits. A write the scan misses still gives unknown at run time (person-forged.test.ts);
+//   (setData, setState, a cache's build), and a setQueryData key that is an array literal has a
+//   plain string head (a key that is no array literal, such as q.queryKey, is not seen here: the
+//   latest-ask rule below closes it at run time);
+// - only the answer of the session's latest completed who-am-I ask is believed: person-source.ts
+//   asks madeBySession, and lib/me-query.ts sets that answer only in whoAmI's queryFn in the
+//   browser, in a closure no module exports (meQueryOf, taken only by session.ts);
+//   routes/__root.tsx asks again after load where a role rule waits. A write the scan misses
+//   still gives unknown at run time (person-forged.test.ts, me-query.test.ts);
 // - person-source.ts and me-query.ts, like the rule's modules, are reached only by named imports;
 // - a lock site takes the person one way: the whole initializer of a `const <name>`, from
 //   `useCurrentUser()` or `personOf()`; a named function may take it as a parameter typed Person;
@@ -383,8 +386,8 @@ function judge(src: Record<string, string>) {
   const query = code(src[ME_HOME] ?? '')
   const sets = (query.match(/\bcurrent = [^\n]*/g) ?? []).join('\n')
   if (sets !== "current = null\ncurrent = typeof window !== 'undefined' && typeof me === 'object' && me !== null ? frozen(me) : null\ncurrent = old" || !/^      if \(ask === asks\) current = typeof window/m.test(query) || !/^  const isMade = \(me: unknown\) => current !== null && me === current$/m.test(query) || !/^  return \{query, isMade\}$/m.test(query) || !/^      if \(!\(isMade\(next\) && before !== null && old === before && replaceEqualDeep\(old, next\) === old\)\) return next$/m.test(query))
-    problems.push(`${ME_HOME}: registers an answer outside whoAmI's queryFn in the browser, or keeps one it did not make`)
-  if (src[ME_HOME] !== undefined && exportsOf(ME_HOME, src[ME_HOME]!).join() !== 'meQueryOf,asksAgain') problems.push(`${ME_HOME} exports ${exportsOf(ME_HOME, src[ME_HOME]!).join(', ')}: only meQueryOf and asksAgain (the register stays in the closure)`)
+    problems.push(`${ME_HOME}: sets the latest answer outside whoAmI's queryFn in the browser, or keeps one it did not make`)
+  if (src[ME_HOME] !== undefined && exportsOf(ME_HOME, src[ME_HOME]!).join() !== 'meQueryOf,asksAgain') problems.push(`${ME_HOME} exports ${exportsOf(ME_HOME, src[ME_HOME]!).join(', ')}: only meQueryOf and asksAgain (the latest stays in the closure)`)
   const session = code(src[SESSION] ?? '')
   if (!/^const asked = meQueryOf\(\(\) => whoAmI\(\)\)$/m.test(session) || !/^export const meQuery = asked\.query$/m.test(session) || !/^export const madeBySession = asked\.isMade$/m.test(session) || /\bexport\b[^\n]*\basked\b(?!\.(query|isMade)$)/m.test(session) || (session.match(/\basked\b/g) ?? []).length !== 3)
     problems.push(`${SESSION}: who-am-I's query is no longer meQueryOf(whoAmI)'s, or hands more of it on than meQuery and madeBySession`)
@@ -530,13 +533,13 @@ test('fails cases: what a rule call is handed, and how the person goes on', () =
   red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery(meQuery)\n  qc.getQueryCache().getAll().find((q) => q.queryHash === '[\"m' + 'e\"]')?.setData({...me.data, unchecked: false})"), /PersonCheckBanner\.tsx writes a query's state directly/)
   red(swap(src, PB, 'const me = useQuery(meQuery)', "const me = useQuery(meQuery)\n  qc.setQueryData(['m' + 'e'], {...me.data, unchecked: false})"), /PersonCheckBanner\.tsx writes a query by a key whose head is not a plain name/)
   fails(src, 'components/Mint.tsx', "import {meQueryOf} from '../lib/me-query'\nexport const mine = meQueryOf(async () => ({role: 'admin'}))\n", /Mint\.tsx takes meQueryOf/)
-  // The registration's pins: on the server or past the queryFn, a look-alike kept, the register
+  // The latest answer's pins: set on the server or past the queryFn, a look-alike kept, the latest
   // exported, session.ts handing on more, __root.tsx asking no more, the client held twice.
-  red(swap(src, ME_HOME, "current = typeof window !== 'undefined' && typeof me === 'object' && me !== null ? frozen(me) : null", "current = typeof me === 'object' && me !== null ? frozen(me) : null"), /me-query\.ts: registers an answer outside whoAmI's queryFn in the browser/)
-  red(swap(src, ME_HOME, '(isMade(next) && before !== null && old === before && replaceEqualDeep(old, next) === old)', '(isMade(next) && replaceEqualDeep(old, next) === old)'), /me-query\.ts: registers an answer outside[\s\S]*or keeps one it did not make/)
-  red(swap(src, ME_HOME, '  const isMade = (me: unknown) => current !== null && me === current', '  const isMade = (me: unknown) => me === current || me === before'), /me-query\.ts: registers an answer outside/)
-  red(swap(src, ME_HOME, '      if (ask === asks) current = typeof', '      current = typeof'), /me-query\.ts: registers an answer outside/)
-  red(swap(src, ME_HOME, '  return {query, isMade}', '  return {query, isMade, made}'), /me-query\.ts: registers an answer outside/)
+  red(swap(src, ME_HOME, "current = typeof window !== 'undefined' && typeof me === 'object' && me !== null ? frozen(me) : null", "current = typeof me === 'object' && me !== null ? frozen(me) : null"), /me-query\.ts: sets the latest answer outside whoAmI's queryFn in the browser/)
+  red(swap(src, ME_HOME, '(isMade(next) && before !== null && old === before && replaceEqualDeep(old, next) === old)', '(isMade(next) && replaceEqualDeep(old, next) === old)'), /me-query\.ts: sets the latest answer outside[\s\S]*or keeps one it did not make/)
+  red(swap(src, ME_HOME, '  const isMade = (me: unknown) => current !== null && me === current', '  const isMade = (me: unknown) => me === current || me === before'), /me-query\.ts: sets the latest answer outside/)
+  red(swap(src, ME_HOME, '      if (ask === asks) current = typeof', '      current = typeof'), /me-query\.ts: sets the latest answer outside/)
+  red(swap(src, ME_HOME, '  return {query, isMade}', '  return {query, isMade, made}'), /me-query\.ts: sets the latest answer outside/)
   red(swap(src, ME_HOME, 'export function meQueryOf', 'export const register = (s: WeakSet<object>, me: object) => s.add(me)\nexport function meQueryOf'), /me-query\.ts exports register, meQueryOf, asksAgain: only meQueryOf and asksAgain/)
   red(swap(src, SESSION, 'export const madeBySession = asked.isMade', 'export const madeBySession = asked.isMade\nexport const sessionQuery = asked'), /session\.ts: who-am-I's query is no longer meQueryOf\(whoAmI\)'s, or hands more of it on/)
   red(swap(src, SESSION, 'export const madeBySession = asked.isMade', 'export const madeBySession = (me: unknown) => !!me'), /session\.ts: who-am-I's query is no longer meQueryOf/)
