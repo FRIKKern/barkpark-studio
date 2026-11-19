@@ -588,6 +588,7 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     const there = docId ? getPath(qc.getQueryData(['doc', docId]), id) : undefined
     const keys = (v: unknown) => (Array.isArray(v) ? v.map((b) => (b as PtBlock)?._key).join('\u0000') : '')
     const shifted = Array.isArray(there) && keys(there) !== keys(base)
+    let saved: unknown = next
     if (fine && !shifted && (fine.length * 2 <= next!.length || fine.every((p) => p.edits)))
       for (const p of fine) {
         sentAt.current.set(p.key, ++seq.current)
@@ -606,7 +607,7 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
         const from = Array.isArray(base) ? (base as PtBlock[]).find((b) => b?._key === p.key) : undefined
         let sent: unknown = p.block
         if (!p.edits) editPath!(keyedPath(id, p.key), from ? (now: unknown) => (sent = mergeBlock(from, p.block, now) ?? p.block) : p.block)
-        if (sent !== p.block) show(next!, next!.map((b) => (b._key === p.key ? sent : b)))
+        if (sent !== p.block) saved = next!.map((b) => (b._key === p.key ? sent : b))
       }
     // The field whole (a block came, went or moved): onto the blocks as they are held now, so
     // a block this editor did not touch goes as it is there, another editor's newest words in
@@ -614,7 +615,7 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     else if (editPath && next) {
       let sent: unknown = next
       editPath(id, (now: unknown) => (sent = freshItems(base, next, now, (b) => theirs(b._key as string, b))))
-      show(next, sent)
+      saved = sent
     } else onChange(next)
     // The span texts this change made are accounted for. Not a span another editor's patch
     // still waits for (held until this editor's typing pauses): it stays at their text, or
@@ -622,6 +623,8 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     const had = new Map(spanTexts(prior))
     const waiting = new Set(held.current.flatMap((p) => (p.type === 'diffMatchPatch' ? [p.path.flatMap((s) => (typeof s === 'string' ? [] : [s._key])).join('/')] : [])))
     for (const [at, t] of spanTexts(next)) if (had.get(at) !== t && !waiting.has(at)) text.current.set(at, t)
+    // Measured from the texts just accounted for: from older ones, their words went in twice.
+    show(next, saved)
   }
   const typing = useRef(0)
   const held = useRef<RemotePatch[]>([])
