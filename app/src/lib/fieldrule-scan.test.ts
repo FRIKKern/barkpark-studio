@@ -10,8 +10,12 @@
 //   which reads them from Barkpark: no menu hands a paste roles of its own;
 // - paste-reads.ts, and each ALLOWED file that defines no writer (or defines one and imports
 //   another file's), exports only the values listed here, whatever the form of any other export.
-// The limit: an allowed file can still hand a writer on without exporting it (say, put into an object
-// another module holds); no scan of export names sees that.
+//   A value hung onto a listed export fails too: a namespace merged with it, or an assignment
+//   or a setter (Object.assign, defineProperty, setPrototypeOf, Reflect.set) on the export, a
+//   property of it, or a `const` alias of it.
+// The limit: an allowed file can still hand a writer on without exporting it (put into an object
+// another module holds), or hang it on an export through a binding this scan does not follow (a
+// `this` inside the export, an alias made in a function or reached through another object).
 import assert from 'node:assert/strict'
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import {dirname, join, normalize, relative} from 'node:path'
@@ -149,7 +153,7 @@ function readExports(file: string, text: string): string[] {
       case 'TSImportEqualsDeclaration':
         return [d.id?.name ?? `?${d.type}`]
       case 'TSModuleDeclaration':
-        return [d.id?.name ?? String(d.id?.value)]
+        return [rootName(d.id)]
       case 'TSTypeAliasDeclaration':
       case 'TSInterfaceDeclaration':
         return []
@@ -173,6 +177,78 @@ function readExports(file: string, text: string): string[] {
         return NOT_EXPORTS.has(n.type) ? [] : [`?${n.type}`]
     }
   })
+}
+/** A namespace's name: `A` for `namespace A.B`. */
+const rootName = (id: {type: string; [k: string]: any} | undefined): string => (id?.type === 'TSQualifiedName' ? rootName(id.left) : (id?.name ?? String(id?.value)))
+/** Every node under `n`, with its parent. */
+function walk(n: unknown, see: (n: {type: string; [k: string]: any}, parent: {type: string; [k: string]: any} | undefined) => void, parent?: {type: string; [k: string]: any}) {
+  if (Array.isArray(n)) return n.forEach((x) => walk(x, see, parent))
+  if (!n || typeof n !== 'object' || typeof (n as {type?: unknown}).type !== 'string') return
+  const node = n as {type: string; [k: string]: any}
+  see(node, parent)
+  for (const k in node) if (k !== 'type' && k !== 'start' && k !== 'end' && node[k] && typeof node[k] === 'object') walk(node[k], see, node)
+}
+/** The binding a write lands on: `a` for `a`, `a.b`, `a.b.c`, `a['b']` (through brackets, `!` and `as`). */
+const rootOf = (n: {type: string; [k: string]: any} | null | undefined): string | undefined =>
+  !n ? undefined : n.type === 'Identifier' ? n.name : n.type === 'MemberExpression' ? rootOf(n.object) : /^(ParenthesizedExpression|TSNonNullExpression|TSAsExpression|TSSatisfiesExpression|TSTypeAssertion)$/.test(n.type) ? rootOf(n.expression) : undefined
+/** The places an assignment's left side writes (a pattern's every target). */
+const targets = (p: {type: string; [k: string]: any} | null | undefined): {type: string; [k: string]: any}[] =>
+  !p ? [] : p.type === 'ObjectPattern' ? p.properties.flatMap((x: any) => targets(x.type === 'RestElement' ? x.argument : x.value)) : p.type === 'ArrayPattern' ? p.elements.flatMap(targets) : p.type === 'RestElement' ? targets(p.argument) : p.type === 'AssignmentPattern' ? targets(p.left) : [p]
+/** Calls that set a property, or a prototype, on their first argument. */
+const SETTERS = /^(Object\.(assign|defineProperty|defineProperties|setPrototypeOf)|Reflect\.(set|defineProperty|setPrototypeOf))$/
+const hung = new Map<string, string[]>()
+/**
+ * A value hung onto an export of `file`, so the export's name is kept and the value is not seen:
+ * a namespace merged with it (any other declaration of the same name), or an assignment or a
+ * setter call (Object.assign …) whose target is the export or a property of one, also through a
+ * `const` alias of it.
+ */
+function hungProblems(file: string, text: string): string[] {
+  const key = `${file}\0${text}`
+  if (hung.has(key)) return hung.get(key)!
+  const {program, errors} = parseSync(file, text, {lang: file.endsWith('.tsx') ? 'tsx' : 'ts'})
+  const problems: string[] = []
+  if (!errors.length) {
+    const line = (n: {[k: string]: any}) => text.slice(0, n.start as number).split('\n').length
+    const exported = new Set<string>()
+    const declared = new Map<string, number>()
+    const declare = (name: string) => declared.set(name, (declared.get(name) ?? 0) + 1)
+    const namespaces: {type: string; [k: string]: any}[] = []
+    for (const top of program.body as {type: string; [k: string]: any}[]) {
+      const d = top.type === 'ExportNamedDeclaration' || top.type === 'ExportDefaultDeclaration' ? top.declaration : top
+      const names = !d ? [] : d.type === 'VariableDeclaration' ? d.declarations.flatMap((v: any) => bound(v.id)) : d.type === 'TSModuleDeclaration' ? [rootName(d.id)] : /^(FunctionDeclaration|ClassDeclaration|TSEnumDeclaration|TSDeclareFunction)$/.test(d.type) && d.id ? [d.id.name] : []
+      names.forEach(declare)
+      if (d?.type === 'TSModuleDeclaration') namespaces.push(d)
+      if (top.type === 'ExportNamedDeclaration') {
+        if (top.declaration) names.forEach((x: string) => exported.add(x))
+        else if (!top.source) for (const x of top.specifiers) if (x.local.type === 'Identifier') exported.add(x.local.name)
+      }
+      if (top.type === 'ExportDefaultDeclaration') (d?.id?.name ? [d.id.name] : d?.type === 'Identifier' ? [d.name] : []).forEach((x: string) => exported.add(x))
+      if (top.type === 'TSExportAssignment' && top.expression.type === 'Identifier') exported.add(top.expression.name)
+    }
+    // A `const` that is the export under another name is the export.
+    const aliases = new Set(exported)
+    for (let more = true; more; ) {
+      more = false
+      walk(program, (n) => {
+        if (n.type === 'VariableDeclarator' && n.id.type === 'Identifier' && !aliases.has(n.id.name) && aliases.has(rootOf(n.init) ?? '') && n.init.type !== 'MemberExpression') (aliases.add(n.id.name), (more = true))
+      })
+    }
+    for (const ns of namespaces) {
+      const name = rootName(ns.id)
+      if (exported.has(name) && declared.get(name)! > 1) problems.push(`${file} merges a namespace into its export ${name} (line ${line(ns)}): a value hung onto an export is not on its list`)
+    }
+    walk(program, (n) => {
+      const hits =
+        n.type === 'AssignmentExpression' ? targets(n.left) : (n.type === 'ForInStatement' || n.type === 'ForOfStatement') && n.left.type !== 'VariableDeclaration' ? targets(n.left) : n.type === 'CallExpression' && n.callee.type === 'MemberExpression' && SETTERS.test(`${n.callee.object.name}.${n.callee.property.name}`) ? [n.arguments[0]] : []
+      for (const t of hits) {
+        const root = rootOf(t)
+        if (root && aliases.has(root)) problems.push(`${file} sets ${text.slice(t.start, t.end)} (line ${line(n)}): a value hung onto its export ${root} is not on its list`)
+      }
+    })
+  }
+  hung.set(key, problems)
+  return problems
 }
 /** Whether `file` passes on a writer it imported under `local` (export {local}, export const x = local, export default local). */
 const passesOn = (c: string, local: string) =>
@@ -255,6 +331,7 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
       continue
     }
     const has = exportsOf(file, src[file]!)
+    problems.push(...hungProblems(file, src[file]!))
     for (const name of has) if (!list.includes(name)) problems.push(`${file} exports ${name}, which is not on its list (${list.join(', ')}): fieldrule-scan.test.ts names all it may export`)
     for (const name of list) if (!has.includes(name)) problems.push(`${file} no longer exports ${name}: take it off its list`)
   }
@@ -362,6 +439,22 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
   assert.deepEqual(judge({...src, [PASTE_READS]: `${src[PASTE_READS]}\nexport type Raw = typeof pasteDocumentReading\nexport interface R {\n  r: Raw\n}\n`}), [])
   fails(src, PASTE_READS, src[PASTE_READS]!.replace('export const pasteFieldWith', 'const pasteFieldWith'), /lib\/paste-reads\.ts no longer exports pasteFieldWith/)
   fails(src, 'lib/bulk-run.ts', src['lib/bulk-run.ts']!.replace('export async function runBulkRow', 'export async function runBulkRow2'), /lib\/bulk-run\.ts exports runBulkRow2, which is not on its list \(runBulkRow\)/)
+  // A value hung onto an allowed export keeps its name: a merged namespace, a property set later,
+  // Object.assign; and the same through brackets, a pattern, a deeper property, an alias, a setter.
+  const hangs: [string, RegExp][] = [
+    ['export namespace runBulkRow {\n  export const raw = (...a: Parameters<typeof mutate>) => mutate(...a)\n}', /lib\/bulk-run\.ts merges a namespace into its export runBulkRow/],
+    ['runBulkRow.raw = mutate', /lib\/bulk-run\.ts sets runBulkRow\.raw \(line \d+\): a value hung onto its export runBulkRow/],
+    ['Object.assign(runBulkRow, {raw: mutate})', /lib\/bulk-run\.ts sets runBulkRow \(line \d+\): a value hung onto its export runBulkRow/],
+    ["runBulkRow['raw'] = mutate", /sets runBulkRow\['raw'\]/],
+    [';(runBulkRow as unknown as {a: {b: unknown}}).a.b = mutate', /sets \(runBulkRow as unknown/],
+    [';[(runBulkRow as unknown as {raw: unknown}).raw] = [mutate]', /hung onto its export runBulkRow/],
+    ['const r = runBulkRow\nObject.defineProperty(r, "raw", {value: mutate})', /sets r \(line \d+\): a value hung onto its export r/],
+    ["Reflect.set(runBulkRow, 'raw', mutate)", /sets runBulkRow \(line/],
+  ]
+  for (const [added, why] of hangs) fails(src, 'lib/bulk-run.ts', `${src['lib/bulk-run.ts']}\n${added}\n`, why)
+  // In paste-reads.ts too; and `namespace A.B` is A.
+  fails(src, PASTE_READS, `${src[PASTE_READS]}\nObject.assign(pasteFieldWith, {raw: pasteFieldReading})\n`, /lib\/paste-reads\.ts sets pasteFieldWith/)
+  fails(src, PASTE_READS, `${src[PASTE_READS]}\nexport namespace N.M {\n  export const raw = pasteDocumentReading\n}\n`, /lib\/paste-reads\.ts exports N, which is not on its list/)
   fails(src, 'components/Later2.tsx', "export const p = async () => (await import('../lib/paste-locked.ts')).pasteField\n", /Later2\.tsx imports pasteDocument, pasteField, .* from lib\/paste-locked\.ts/)
   // A paper's linked masters (insert, pin, detach) write its body.
   fails(src, 'components/Masters.tsx', "import {pinMaster} from '../lib/paper-masters'\nexport const pin = pinMaster\n", /components\/Masters\.tsx imports pinMaster \(below the save\)/)
