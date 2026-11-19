@@ -45,10 +45,12 @@ test('J36: the first click on Select, before the editors chunk lands, still open
     }
     requestAnimationFrame(watch)
   })
-  // The chunk is held until the click is made: the click always comes before it lands.
+  // The chunk is held until the click is made and the page around the editors is live (React
+  // has a button of it): the click comes before the chunk, and the chunk after the rest of the page.
   let clicked!: () => void
   const click = new Promise<void>((r) => (clicked = r))
-  await page.route(/doc-editors/, async (route) => (await click, route.continue()))
+  const pageLive = () => page.waitForFunction(() => [...document.querySelectorAll('button')].some((b) => Object.keys(b).some((k) => k.startsWith('__reactProps$'))))
+  await page.route(/doc-editors/, async (route) => (await click, await pageLive(), route.continue()))
   const started = Date.now()
   await page.goto(t.docPath('post', 'post-17'), {waitUntil: 'commit'})
   await page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')}).getByRole('button', {name: 'Select'}).click().finally(clicked)
