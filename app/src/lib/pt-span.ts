@@ -41,9 +41,31 @@ export function spansOnto(field: unknown, spans: [inner: string, from: string, m
  * What a span patch's answer needs (`saved`: the field as Barkpark answered), from the field as
  * it was just before the patch (`before`) and what this editor meant (`spansOnto`'s arguments):
  * the merged field to send, or null when the answer is it already. Never judged by the letters
- * alone: a hunk that landed in the wrong block of a split keeps every letter.
+ * alone: a hunk that landed in the wrong block of a split keeps every letter. A span typed in
+ * since that is not in `field` is in a block the other editor's frame brought (the tail of a
+ * split): typed on `before`, it goes onto the merged field from there.
  */
 export function spanAnswer(field: unknown, spans: [inner: string, from: string, mine: string][], before: unknown, saved: unknown): unknown[] | null {
-  const merged = spansOnto(field, spans, before)
-  return !merged || JSON.stringify(merged) === JSON.stringify(saved) ? null : merged
+  const there = (v: unknown) => ([inner]: [string, string, string]) => typeof getPath({v}, `v${inner}`) === 'string'
+  const merged = spansOnto(field, spans.filter(there(field)), before)
+  if (!merged || JSON.stringify(merged) === JSON.stringify(saved)) return null
+  const since = spans.filter((s) => !there(field)(s))
+  return since.length ? spansOnto(before, since, merged) : merged
+}
+
+const keysOf = (v: unknown) => (Array.isArray(v) ? v.map((b) => (b as {_key?: unknown})?._key) : null)
+
+/**
+ * A frame from the server under spans typed and not yet sent (`dirty`: path → text, `base`:
+ * path → what each was typed on), when the other editor's change added or removed blocks of
+ * the field (a paste that split the block): the field merged whole, from `field` (as the
+ * server had it before) onto `theirs`. Merged span by span, the text alone, the words typed at
+ * the end of a split block stayed in its first piece. Null: no blocks came or went (span by
+ * span it is), or nothing to merge from.
+ */
+export function spansLifted(field: unknown, theirs: unknown, spans: [inner: string, from: string, mine: string][]): unknown[] | null {
+  const was = keysOf(field)
+  const now = keysOf(theirs)
+  if (!was || !now || JSON.stringify(was) === JSON.stringify(now)) return null
+  return spansOnto(field, spans, theirs)
 }

@@ -146,7 +146,9 @@ async function open(name: string) {
   // Typing in a span (PortableTextInput's text save): its own patch, onto the span as held then.
   const type = (key: string, from: string, to: string) => {
     const own = makePatches(from, to)
-    E.edit(qc, held() as never, `ptBody[_key=="${key}"].children[_key=="${key}s"].text`, (now: unknown) => applyPatches(own, typeof now === 'string' ? now : '')[0])
+    // The span's key as the page holds it (a merge may give a moved text its own span's key).
+    const span = (held().ptBody as Block[]).find((b) => b._key === key)!.children[0]!._key
+    E.edit(qc, held() as never, `ptBody[_key=="${key}"].children[_key=="${span}"].text`, (now: unknown) => applyPatches(own, typeof now === 'string' ? now : '')[0])
   }
   return {name, E, qc, held, save, type, drain, frame: (d: Doc) => E.applyServer(qc, clone(d) as never)}
 }
@@ -260,20 +262,25 @@ test('a retry after a reload', () =>
 // (task-30946f2255a30d93, task-ab6d751fa53fbda5): Barkpark puts the patch on the span as it is
 // now, where its words are no longer. The span's field as it was before the patch is read
 // and this editor's typing merged onto it through the merge exit and its net: every word once,
-// deleted letters deleted, and this page's copy is what is stored.
-async function spanSave(name: string, typing: [string, string][], want: string[]) {
+// deleted letters deleted, and this page's copy is what is stored. `before`: typed before the
+// paste's frame comes (the first of it on its way then, when `sent`); `after`: typed once the
+// screen shows the split, in the block where the words are now.
+type Typed = [key: string, add: (text: string) => string]
+async function spanSave(name: string, {before, after = []}: {before: Typed[]; after?: Typed[]}, want: string[], sent = true) {
   server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'Start text'), blk('c', 'Below')]})
   const page = await open(name)
+  const span = (key: string) => (page.held().ptBody as Block[]).find((b) => b._key === key)!.children[0]!.text
+  const typeIn = ([key, add]: Typed) => page.type(key, span(key), add(span(key)))
   // The other paste: "QQ¶rr " after "Start ", the block split there (its tail keyed anew).
   const split = (now: unknown) => (now as Block[]).flatMap((b) => (b._key === 'b1' ? [blk('b1', 'Start QQ'), blk('r', `rr ${b.children[0]!.text.slice(6)}`)] : [b]))
-  const [[from, to], ...more] = typing
-  server.faults.push('hold')
-  page.type('b1', from!, to!)
-  page.E.flush(page.qc, ID)
+  const [first, ...more] = before
+  if (sent) server.faults.push('hold')
+  typeIn(first!)
+  if (sent) page.E.flush(page.qc, ID)
   await tick(5)
+  for (const t of more) typeIn(t)
   page.frame(server.theirs('ptBody', split))
-  // Typing goes on while the first patch is on its way.
-  for (const [f, t] of more) page.type('b1', f, t)
+  for (const t of after) typeIn(t)
   server.release()
   await page.drain()
   for (const d of server.history) page.frame(d)
@@ -283,8 +290,18 @@ async function spanSave(name: string, typing: [string, string][], want: string[]
   assert.deepEqual(texts(page.held().ptBody), want, `${name}: this page's copy`)
 }
 
-test('typing sent as a span patch, and more after it, while another paste split the block', () =>
-  spanSave('spanType', [['Start text', 'Start text four'], ['Start text four', 'Start text four five']], ['Above', 'Start QQ', 'rr text four five', 'Below']))
+const end = (w: string) => (t: string) => `${t} ${w}`
+const typing = {before: [['b1', end('four')], ['b1', end('five')]] as Typed[], after: [['r', end('six')]] as Typed[]}
+const deleting = {before: [['b1', (t: string) => t.replace('e', '')], ['b1', (t: string) => t.replace('x', '')]] as Typed[]}
+
+test('typing sent as a span patch, and more, while another paste split the block', () =>
+  spanSave('spanType', typing, ['Above', 'Start QQ', 'rr text four five six', 'Below']))
 
 test('letters deleted as a span patch while another paste split the block stay deleted', () =>
-  spanSave('spanDelete', [['Start text', 'Start tt']], ['Above', 'Start QQ', 'rr tt', 'Below']))
+  spanSave('spanDelete', deleting, ['Above', 'Start QQ', 'rr tt', 'Below']))
+
+test('typing, the last of it not yet sent when the frame of another paste that split the block comes', () =>
+  spanSave('spanFrame', typing, ['Above', 'Start QQ', 'rr text four five six', 'Below'], false))
+
+test('letters deleted, the last not yet sent when the frame of another paste that split the block comes', () =>
+  spanSave('spanFrameDelete', deleting, ['Above', 'Start QQ', 'rr tt', 'Below'], false))
