@@ -122,6 +122,35 @@ function shares(base: string, text: string): boolean {
 }
 
 /**
+ * The kept edit's result already stands on the server (it landed, and they edited on top of it):
+ * the kept block's text is all there, in the same block or as its split from it (not a copy, as in
+ * keptReach), with their text
+ * added only away from where it deleted (their letters right there, "one tw three" for "one three",
+ * may be the run they only cut into). Its entry is done, not cannot-tell (a card that never clears).
+ */
+export function keptStands(base: string, mine: string, texts: string[]): boolean {
+  const same = inBlock(mine, texts[0] ?? '')
+  const split = asSplit(mine, texts)
+  const where = same.kept.every(Boolean) ? same : split && (split.from === 0 || !shares(mine, texts[0]!)) ? split : null
+  if (!where) return false
+  // Each deletion's gap in the kept text, at every place that deletes the same letters ("wo t" or "two ").
+  let i = 0
+  let j = 0
+  for (const [op, text] of makeDiff(base, mine)) {
+    const n = text.length
+    if (op === DIFF_DELETE) {
+      let lo = i
+      let hi = i
+      while (lo > 0 && base[lo - 1] === base[lo - 1 + n]) lo--
+      while (hi + n < base.length && base[hi] === base[hi + n]) hi++
+      for (let f = lo; f <= hi; f++) if (where.before[j + f - i] !== '') return false
+      i += n
+    } else ((j += n), op === DIFF_EQUAL && (i += n))
+  }
+  return true
+}
+
+/**
  * How far into `texts` (the server's same block, then the new blocks right after it) a kept edit
  * of the block from `base` to `mine` goes, or null when that cannot be told. `to`: the index of
  * the last block it may reach. `texts`, for a split: what those blocks' texts are once it is in,

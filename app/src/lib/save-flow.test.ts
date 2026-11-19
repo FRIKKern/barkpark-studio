@@ -535,6 +535,51 @@ for (const fault of ['500', 'lost'] as const)
     server.gone.add(`?page=${name}2`)
   })
 
+// #1318 review (verdict2): a kept edit whose result already stands on the server (it landed, the
+// beacon or the save whose answer was lost; they edited on top) is done on Restore: nothing
+// written, the card gone, nothing kept for it. Only a block edit that cannot be told stays kept.
+for (const [name, fault, field, base, mine, theirs, kept] of [
+  ['T1 a title that landed, their words added after it', 'lost', 'title', 'Save flow', 'Saved flow', 'Saved flow, by them', false],
+  ['T3 a deletion that landed, their words added after it', 'lost', 'ptBody[_key=="b"]', 'the cat sat', 'the sat', 'the sat down', false],
+  ['T3 against: they cut into the run it deletes, it never landed', '500', 'ptBody[_key=="b"]', 'the cat sat', 'the sat', 'the ca sat down', true],
+] as const)
+  test(`a kept edit on Restore (${name}): ${kept ? 'cannot be told, still kept and offered' : 'done, nothing kept'}`, async () => {
+    const block = field !== 'title'
+    server = new Server({title: block ? 'Save flow' : base, ptBody: [blk('b', block ? base : 'Start text')]})
+    const id = name.split(' ')[0] + fault
+    const page = await open(`stands${id}`)
+    page.E.setKeepScope('s')
+    server.faults.push(fault)
+    const value = block ? blk('b', mine) : mine
+    if (block) {
+      const drawn = (page.held().ptBody as Block[])[0]!
+      page.E.edit(page.qc, page.held() as never, field, (v: unknown) => mergeBlock(drawn, value as Block, v) ?? value)
+    } else page.E.edit(page.qc, page.held() as never, field, mine)
+    await tick(250) // kept in this browser (KEEP_GAP_MS), and sent
+    server.gone.add(`?page=stands${id}`)
+    server.theirs(block ? 'ptBody' : 'title', () => (block ? [blk('b', theirs)] : theirs))
+    const before = clone(server.doc)
+    await tick(20)
+    const next = await open(`stands${id}2`)
+    next.E.setKeepScope('s')
+    const got = await next.E.recoverPending(next.qc, next.held() as never)
+    assert.ok(got && 'ask' in got, 'offered')
+    const done = next.E.restorePending(next.qc, next.held() as never, got.ask)
+    await next.drain()
+    await tick(20)
+    assert.deepEqual(server.doc.title, before.title, 'their title as it is')
+    assert.deepEqual(server.doc.ptBody, before.ptBody, 'their blocks as they are')
+    const inStore = [...idb.values()].some((p) => (p as {fields?: [string, unknown][]}).fields?.some(([f]) => f === field))
+    if (kept) {
+      assert.deepEqual(done?.left?.fields.map(([f]) => f), [field], 'the card stays up for it')
+      assert.ok(inStore, 'the kept edit is still in the store')
+    } else {
+      assert.equal(done?.left ?? null, null, 'the card goes')
+      assert.ok(!inStore, 'nothing kept for it')
+    }
+    server.gone.add(`?page=stands${id}2`)
+  })
+
 // The lead's condition on the cannot-tell rule (task-2c01c385ce7b51d0): when a kept block's edit
 // cannot be told a place, Restore writes nothing, and the edit stays kept and offered: the entry
 // stays in this browser's store, and the card stays up for it (task-28470f0d0ace566c says why).
