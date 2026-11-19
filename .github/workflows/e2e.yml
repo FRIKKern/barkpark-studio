@@ -12,6 +12,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # The daily pack sync asks for main's run after its merge (sync-pack.yml).
+  workflow_dispatch:
 permissions:
   contents: read
 # A newer push to the same PR replaces its run (and frees its leases); main's runs, one
@@ -47,6 +49,7 @@ jobs:
       BUDGET_NETWORK_SCALE: '4' # runner is far from guerrilla; see e2e/rig/feel.ts
     steps:
       - uses: actions/checkout@v5
+        with: { persist-credentials: false }
       - uses: pnpm/action-setup@v4
         with: { version: 9.12.0 }
       - uses: actions/setup-node@v5

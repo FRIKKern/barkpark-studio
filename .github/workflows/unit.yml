@@ -3,6 +3,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # The daily pack sync asks for main's run after its merge (sync-pack.yml).
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -12,6 +14,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
+        with: { persist-credentials: false }
       - uses: pnpm/action-setup@v4
         with: { version: 9.12.0 }
       - uses: actions/setup-node@v5

@@ -1,0 +1,94 @@
+# Keeps conformance/pack/ the same as Barkpark main's api/priv/portable_doc, once a day and on demand.
+# `plan` (no key, read-only token) compares, builds the sync commit and decides; `act` writes: it pushes
+# that one commit to sync/barkpark-pack with the deploy key, opens or updates the PR, merges a green one
+# or closes a leftover one.
+# `act` trusts nothing from `plan` except which of the three actions to take (each re-checked against
+# GitHub's own state), the studio's report file and SOURCE.md's prose: `plan` ran install scripts, the
+# renderer and Barkpark's conformance.mjs. scripts/sync-act.sh says what it checks.
+# Every job here and in the other workflows either holds no key or is pinned, whole, with the files it
+# runs, in scripts/lib/keyed-jobs.json (scripts/lib/workflow-keys.mjs; scripts/lib/keyed-jobs.test.mjs).
+# Why and how: docs/decisions/0009-pack-syncs-itself.md. To hold the sync back, disable this workflow.
+name: sync-pack
+on:
+  schedule:
+    - cron: '37 5 * * *'
+  workflow_dispatch:
+permissions: {}
+# One run at a time; a newer one waits for it (never cancels it mid-push).
+concurrency:
+  group: sync-pack
+  cancel-in-progress: false
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions: { contents: read, pull-requests: read, checks: read, statuses: read }
+    env: { GH_TOKEN: '${{ github.token }}' }
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0, persist-credentials: false }
+      # Barkpark is public: read with no token.
+      - uses: actions/checkout@v5
+        with:
+          repository: FRIKKern/barkpark
+          ref: main
+          path: .barkpark
+          sparse-checkout: api/priv/portable_doc
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.0 }
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      # Conformance runs the studio renderer on the new pack.
+      - name: Install the app
+        run: pnpm --dir app install --frozen-lockfile
+      - name: Plan (reads GitHub, writes nothing)
+        id: plan
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          node scripts/pack-sync-pr.mjs .barkpark --out "$RUNNER_TEMP/plan" --summary "$GITHUB_STEP_SUMMARY"
+          echo "action=$(jq -r .action "$RUNNER_TEMP/plan/plan.json")" >> "$GITHUB_OUTPUT"
+      - if: steps.plan.outputs.action != 'none'
+        uses: actions/upload-artifact@v4
+        with: { name: plan, path: '${{ runner.temp }}/plan', retention-days: 7 }
+
+  # Runs main's own scripts/sync-act.sh on the plan's files: git, gh and jq. Pinned with that file in
+  # scripts/lib/keyed-jobs.json.
+  act:
+    needs: plan
+    if: needs.plan.outputs.action != 'none'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: { contents: write, pull-requests: write }
+    env: { GH_TOKEN: '${{ github.token }}', GH_REPO: '${{ github.repository }}' }
+    outputs:
+      merged: ${{ steps.write.outputs.merged }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with: { name: plan, path: '${{ runner.temp }}/plan' }
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with: { fetch-depth: 0, persist-credentials: false }
+      # The deploy key, for the push alone: a push by the workflow token starts no checks on the PR.
+      - name: Push, open or update, merge, or close
+        id: write
+        env: { SYNC_DEPLOY_KEY: '${{ secrets.HOUSEKEEPING_DEPLOY_KEY }}' }
+        run: bash scripts/sync-act.sh
+
+  # A merge by the workflow token starts no push runs on main: ask for them.
+  checks-on-main:
+    needs: act
+    if: needs.act.outputs.merged == 'true'
+    runs-on: ubuntu-latest
+    permissions: { actions: write }
+    env: { GH_TOKEN: '${{ github.token }}', GH_REPO: '${{ github.repository }}' }
+    steps:
+      - run: |
+          gh workflow run unit.yml --ref main
+          gh workflow run e2e.yml --ref main
