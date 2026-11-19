@@ -8,6 +8,8 @@ import {test} from 'node:test'
 import {mergeList3} from './merge.ts'
 import {caught} from './pt-keep.ts'
 import {freshItems} from './pt-value.ts'
+import {spanAnswer} from './pt-span.ts'
+import {applyPatches, makePatches} from '@sanity/diff-match-patch'
 
 type B = {key: string; span: string; text: string}
 const SEED = Number(process.env.FUZZ_SEED ?? 1297)
@@ -113,4 +115,69 @@ test(`seeded fuzz (seed ${SEED}, ${CASES} pairs): either save order stores the s
   const report = `fails ${JSON.stringify(tally)}, net added words ${caught.count - net} times\n${fails.join('\n')}`
   if (process.env.FUZZ_LOG) console.log(report)
   assert.deepEqual(tally, {a: 0, b: 0, c: 0, kept: 0}, report)
+})
+
+/** Typing in one span only: what this editor's span-text save sends (a diff-match-patch). */
+function typeInSpan(rnd: () => number): {i: number; text: string; did: string} {
+  const int = (k: number) => Math.floor(rnd() * k)
+  const i = int(BASE.length)
+  let text = BASE[i]!.text
+  const pool = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ']
+  const did: string[] = []
+  for (let o = 0, ops = 1 + int(2); o < ops; o++) {
+    const at = int(text.length + 1)
+    if (rnd() < 0.5 && at < text.length) {
+      const n = 1 + int(Math.min(3, text.length - at))
+      did.push(`del@${at}+${n}`)
+      text = text.slice(0, at) + text.slice(at + n)
+    } else {
+      const w = pool.splice(0, 1 + int(3)).join('')
+      did.push(`ins@${at}`)
+      text = text.slice(0, at) + w + text.slice(at)
+    }
+  }
+  return {i, text, did: did.join(',')}
+}
+
+/** Barkpark taking a span's patch: into the span's text as it is now; a span not there is left alone. */
+function dmpOnto(field: ReturnType<typeof pt>, key: string, span: string, patch: ReturnType<typeof makePatches>) {
+  return field.map((b) => (b._key !== key ? b : {...b, children: b.children.map((c) => (c._key !== span ? c : {...c, text: applyPatches(patch, c.text, {allowExceedingIndices: true})[0]}))}))
+}
+
+test(`seeded fuzz of the span-text save (seed ${SEED}, ${CASES} pairs): typing sent as a patch while the other edits the field, either order, every added letter once, no base letter twice, no deleted letter back`, () => {
+  const rnd = prng(SEED + 1)
+  const fails: string[] = []
+  const tally = {a: 0, b: 0, c: 0, back: 0}
+  for (let n = 0; n < CASES; n++) {
+    const A = typeInSpan(rnd)
+    const Bv = edit(rnd, 'αβγδεζηθικλμνξοπρστυφχψω', 'b')
+    const base = pt(BASE)
+    const b = pt(Bv.blocks)
+    const {key, span, text: from} = BASE[A.i]!
+    const patch = makePatches(from, A.text)
+    const spans: [string, string, string][] = [[`[_key=="${key}"].children[_key=="${span}"].text`, from, A.text]]
+    // A's patch lands first, on the text it was typed on; B's save of the field then merges onto it.
+    const afterA = dmpOnto(base, key, span, patch)
+    const first = texts(freshItems(base, b, afterA))
+    // B's save first; A's patch lands on B's text, and A's answer is put right through the exit.
+    const saved = dmpOnto(b, key, span, patch)
+    const second = texts(spanAnswer(base, spans, b, saved) ?? saved)
+    const why: string[] = []
+    if (JSON.stringify(first) !== JSON.stringify(second)) tally.a++, why.push('(a) orders differ')
+    const all = [first.join('|'), second.join('|')]
+    const added = [...new Set([...(A.text + Bv.blocks.map((x) => x.text).join('')).replace(/ /g, '')].filter((ch) => !/[a-x]/.test(ch)))]
+    const baseLetters = [...BASE.map((x) => x.text).join('')]
+    const kept = (ch: string) => A.text.includes(ch) || BASE[A.i]!.text.indexOf(ch) < 0
+    const deleted = baseLetters.filter((ch) => !kept(ch) || !Bv.blocks.some((x) => x.text.includes(ch)))
+    const lost = added.filter((ch) => all.some((t) => count(t, ch) === 0))
+    const twice = [...added, ...baseLetters].filter((ch) => all.some((t) => count(t, ch) > 1))
+    const back = deleted.filter((ch) => all.some((t) => count(t, ch) > 0))
+    if (lost.length) tally.b++, why.push(`(b) lost ${lost.join('')}`)
+    if (twice.length) tally.c++, why.push(`(c) twice ${twice.join('')}`)
+    if (back.length) tally.back++, why.push(`deleted back ${back.join('')}`)
+    if (why.length && fails.length < 8) fails.push(`#${n} A ${key} ${A.did} ${JSON.stringify(A.text)} B ${Bv.did.join(',')} ${JSON.stringify(texts(b))} -> ${JSON.stringify(first)} / ${JSON.stringify(second)}: ${why.join('; ')}`)
+  }
+  const report = `span save: fails ${JSON.stringify(tally)}\n${fails.join('\n')}`
+  if (process.env.FUZZ_LOG) console.log(report)
+  assert.deepEqual(tally, {a: 0, b: 0, c: 0, back: 0}, report)
 })

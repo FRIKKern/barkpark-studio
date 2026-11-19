@@ -1,4 +1,4 @@
-import {DIFF_DELETE, DIFF_INSERT, makeDiff} from '@sanity/diff-match-patch'
+import {DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, makeDiff} from '@sanity/diff-match-patch'
 
 // Two editors changed one Portable Text block at once (a paste, a split, a join: anything
 // that is not typing in a span, which goes as diff-match-patch). The save carries the field
@@ -39,12 +39,41 @@ export const keysFrom = (make: () => string) => void (fresh = make)
 export type Op = {op: -1 | 0 | 1; ch: string; t?: number}
 
 /** One side's change to `base`: the text it puts before each base letter, and the base letters it takes out. */
+/**
+ * A diff that reads a block break moved past letters as those letters taken out on one side of
+ * it and typed again on the other (`op|q` → `o|pq`: p out, p in; a paste that joined a piece
+ * of the next block onto this one) says it as the break moving: the letters stay the base's,
+ * so the other side's deletion of them still holds.
+ */
+function breaksMoved(diffs: [number, string][]): [number, string][] {
+  const out = diffs.map((d) => [...d] as [number, string])
+  const brk = (t: string) => !!t && [...t].every((c) => c === SEP)
+  for (let i = 0; i + 2 < out.length; i++) {
+    const [a, x] = out[i]!
+    const [eq, gap] = out[i + 1]!
+    const [b, y] = out[i + 2]!
+    if (eq !== DIFF_EQUAL || !brk(gap)) continue
+    // Letters typed before the break that the base had after it: base `gap y`.
+    const fix: [number, string][] | null =
+      a === DIFF_INSERT && b === DIFF_DELETE && y && x.startsWith(y) ? [[DIFF_DELETE, gap], [DIFF_EQUAL, y], [DIFF_INSERT, x.slice(y.length) + gap]]
+      : a === DIFF_INSERT && b === DIFF_DELETE && y && x.endsWith(y) ? [[DIFF_DELETE, gap], [DIFF_INSERT, x.slice(0, -y.length)], [DIFF_EQUAL, y], [DIFF_INSERT, gap]]
+      // Letters typed after the break that the base had before it: base `x gap`.
+      : a === DIFF_DELETE && b === DIFF_INSERT && x && y.startsWith(x) ? [[DIFF_INSERT, gap], [DIFF_EQUAL, x], [DIFF_DELETE, gap], [DIFF_INSERT, y.slice(x.length)]]
+      : a === DIFF_DELETE && b === DIFF_INSERT && x && y.endsWith(x) ? [[DIFF_INSERT, gap + y.slice(0, -x.length)], [DIFF_EQUAL, x], [DIFF_DELETE, gap]]
+      : null
+    if (fix) out.splice(i, 3, ...fix.filter(([, t]) => t))
+  }
+  return out
+}
+/** `base` → `side` letter by letter (a raw diff: no semantic clean-up), a moved block break read as one. */
+export const diff = (base: string, side: string) => breaksMoved(makeDiff(base, side))
+
 function edits(base: string, side: string) {
   const ins = new Map<number, {text: string; at: number}>()
   const del = new Uint8Array(base.length)
   let p = 0
   let s = 0
-  for (const [op, chunk] of makeDiff(base, side)) {
+  for (const [op, chunk] of diff(base, side)) {
     if (op === DIFF_INSERT) {
       const was = ins.get(p)
       ins.set(p, {text: (was?.text ?? '') + chunk, at: was?.at ?? s})
@@ -209,7 +238,7 @@ export function basedOn(base: unknown[], side: unknown[]): Map<string, Set<strin
   const of = new Map<string, Set<string>>()
   let p = 0
   let s = 0
-  for (const [op, chunk] of makeDiff(b, field(side))) {
+  for (const [op, chunk] of diff(b, field(side))) {
     if (op === DIFF_INSERT) s += chunk.length
     else if (op === DIFF_DELETE) p += chunk.length
     else for (let k = 0; k < chunk.length; k++, p++, s++) if (b[p] !== SEP) of.set(at[s]!, (of.get(at[s]!) ?? new Set()).add(owner[p]!))
