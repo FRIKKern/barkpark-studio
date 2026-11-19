@@ -5,7 +5,9 @@
 //   with why; everything else reaches only the checked save;
 // - a file that imports the checked save (edit, setByAction), draws a field or pastes into
 //   one is a listed SURFACE, and says how it asks the rule;
-// - nothing outside conditions.ts decides a field's hidden or read-only itself.
+// - nothing outside conditions.ts decides a field's hidden or read-only itself;
+// - the pastes that take the workspace's roles (PASTES) are imported only by lib/paste-reads.ts,
+//   which reads them from Barkpark: no menu hands a paste roles of its own.
 import assert from 'node:assert/strict'
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import {dirname, join, normalize, relative} from 'node:path'
@@ -29,6 +31,9 @@ const WRITERS: Record<string, string[]> = {
 }
 /** The checked save: a file that imports it is a listed surface. */
 const SAVES: Record<string, string[]> = {'lib/edits.ts': ['edit', 'setByAction']}
+/** The pastes that are handed the roles read, or the roles (task-fcedb95f343c738b): only paste-reads.ts takes them, with Barkpark's. */
+const PASTES: Record<string, string[]> = {'lib/paste-locked.ts': ['pasteDocument', 'pasteField', 'pasteDocumentReading', 'pasteFieldReading', 'keepLocked', 'holdsLocked']}
+const PASTE_READS = 'lib/paste-reads.ts'
 /** Barkpark's write endpoints, called straight: only where ALLOWED says. */
 const ENDPOINTS = /\/v1\/data\/mutate\b|\/api\/mutate\b|\/ops\b|\}\/actions`/
 
@@ -124,6 +129,8 @@ function judge(src: Record<string, string>, surfaces = SURFACES) {
       // A writer passed on (re-exported) by a file that does not define it would reach its importers unseen.
       if (low.length && file !== to && (reexport || locals.some((l) => passesOn(code(text), l)))) problems.push(`${file} passes on ${low.join(', ')} (below the save) from ${to}: only ${to} exports it`)
       if (low.length && !ALLOWED[file]) problems.push(`${file} imports ${low.join(', ')} (below the save) from ${to}: write through the save, or allow it in fieldrule-scan.test.ts with why`)
+      const pastes = takes(names, PASTES[to] ?? [])
+      if (pastes.length && file !== PASTE_READS && file !== to) problems.push(`${file} imports ${pastes.join(', ')} from ${to}: paste through ${PASTE_READS}, which reads the roles from Barkpark`)
       const saves = takes(names, SAVES[to] ?? [])
       if (saves.length && !listed.has(file)) problems.push(`${file} imports ${saves.join(', ')} (the save) and is no listed surface: list it in SURFACES with how it asks the rule`)
     }
@@ -183,6 +190,9 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
   fails(src, 'lib/carry.ts', "import {mutate as m} from './edits'\nexport {m}\n", /lib\/carry\.ts passes on mutate/)
   fails(src, 'lib/carry2.ts', "import * as E from './edits'\nexport const m = E.mutate\n", /lib\/carry2\.ts passes on mutate, applyServer, reapply, createDoc, draftNew/)
   fails(src, 'lib/carry3.ts', "export * from './blocks'\n", /lib\/carry3\.ts passes on applyBlockOps/)
+  // A paste menu that reads the roles itself (one that skips Barkpark, or another session's): only paste-reads.ts may.
+  fails(src, 'components/MyPaste.tsx', "import {pasteDocumentReading} from '../lib/paste-locked'\nexport const p = (f: never, v: never, c: never) => pasteDocumentReading({schemas: async () => [], roles: async () => null}, f, v, c)\n", /MyPaste\.tsx imports pasteDocumentReading from lib\/paste-locked\.ts: paste through lib\/paste-reads\.ts/)
+  fails(src, 'components/Later2.tsx', "export const p = async () => (await import('../lib/paste-locked.ts')).pasteField\n", /Later2\.tsx imports pasteDocument, pasteField, .* from lib\/paste-locked\.ts/)
   // A paper's linked masters (insert, pin, detach) write its body.
   fails(src, 'components/Masters.tsx', "import {pinMaster} from '../lib/paper-masters'\nexport const pin = pinMaster\n", /components\/Masters\.tsx imports pinMaster \(below the save\)/)
   // A listed surface that stops asking.
