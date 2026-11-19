@@ -2,7 +2,7 @@
 // the lead's cannot-tell rule): an edit goes onto the server's version of the same block, where
 // the text it touched still stands there, and on into new blocks only where they are a split of
 // that block. Anything else cannot be told, and every server block stays as it is.
-import {cleanupSemantic, DIFF_DELETE, DIFF_EQUAL, makeDiff} from '@sanity/diff-match-patch'
+import {cleanupSemantic, DIFF_DELETE, DIFF_EQUAL, DIFF_INSERT, makeDiff} from '@sanity/diff-match-patch'
 
 /** The server's side, per base letter: still there, and their text right before it (`before[len]`: after the last). */
 type Where = {kept: boolean[]; before: string[]}
@@ -70,8 +70,10 @@ function edits(base: string, mine: string): Edit[] {
  * deletes is all there, at its place, with nothing of theirs inside it. An Enter of theirs inside
  * it, or at either end, is a block boundary: the run is slid to a place that deletes the same
  * text and leaves the letters on both sides of each boundary (as "two " out of "one tw|o three"
- * cannot), or it cannot be told. An insertion:
- * the text on both sides of the caret, or the block's edge, is still right there.
+ * cannot), or it cannot be told. A run typed over: as a deletion, with nothing of theirs right at
+ * either end either (their "dog" before "cat" may be its "dog" landed: put in again, "the dogdog
+ * sat"). An insertion: the text on both sides of the caret, or the block's edge, is still right
+ * there, and nothing of theirs at it.
  */
 function placed({kept, before}: Where, base: string, e: Edit): Edit | null {
   const len = kept.length
@@ -83,8 +85,8 @@ function placed({kept, before}: Where, base: string, e: Edit): Edit | null {
     return true
   }
   if (e.to === e.from) return (e.from === 0 ? before[0] === '' : kept[e.from - 1]!) && (e.from === len ? before[len] === '' : kept[e.from]!) && before[e.from] === '' ? e : null
+  if (e.text) return clear(e.from, e.to) && before[e.from] === '' && before[e.to] === '' ? e : null
   if (clear(e.from, e.to)) return e
-  if (e.text) return null
   const n = e.to - e.from
   for (let f = e.from; f > 0 && base[f - 1] === base[f - 1 + n]; ) if (clear(--f, f + n)) return {from: f, to: f + n, text: ''}
   for (let f = e.from; f + n < len && base[f] === base[f + n]; ) if (clear(++f, f + n)) return {from: f, to: f + n, text: ''}
@@ -122,30 +124,49 @@ function shares(base: string, text: string): boolean {
 }
 
 /**
- * The kept edit's result already stands on the server (it landed, and they edited on top of it):
+ * The kept edit's result provably stands on the server (it landed, and they edited away from it):
  * the kept block's text is all there, in the same block or as its split from it (not a copy, as in
- * keptReach), with their text
- * added only away from where it deleted (their letters right there, "one tw three" for "one three",
- * may be the run they only cut into). Its entry is done, not cannot-tell (a card that never clears).
+ * keptReach), and their text touches nothing the edit changed. Every inserted run stands at its
+ * place with what the kept text had on both sides: nothing of theirs inside it or right at either
+ * edge (their "nowhere" for its " now" is their word at the same spot), at each place their text
+ * could be read at (their "cat " after "dog " is " cat" too). Every deleted run is gone
+ * with nothing of theirs in its place, at each place that deletes the same letters ("one tw three"
+ * for "one three" may be the run they only cut into). Anything else is cannot-tell, and the entry
+ * is kept: a landed edit they typed right next to is cannot-tell too, by the lead's ruling.
  */
 export function keptStands(base: string, mine: string, texts: string[]): boolean {
   const same = inBlock(mine, texts[0] ?? '')
   const split = asSplit(mine, texts)
   const where = same.kept.every(Boolean) ? same : split && (split.from === 0 || !shares(mine, texts[0]!)) ? split : null
   if (!where) return false
-  // Each deletion's gap in the kept text, at every place that deletes the same letters ("wo t" or "two ").
-  let i = 0
-  let j = 0
+  // Where their text sits in the kept text, at every place that adds the same letters ("cat " after
+  // "dog " is " cat" after "dog" too).
+  const at = new Set<number>()
+  where.before.forEach((t, k) => {
+    if (!t) return
+    at.add(k)
+    for (let q = k, s = t; q > 0 && mine[q - 1] === s[s.length - 1]; ) at.add(--q), (s = mine[q] + s.slice(0, -1))
+    for (let q = k, s = t; q < mine.length && mine[q] === s[0]; ) at.add(++q), (s = s.slice(1) + mine[q - 1])
+  })
+  const theirs = (from: number, to: number) => {
+    for (let k = from; k <= to; k++) if (at.has(k)) return true
+    return false
+  }
+  let i = 0 // in the base
+  let j = 0 // in the kept text
   for (const [op, text] of makeDiff(base, mine)) {
     const n = text.length
-    if (op === DIFF_DELETE) {
+    if (op === DIFF_INSERT) {
+      if (theirs(j, j + n)) return false
+      j += n
+    } else if (op === DIFF_DELETE) {
       let lo = i
       let hi = i
       while (lo > 0 && base[lo - 1] === base[lo - 1 + n]) lo--
       while (hi + n < base.length && base[hi] === base[hi + n]) hi++
-      for (let f = lo; f <= hi; f++) if (where.before[j + f - i] !== '') return false
+      if (theirs(j - (i - lo), j + (hi - i))) return false
       i += n
-    } else ((j += n), op === DIFF_EQUAL && (i += n))
+    } else ((i += n), (j += n))
   }
   return true
 }

@@ -543,6 +543,9 @@ for (const [name, fault, field, base, mine, theirs, kept] of [
   ['T1 a title that landed, their words added after it', 'lost', 'title', 'Save flow', 'Saved flow', 'Saved flow, by them', false],
   ['T3 a deletion that landed, their words added after it', 'lost', 'ptBody[_key=="b"]', 'the cat sat', 'the sat', 'the sat down', false],
   ['T3 against: they cut into the run it deletes, it never landed', '500', 'ptBody[_key=="b"]', 'the cat sat', 'the sat', 'the ca sat down', true],
+  // verdict3: their word at the spot of mine, starting with it or holding it, is not mine landed.
+  ['1b mine " now" never landed, theirs " nowhere"', '500', 'ptBody[_key=="b"]', 'go home', 'go home now', 'go home nowhere', true],
+  ['5d mine never landed, they retyped it with a word inside', '500', 'ptBody[_key=="b"]', 'go', 'go home now', 'go home right now', true],
 ] as const)
   test(`a kept edit on Restore (${name}): ${kept ? 'cannot be told, still kept and offered' : 'done, nothing kept'}`, async () => {
     const block = field !== 'title'
@@ -574,6 +577,12 @@ for (const [name, fault, field, base, mine, theirs, kept] of [
     if (kept) {
       assert.deepEqual(done?.left?.fields.map(([f]) => f), [field], 'the card stays up for it')
       assert.ok(inStore, 'the kept edit is still in the store')
+      server.gone.add(`?page=stands${id}2`)
+      const again = await open(`stands${id}3`)
+      again.E.setKeepScope('s')
+      const offered = await again.E.recoverPending(again.qc, again.held() as never)
+      assert.ok(offered && 'ask' in offered && offered.ask.fields.some(([f]) => f === field), 'offered again after a reload')
+      server.gone.add(`?page=stands${id}3`)
     } else {
       assert.equal(done?.left ?? null, null, 'the card goes')
       assert.ok(!inStore, 'nothing kept for it')
