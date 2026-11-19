@@ -76,6 +76,10 @@ test('@local Portable Text: a paste kept while its page reloads mid-save, the ot
     await page.addInitScript(() => {
       navigator.sendBeacon = () => (localStorage.setItem('e2eBeacons', String(Number(localStorage.getItem('e2eBeacons') ?? 0) + 1)), false)
     })
+    const log = (...a: unknown[]) => console.log('[diag]', Date.now(), ...a)
+    page.on('console', (m) => m.text().startsWith('[diag') && log('A console', m.text().slice(0, 600)))
+    page.on('requestfailed', (r) => r.url().includes('_serverFn') && log('A failed', r.failure()?.errorText))
+    page.on('requestfinished', (r) => r.url().includes('_serverFn') && r.method() === 'POST' && log('A finished', r.url().slice(-20)))
     const [edA, edB] = await Promise.all([open(page, info, true), open(b, info, false)])
     // A's saves hang (a slow connection) until the page goes; `held` counts them.
     let held = 0
@@ -105,12 +109,17 @@ test('@local Portable Text: a paste kept while its page reloads mid-save, the ot
           }),
       )
     await expect.poll(keptHere, {timeout: 5_000}).toBeGreaterThan(0)
+    log('held', held, 'doc rev before reload', ((await readDoc(ID, 'drafts')) as {_rev?: string} | null)?._rev, JSON.stringify(await stored()))
+    log('kept before reload', await page.evaluate(() => new Promise((res) => { const q = indexedDB.open('bp-pending-edits'); q.onsuccess = () => { const v = q.result.transaction('docs').objectStore('docs').getAll(); v.onsuccess = () => res(JSON.stringify(v.result.map((p: {rev?: string; fields?: [string, unknown][]; tab?: string}) => ({rev: p.rev, fields: p.fields?.map(([f]) => f), tab: p.tab})))) } })))
     await page.reload()
+    log('reloaded')
     await page.unroute('**/_serverFn/**', slow)
     await target(info).settle(page)
     await page.getByRole('tab', {name: 'All fields'}).click()
     expect(Number(await page.evaluate(() => localStorage.getItem('e2eBeacons')))).toBeGreaterThan(0) // the unload tried it
     const card = page.getByTestId('kept-edits')
+    const shown = await card.waitFor({timeout: 8_000}).then(() => true, () => false)
+    log('card shown', shown, 'stored', JSON.stringify(await stored()))
     await card.getByRole('button', {name: 'Restore'}).click()
     await savesLanded(page)
     await expect.poll(stored, {timeout: 15_000}).toEqual(WANT)

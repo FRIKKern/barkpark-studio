@@ -56,6 +56,7 @@ export const mutate = createServerFn({method: 'POST'})
     // A write that carries a span patch is given up here once it could land late (lib/pt-dmp.ts):
     // Barkpark cannot refuse a late patch, and the browser sends the text again as a set.
     const arrived = Date.now()
+    console.log('[diag-save]', arrived, JSON.stringify(data.mutations).slice(0, 900))
     const patch = carriesPatch(data.mutations)
     const gone = patch ? clientGone(getRequest()) : null
     const fault = writeFaultFor(data.mutations)
@@ -1129,12 +1130,14 @@ export type Recovered = {pending: Pending; fields: [string, unknown][]; gone?: s
 export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema): Promise<{replayed: number; put: number; refused: string[]} | {ask: Recovered} | null> {
   const id = doc._publishedId
   const e = docs.get(id)
-  if (!docKeyOf(id) || doc._rev === '' || (e && (e.dirty.size || e.inflight || e.pendingCreate))) return null
+  if (!docKeyOf(id) || doc._rev === '' || (e && (e.dirty.size || e.inflight || e.pendingCreate))) return void console.log('[diag-recover] skipped', JSON.stringify({rev: doc._rev, dirty: e?.dirty.size, inflight: !!e?.inflight})), null
   const kept = await orphaned(id)
+  console.log('[diag-recover]', JSON.stringify({rev: doc._rev, kept: kept && {keys: kept.keys.length, rev: kept.pending.rev, fields: kept.pending.fields.map(([f]) => f)}}))
   // Locked (a scheduled draft, a revision, …): kept as they are, offered again once editable.
   if (!kept || !writeAllowed('replay', id)) return null
   const {keys, pending} = kept
   const verdict = judge(pending, doc, schema)
+  console.log('[diag-recover] verdict', verdict.kind)
   if (verdict.kind === 'drop') return (keys.forEach((k) => void dropPending(k)), null)
   if (verdict.kind === 'ask') return {ask: {pending, fields: verdict.fields, gone: verdict.gone, keys}}
   // As sets (lib/pt-dmp.ts): the page that kept them may have had a patch of these on its way.
