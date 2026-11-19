@@ -84,14 +84,17 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
     // Refuse the write before it reaches the API; a failed delete must keep focus. Reads
     // are slowed, and a live frame (someone saves a referring post) makes the dialog read
     // "used in" again meanwhile: the buttons must hold still through that re-read (it
-    // disabled Delete under the caret, and Enter went to Close: CI, 2026-10-09).
+    // disabled Delete under the caret, and Enter went to Close: CI, 2026-10-09). The re-read
+    // is held until the failed delete has been told, so all of it happens while it is out.
     let reading!: () => void
     const reread = new Promise<void>((r) => (reading = r))
+    let told!: () => void
+    const answered = new Promise<void>((r) => (told = r))
     await page.route('**/_serverFn/**', async (route) => {
       if (route.request().method() === 'POST') return route.abort('failed')
       if (!decodeURIComponent(route.request().url()).includes('author-alan')) return route.continue().catch(() => {})
       reading() // the "used in" read for Alan
-      await new Promise((r) => setTimeout(r, 1500))
+      await answered
       await route.continue().catch(() => {})
     })
     alanEdited = true
@@ -104,6 +107,7 @@ test('J17: deleting a referenced author shows where it is used', async ({page}, 
     await page.keyboard.press('Enter')
     await expect(dialog.getByRole('alert')).toContainText('Could not delete')
     await expect(dialog.getByRole('button', {name: 'Cancel'})).toBeFocused()
+    told()
     await page.unrouteAll({behavior: 'ignoreErrors'})
   }
   await dialog.getByRole('button', {name: 'Cancel'}).click()

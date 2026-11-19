@@ -46,8 +46,9 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
   await expect.poll(() => held.length, {intervals: [50], timeout: 15_000}).toBeGreaterThan(0)
   // The restore has landed on Barkpark (the kept edits' save is still held).
   await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author')
-  await bpMutate([{patch: {id: ID, type: 'author', set: {title: 'Kept Author, touched'}}}])
-  await page.waitForTimeout(800) // its live frame arrives
+  await bpMutate([{patch: {id: ID, type: 'author', set: {bio: 'Touched meanwhile'}}}])
+  // Its live frame is folded in (the form shows it) before the kept edits' save goes on.
+  await expect(t.field(page, 'bio')).toHaveValue('Touched meanwhile', {timeout: 10_000})
   for (const r of held.splice(0)) await r.continue()
   await page.unrouteAll({behavior: 'wait'})
   await savesLanded(page)

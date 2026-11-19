@@ -25,11 +25,16 @@ async function open(page: Page, info: import('@playwright/test').TestInfo, end: 
   const editor = page.locator('[id="body"][contenteditable="true"]')
   await page.locator('.pt-input[data-ready]').filter({has: editor}).waitFor()
   await editor.getByText('Start text', {exact: true}).click()
-  await editor.evaluate((el, end) => {
+  // The click puts the caret mid-word; the paste goes where the editor has it, so wait for the
+  // editor to have it at the block's end (or start), not for the browser's selection alone.
+  const at = end ? 'Start text'.length : 0
+  await editor.evaluate((el, at) => {
+    ;(window as {__ptCarets?: unknown[]}).__ptCarets = []
     const node = [...el.querySelectorAll('*')].find((e) => e.childElementCount === 0 && e.textContent === 'Start text')!.firstChild!
-    getSelection()!.collapse(node, end ? 'Start text'.length : 0)
-  }, end)
-  await page.waitForTimeout(200)
+    getSelection()!.collapse(node, at)
+  }, at)
+  type Caret = {focus: {path: [{_key?: string}]; offset: number}}
+  await page.waitForFunction((at) => ((window as {__ptCarets?: Caret[]}).__ptCarets ?? []).some((s) => s?.focus.path[0]?._key === 'p1' && s.focus.offset === at), at)
   return editor
 }
 const paste = (editor: Locator, text: string) =>
@@ -42,15 +47,20 @@ const stored = async () => (((await readDoc(ID, 'drafts'))?.body ?? []) as {chil
 const lines = (editor: Locator) => editor.innerText().then((t) => t.split('\n').filter(Boolean))
 const WANT = ['Kettle on.', 'x', 'y', 'zStart textone two three', 'Cups out.']
 
-for (const apart of [0, 1000])
-  test(`Portable Text: two editors pasting into one block ${apart ? '1 s apart' : 'at once'} both keep their text, once`, async ({page, browser}, info) => {
+for (const after of [false, true])
+  test(`Portable Text: two editors pasting into one block ${after ? 'one after the other' : 'at once'} both keep their text, once`, async ({page, browser}, info) => {
     const ctxB = await browser.newContext()
     await target(info).prepare(ctxB)
     const b = await ctxB.newPage()
     try {
       const [edA, edB] = await Promise.all([open(page, info, true), open(b, info, false)])
       await paste(edA, ' one two three')
-      await b.waitForTimeout(apart)
+      // One after the other: A's paste saved and on B's screen before B pastes (a fixed 1 s
+      // apart, before, which mostly came to the same).
+      if (after) {
+        await savesLanded(page)
+        await expect.poll(() => lines(edB), {timeout: 10_000}).toContain('Start text one two three')
+      }
       await paste(edB, 'x\n\ny\n\nz ')
       await Promise.all([savesLanded(page), savesLanded(b)])
       await expect.poll(stored, {timeout: 15_000}).toEqual(WANT)

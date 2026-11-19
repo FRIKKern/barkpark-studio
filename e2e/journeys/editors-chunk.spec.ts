@@ -45,10 +45,13 @@ test('J36: the first click on Select, before the editors chunk lands, still open
     }
     requestAnimationFrame(watch)
   })
-  await page.route(/doc-editors/, async (route) => (await new Promise((r) => setTimeout(r, 1_000)), route.continue()))
+  // The chunk is held until the click is made: the click always comes before it lands.
+  let clicked!: () => void
+  const click = new Promise<void>((r) => (clicked = r))
+  await page.route(/doc-editors/, async (route) => (await click, route.continue()))
   const started = Date.now()
   await page.goto(t.docPath('post', 'post-17'), {waitUntil: 'commit'})
-  await page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')}).getByRole('button', {name: 'Select'}).click()
+  await page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')}).getByRole('button', {name: 'Select'}).click().finally(clicked)
   await expect(page.getByRole('dialog'))
     .toBeVisible({timeout: 5_000})
     .catch(async (err) => {
