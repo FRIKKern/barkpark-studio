@@ -17,8 +17,9 @@ import {dialogFields, usesSchemas, type PtKind, type SchemaLike} from './pt-valu
 /**
  * `after`: the document as the paste leaves it (Paste document works it out itself).
  * `schemas`: the studio's schemas, as the Portable Text dialog has them; undefined while not loaded.
+ * `roles`: the workspace's roles, as Barkpark names them (lib/workspace-roles.ts); undefined when it did not say.
  */
-export type PasteContext = {type: string; doc: Record<string, unknown>; after?: Record<string, unknown>; user: Person; rules: Record<string, FieldConditions> | undefined; schemas?: SchemaLike[]}
+export type PasteContext = {type: string; doc: Record<string, unknown>; after?: Record<string, unknown>; user: Person; rules: Record<string, FieldConditions> | undefined; roles?: readonly string[]; schemas?: SchemaLike[]}
 
 /** A Portable Text object of a named type and the schemas not loaded: its dialog's fields are unknown, so the paste is refused. */
 export class SchemasNotLoaded extends Error {}
@@ -34,7 +35,7 @@ const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.i
 /** `sub` at `at`, in the document's object `was` and, when the paste writes one, the copy's object `now`. */
 const locked = (sub: Field, at: string, was: Obj, c: PasteContext, now?: Obj) => {
   const after = now && c.after ? {doc: c.after, at: {path: at, value: now[sub.name], parent: now}} : undefined
-  const l = fieldLock(c.type, sub, c.doc, c.user, c.rules, {path: at, value: was[sub.name], parent: was}, after)
+  const l = fieldLock(c.type, sub, c.doc, c.user, c.rules, {path: at, value: was[sub.name], parent: was}, after, c.roles)
   return l.readOnly || l.roleHidden
 }
 const itemPath = (path: string, key: unknown) => `${path}[_key=="${String(key)}"]`
@@ -186,7 +187,7 @@ export function pasteField(f: Field, path: string, pasted: unknown, target: unkn
  */
 export function pasteDocument(fields: Field[], values: Obj, context: PasteContext): {writes: [string, unknown][]; named: string[]; refused?: 'schemas'} {
   const c = {...context, after: {...context.doc, ...values}}
-  const {skip, named} = pasteSkips(c.type, fields, c.doc, c.user, c.rules, c.after)
+  const {skip, named} = pasteSkips(c.type, fields, c.doc, c.user, c.rules, c.after, c.roles)
   const writes: [string, unknown][] = []
   for (const f of fields) {
     if (!(f.name in values) || skip.has(f.name)) continue
@@ -195,4 +196,26 @@ export function pasteDocument(fields: Field[], values: Obj, context: PasteContex
     writes.push([f.name, out.value])
   }
   return {writes, named}
+}
+
+/**
+ * What every paste reads first, both at once: the rich-text dialogs' schemas, and the roles the
+ * workspace defines (lib/workspace-roles.ts) so a field shown only to a custom role is kept. A
+ * failed read gives no schemas (a paste that needs them is refused) and today's roles.
+ */
+export type PasteReads = {schemas: () => Promise<SchemaLike[] | undefined>; roles: () => Promise<readonly string[] | null>}
+/** The paste's context, less what it reads (PasteReads): a caller cannot hand in roles of its own. */
+export type PasteAsks = Omit<PasteContext, 'roles' | 'schemas'>
+async function readFor(reads: PasteReads) {
+  const [schemas, roles] = await Promise.all([reads.schemas().catch(() => undefined), reads.roles().catch(() => null)])
+  return {schemas, roles: roles ?? undefined}
+}
+/** Paste document (DocHeaderMenu): pasteDocument with the schemas and the workspace's roles read. */
+export async function pasteDocumentReading(reads: PasteReads, fields: Field[], values: Obj, context: PasteAsks) {
+  return pasteDocument(fields, values, {...context, ...(await readFor(reads))})
+}
+/** Paste field (Fields.tsx): pasteField with the schemas and the workspace's roles read; no document yet, the value as pasted. */
+export async function pasteFieldReading(reads: PasteReads, f: Field, path: string, pasted: unknown, target: unknown, context: PasteAsks | null) {
+  const read = await readFor(reads)
+  return context ? pasteField(f, path, pasted, target, {...context, ...read}) : {value: pasted}
 }
