@@ -435,7 +435,7 @@ function FieldActions({field, path, value, onChange, readOnly, titleId}: FieldPr
     // A rich-text object is walked as its dialog shows it, with the dialog's schemas: waited for, never guessed.
     const doc = docStore.doc
     const schemas = await qc.ensureQueryData(schemasQuery).catch(() => undefined)
-    const out = doc && doc._type ? pasteField(field, path, pasted.value, value, {type: doc._type, doc, after: setPath(doc, path, pasted.value), user, rules: studio.form?.conditions, schemas}) : {value: pasted.value}
+    const out = doc && doc._type ? pasteField(field, path, pasted.value, value, {type: doc._type, doc, after: setPath(doc, path, pasted.value), user, rules: studio.form?.conditions, roles: studio.form?.roles, schemas}) : {value: pasted.value}
     if ('refused' in out) return toast({tone: 'critical', title: tBrowser(SCHEMAS_NOT_LOADED)})
     // A paste that would leave an array past its max and longer than it was is refused (lib/array-max.ts);
     // one under it that a kept locked item takes past it says so.

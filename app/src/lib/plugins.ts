@@ -54,6 +54,12 @@ export type StudioConfig = {
      */
     conditions?: Record<string, FieldConditions>
     /**
+     * Every custom role `conditions` name (`['reviewer']`): a paste lock compares administrator,
+     * editor, contributor, viewer, the person's own role and these (lib/conditions.ts roleHidden).
+     * A custom role not listed is not compared.
+     */
+    roles?: string[]
+    /**
      * Sanity's defineIncomingReferenceDecoration, keyed by type: lists, in that type's form, of
      * the documents that reference the open one, with "Add item" (lib/incoming-refs.ts). A
      * schema declares the same as `desk.incoming`; a name the schema has taken wins.
@@ -91,7 +97,13 @@ export type Template = {id: string; title: string; schemaType: string} & (
 /** A site route's main document: `/posts/:slug` with `field: 'slug'`, or `/authors/:id` (the id). */
 export type MainDocument = {route: string; type: string; field?: string}
 
-export const defineStudio = (config: StudioConfig) => config
+/** The studio config, checked as it loads: a bad `form.roles` is a config error. */
+export function defineStudio(config: StudioConfig) {
+  const roles: unknown = config.form?.roles
+  if (roles !== undefined && !(Array.isArray(roles) && roles.every((r) => typeof r === 'string' && r.trim() !== '')))
+    throw new Error(`studio config: form.roles must be an array of role names (non-empty strings), not ${JSON.stringify(roles)}`)
+  return config
+}
 
 /** The navbar's name and logo initials ("GA" for "Gyldendal Agency Studio"), as Sanity derives them. */
 export function studioBrand(title: string | undefined) {

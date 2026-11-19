@@ -197,7 +197,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onEdit, onInspect, onHisto
               // A field read-only, or hidden from this person but shown to another role, keeps its value at any depth;
               // rich-text objects are walked with the dialog's schemas, waited for, never guessed (lib/paste-locked.ts).
               const schemas = await qc.ensureQueryData(schemasQuery).catch(() => undefined)
-              const {writes, named, refused} = pasteDocument(schema.fields, values, {type: schema.name, doc, user, rules: studio.form?.conditions, schemas})
+              const {writes, named, refused} = pasteDocument(schema.fields, values, {type: schema.name, doc, user, rules: studio.form?.conditions, roles: studio.form?.roles, schemas})
               if (refused) return toast({tone: 'critical', title: tt(SCHEMAS_NOT_LOADED)})
               // Sanity's toast: three names, then how many more.
               const fieldNames = named.slice(0, 3).join(', ')
