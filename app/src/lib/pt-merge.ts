@@ -166,9 +166,11 @@ export function withTheirWords(base: unknown[], mine: unknown[], theirs: unknown
     if ([...ours, ...their, b].some((x) => textOf(x).includes(SEP))) continue // a span's own text holds one: not cut there
     let merged = put(was, now, text)
     if (merged === null) {
-      // Where they rewrote what mine changed: what they added goes after mine's run, in their blocks.
-      const added = makeDiff(was, now).filter(([op]) => op === DIFF_INSERT).map(([, s]) => s).join('')
-      const words = added.split(SEP).map((s) => s.trim())
+      // No place for some of theirs (mine rewrote or moved the text they changed): what they
+      // added goes at the end of mine's run, in their blocks. Each insert of theirs already in
+      // mine's text (this merge, come back with their next frame) is not added again: it settles.
+      const added = makeDiff(was, now).filter(([op]) => op === DIFF_INSERT).map(([, s]) => s).filter((s) => !text.includes(s.trim())).join(' ')
+      const words = added.split(SEP).map((s) => s.trim().replace(/\s+/g, ' '))
       merged = text + (words[0] ? ` ${words[0]}` : '') + words.slice(1).map((w) => SEP + w).join('')
     }
     if (merged === text) continue

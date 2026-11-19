@@ -345,13 +345,13 @@ export function remoteBlockPatches(known: unknown, incoming: unknown, shown: unk
     out.push(...remoteBlockPatches(old[field], b[field], mine[field], sent.map(inside), keep, seen, echo, [...at(k), field]))
   }
   // New blocks, in place: after the block before them that this editor has (or will have),
-  // and after the blocks this editor made next to it, not saved yet (a paste that split it):
+  // and after the text blocks this editor made next to it, not saved yet (a paste that split it):
   // where their save puts them too (lib/merge.ts mergeList3, freshItems).
   const present = new Set([...here.keys()].filter((k) => now.has(k) || !was.has(k)))
   const shownKeys = [...here.keys()]
   const past = (k: string) => {
     let i = shownKeys.indexOf(k)
-    while (i >= 0 && i + 1 < shownKeys.length && !was.has(shownKeys[i + 1]!) && !now.has(shownKeys[i + 1]!)) i++
+    while (i >= 0 && i + 1 < shownKeys.length && !was.has(shownKeys[i + 1]!) && !now.has(shownKeys[i + 1]!) && isText(here.get(shownKeys[i + 1]!))) i++
     return i >= 0 ? shownKeys[i]! : k
   }
   let prev: string | undefined
@@ -447,8 +447,8 @@ export function freshItems(prior: unknown, next: unknown[], now: unknown, theirs
     if (!key || was.has(key) || mine.has(key) || pt?.consumed.has(key)) return
     let at = -1
     for (let j = i - 1; j >= 0 && at < 0; j--) at = out.findIndex((x) => isObj(x) && isObj(now[j]) && x._key !== undefined && x._key === (now[j] as Obj)._key)
-    // Past the items this editor added right after that one (a paste that split it).
-    const added = (x: unknown) => isObj(x) && typeof x._key === 'string' && !was.has(x._key) && !held.has(x._key)
+    // Past the text blocks this editor added right after that one (a paste that split it).
+    const added = (x: unknown) => isText(x) && typeof x._key === 'string' && !was.has(x._key) && !held.has(x._key)
     if (at >= 0) while (at + 1 < out.length && added(out[at + 1])) at++
     out.splice(at + 1, 0, item)
   })
