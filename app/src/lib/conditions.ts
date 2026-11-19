@@ -107,17 +107,17 @@ const tell = (msg: string) => told.has(msg) || (told.add(msg), console.error(msg
  * Promise leaves the field shown and editable, with the error in the console once
  * (Sanity's useCheckCondition).
  */
-export function resolveConditional(property: ConditionalProperty, context: ConditionContext, name: string): boolean {
+export function resolveConditional(property: ConditionalProperty, context: ConditionContext, name: string, log = true): boolean {
   if (typeof property !== 'function') return property === true
   let out: unknown
   try {
     out = property(context)
   } catch (err) {
-    tell(`An error occurred while running the callback from \`${name}\`: ${(err as Error)?.message ?? err}`)
+    if (log) tell(`An error occurred while running the callback from \`${name}\`: ${(err as Error)?.message ?? err}`)
     return false
   }
   if (out && typeof (out as {then?: unknown}).then === 'function') {
-    tell(`The \`${name}\` option is either a promise or a promise returning function. Async callbacks for \`${name}\` option is not currently supported.`)
+    if (log) tell(`The \`${name}\` option is either a promise or a promise returning function. Async callbacks for \`${name}\` option is not currently supported.`)
     return false
   }
   return out === true
@@ -145,14 +145,15 @@ const KNOWN_ROLES = Object.keys(ROLE_TITLES)
  * hides the field from them on this data and shows it to some other role on the same data
  * (asked once per role: administrator, editor, contributor, viewer and their own). Hidden from
  * every role on this data is visibility from the data, no lock; so is anything with nobody
- * signed in (shared sign-in).
+ * signed in (shared sign-in). A field shown only to another custom role, or by email, is no
+ * lock either. Only the person's own answer logs a callback's error; a probe's never does.
  */
 export function roleHidden(type: string, doc: Record<string, unknown>, currentUser: CurrentUser | null, rules: Record<string, FieldConditions> | undefined, at: Where): boolean {
   const key = conditionKey(type, at.path)
   const hidden = rules?.[key]?.hidden
   if (!currentUser || hidden === undefined) return false
-  const ask = (user: CurrentUser) => resolveConditional(hidden, {currentUser: user, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)}, `form.conditions['${key}'].hidden`)
-  if (!ask(currentUser)) return false
+  const ask = (user: CurrentUser, log = false) => resolveConditional(hidden, {currentUser: user, document: doc, parent: at.parent ?? doc, value: at.value, path: sanityPath(at.path)}, `form.conditions['${key}'].hidden`, log)
+  if (!ask(currentUser, true)) return false
   const roles = new Set([...KNOWN_ROLES, ...currentUser.roles.map((r) => r.name)])
   return [...roles].some((name) => !ask({...currentUser, roles: [{name, title: ROLE_TITLES[name] ?? name}]}))
 }

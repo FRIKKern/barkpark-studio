@@ -1,7 +1,7 @@
 import type {Field} from './data'
 import {fieldLock, pasteSkips, type CurrentUser, type FieldConditions} from './conditions.ts'
 import {memberFor, membersOf} from './array-members.ts'
-import {objectFields, type PtKind} from './pt-value.ts'
+import {dialogFields, type PtKind} from './pt-value.ts'
 
 // Paste document and Paste field write a whole object, array or Portable Text value at once.
 // A locked field keeps the document's value at any depth: object fields by name; array items,
@@ -27,8 +27,37 @@ const locked = (sub: Field, at: string, was: Obj, c: PasteContext, now?: Obj) =>
 }
 const itemPath = (path: string, key: unknown) => `${path}[_key=="${String(key)}"]`
 const isPt = (f: Field) => f.type === 'richText'
-/** A Portable Text object's fields, as its dialog shows them; its path is `<field>.<type>`, as the dialog's. */
-const ptObject = (f: Field, kind: PtKind, type: string, values: unknown[]): Field => ({name: type, type: 'composite', fields: objectFields(f, kind, type, values, [])}) as Field
+
+/**
+ * Paste walks a Portable Text object the way its dialog shows it (pt-value.ts dialogFields),
+ * at the dialog's path `<field>.<type>`: by its fields, or, where the dialog's only editor holds
+ * the whole block (an image or code block: `<field>.image.image`, `<field>.code.code`), as that
+ * one field. That editor locked keeps the whole block as the document has it.
+ */
+function ptObject(f: Field, kind: PtKind, item: Obj, was: Obj | undefined, path: string, all: unknown[], c: PasteContext): unknown {
+  const type = String(item._type)
+  const at = `${path}.${type}`
+  const {fields, whole} = dialogFields(f, kind, type, all, [])
+  if (!whole) return keepLocked({name: type, type: 'composite', fields} as Field, at, item, was, c)
+  if (!was) return item
+  const {_key, ...own} = item
+  const {_key: _k, ...wasOwn} = was
+  const view = (o: Obj): Obj => ({type, [whole]: o})
+  if (locked(fields[0]!, `${at}.${whole}`, view(wasOwn), c, view(own))) return was
+  const next = keepLocked(fields[0]!, `${at}.${whole}`, own, wasOwn, c)
+  return isObj(next) ? {...next, _key} : item
+}
+
+/** A Portable Text object of the document: does it hold a locked value, walked as its dialog shows it? */
+function ptHoldsLocked(f: Field, kind: PtKind, b: Obj, path: string, all: unknown[], c: PasteContext): boolean {
+  const type = String(b._type)
+  const at = `${path}.${type}`
+  const {fields, whole} = dialogFields(f, kind, type, all, [])
+  if (!whole) return holdsLocked({name: type, type: 'composite', fields} as Field, at, b, c)
+  const {_key: _k, ...own} = b
+  return locked(fields[0]!, `${at}.${whole}`, {type, [whole]: own}, c) || holdsLocked(fields[0]!, `${at}.${whole}`, own, c)
+}
+const isObjectBlock = (b: unknown): b is Obj => isObj(b) && b._type !== 'block' && typeof b._type === 'string'
 
 /** Does `value` (of field `f` at `path`) hold a locked value somewhere inside? */
 export function holdsLocked(f: Field, path: string, value: unknown, c: PasteContext): boolean {
@@ -44,7 +73,7 @@ export function holdsLocked(f: Field, path: string, value: unknown, c: PasteCont
       return !!member && holdsLocked(member, itemPath(path, item._key), item, c)
     })
   }
-  if (isPt(f) && Array.isArray(value)) return value.some((b) => isObj(b) && b._type !== 'block' && typeof b._type === 'string' && holdsLocked(ptObject(f, 'block', b._type, value), `${path}.${b._type}`, b, c))
+  if (isPt(f) && Array.isArray(value)) return value.some((b) => isObjectBlock(b) && ptHoldsLocked(f, 'block', b, path, value, c))
   return false
 }
 
@@ -113,18 +142,17 @@ export function keepLocked(f: Field, path: string, pasted: unknown, target: unkn
 /** Portable Text: custom blocks, and in text blocks the inline objects and annotations, as their dialogs edit them. */
 function keepLockedPt(f: Field, path: string, pasted: unknown[], target: unknown[], c: PasteContext): unknown[] {
   const all = [...target, ...pasted]
-  const object = (kind: PtKind, item: Obj, was: Obj | undefined) => {
-    const type = String(item._type)
-    return keepLocked(ptObject(f, kind, type, all), `${path}.${type}`, item, was, c)
-  }
   // Inline objects and annotations follow their text: matched, never put back.
   const inside = (kind: PtKind, list: unknown, wasList: unknown) =>
-    Array.isArray(list) && Array.isArray(wasList) ? mergeItems(list, wasList, (item, was) => (item._type === 'span' ? item : object(kind, item, was)), () => false) : list
+    Array.isArray(list) && Array.isArray(wasList) ? mergeItems(list, wasList, (item, was) => (item._type === 'span' ? item : ptObject(f, kind, item, was, path, all, c)), () => false) : list
   return mergeItems(
     pasted,
     target,
-    (block, was) => (block._type === 'block' ? {...block, children: inside('inline', block.children, was.children), ...(block.markDefs !== undefined && {markDefs: inside('annotation', block.markDefs, was.markDefs)})} : object('block', block, was)),
-    (was) => was._type !== 'block' && typeof was._type === 'string' && holdsLocked(ptObject(f, 'block', was._type, all), `${path}.${was._type}`, was, c),
+    (block, was) =>
+      block._type === 'block'
+        ? {...block, children: inside('inline', block.children, was.children), ...(block.markDefs !== undefined && {markDefs: inside('annotation', block.markDefs, was.markDefs)})}
+        : ptObject(f, 'block', block, was, path, all, c),
+    (was) => isObjectBlock(was) && ptHoldsLocked(f, 'block', was, path, all, c),
   )
 }
 

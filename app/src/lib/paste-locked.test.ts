@@ -121,6 +121,33 @@ test('Portable Text: an inline object\'s role-hidden field and an annotation\'s 
   assert.deepEqual(keepLocked(pt, 'ptBody', pasted, target, {...ctx(rules, {ptBody: target}), user: admin}), [text('Ann', 'https://b.example', 'B', 'new')])
 })
 
+test('a code or image block, whose dialog edits it as one field (ptBody.code.code, ptBody.image.image): that field role-hidden keeps the whole block', () => {
+  const rules: Record<string, FieldConditions> = {'post.ptBody.code.code': {hidden: notAdmin}, 'post.ptBody.image.image': {hidden: notAdmin}}
+  const target = [{_key: 'c', _type: 'code', code: 'A', language: 'js', filename: 'a.js'}, {_key: 'i', _type: 'image', asset: {_ref: 'image-A'}, alt: 'A'}]
+  const pasted = [{_key: 'c', _type: 'code', code: 'B', language: 'ts', filename: 'b.ts'}, {_key: 'i', _type: 'image', asset: {_ref: 'image-B'}, alt: 'B'}]
+  assert.deepEqual(keepLocked(F('ptBody'), 'ptBody', pasted, target, ctx(rules, {ptBody: target})), target)
+  assert.deepEqual(keepLocked(F('ptBody'), 'ptBody', pasted, target, {...ctx(rules, {ptBody: target}), user: admin}), pasted)
+  // A paste that removes them: they stay, holding a locked editor.
+  assert.deepEqual(keepLocked(F('ptBody'), 'ptBody', [], target, ctx(rules, {ptBody: target})), target)
+})
+
+test('probing another role never logs its callback\'s error, and a throw there still locks; the person\'s own error logs once', (t) => {
+  const errors = t.mock.method(console, 'error', () => {})
+  const doc = {seo: {metaTitle: 'A', metaDescription: 'D A'}}
+  const copy = {metaTitle: 'B', metaDescription: 'D B'}
+  const probe: FieldConditions['hidden'] = ({currentUser}) => {
+    if (currentUser?.roles[0]?.name !== 'editor') throw new Error('probe only')
+    return true
+  }
+  assert.deepEqual(keepLocked(seo, 'seo', copy, doc.seo, ctx({'post.seo.metaDescription': {hidden: probe}}, doc)), {metaTitle: 'B', metaDescription: 'D A'})
+  assert.equal(errors.mock.callCount(), 0)
+  const own: FieldConditions['hidden'] = () => {
+    throw new Error('own role')
+  }
+  assert.deepEqual(keepLocked(seo, 'seo', copy, doc.seo, ctx({'post.seo.metaDescription': {hidden: own}}, doc)), copy)
+  assert.equal(errors.mock.callCount(), 1)
+})
+
 test('a lock is what the rule does: hidden from this person and shown to another role on the same data; hidden from every role is data, and pastes as on main', () => {
   const doc = {stage: 'review', seo: {metaTitle: 'A', metaDescription: 'D A'}}
   const copy = {metaTitle: 'B', metaDescription: 'D B'}

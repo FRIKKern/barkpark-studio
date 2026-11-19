@@ -688,6 +688,18 @@ export function objectFields(field: Pick<Field, 'blocks'>, kind: PtKind, name: s
   return inferred
 }
 
+/**
+ * What an object's dialog edits (components/PortableTextInput.tsx ObjectDialog): an image
+ * block is Sanity's image input on the whole block, a code block the code editor on the whole
+ * block, each one field (`whole` names it, its value the block); anything else its fields.
+ */
+export function dialogFields(field: Pick<Field, 'blocks'>, kind: PtKind, name: string, value: unknown, schemas: SchemaLike[], title: string = name): {fields: Field[]; whole: 'image' | 'code' | null} {
+  if (kind === 'block' && name === 'image') return {fields: [{name: 'image', title, type: 'image', options: {hotspot: true}} as Field], whole: 'image'}
+  const code = kind === 'block' ? codeBlockOptions(field, name) : null
+  if (code) return {fields: [{name: 'code', title, type: 'composite', namedType: 'code', options: code} as Field], whole: 'code'}
+  return {fields: objectFields(field, kind, name, value, schemas), whole: null}
+}
+
 /** The title a dialog, a button or a menu item shows for a type: declared, else the named type's, else its name. */
 export function objectTitle(field: Pick<Field, 'blocks'>, kind: PtKind, name: string, schemas: (SchemaLike & {title?: string})[] = []): string {
   const t = declaredEntry(field, kind, name)?.title
