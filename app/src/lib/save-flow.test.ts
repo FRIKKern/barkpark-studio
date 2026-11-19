@@ -393,7 +393,7 @@ for (const frameFirst of [false, true])
   // spot (Barkpark's patch and the merge order them differently; both are right), nor merged
   // from a revision the patch did not land on (a history that leaves one out).
   for (const listed of [undefined, (d: Doc) => d._rev !== 'r3'])
-    test(`both typing at the end of one span${listed ? ', the revision before not in the history' : ''}: the span patch's answer stands, no whole write`, async () => {
+    test(`both typing at the end of one span${listed ? ', the revision before not in the history' : ''}: the span patch's answer stands (no whole write) unless a letter in it is lost, doubled or in another block, and only then does the field go whole`, async () => {
       server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b1', 'Pour slowly'), blk('c', 'Below')]})
       server.listed = listed
       const page = await open(`atEnd${!!listed}`)
