@@ -246,3 +246,13 @@ test("a block this screen kept for its own save, removed by the other's join, go
   assert.deepEqual(settledRemovals(joined, [joined[0], blk('b1', ['b1s', 'Sta QQQ rt text!']), joined[1]], [sent], ['b1']), [])
   assert.deepEqual(settledRemovals(sent, shown, [sent], ['b1']), [])
 })
+
+test('typing at the end of a block they split: the tail keeps their span key, every span key once in the field (task-30946f2255a30d93)', () => {
+  const base = [blk('p1', ['p1s', 'Start text'])]
+  const mine = [blk('p1', ['p1s', 'Start text four'])]
+  const theirs = [blk('p1', ['p1s', 'Start QQ']), blk('r', ['rs', 'rr text'])]
+  const keys = (v: unknown) => (v as ReturnType<typeof blk>[]).map((b) => `${b._key}/${b.children.map((c) => `${c._key}:${c.text}`).join(',')}`)
+  // Before, the tail took this editor's span key (p1s twice): the editor holding theirs read
+  // it as another block and the next save stored the tail twice.
+  for (const out of [mergeList3(base, mine, theirs), mergeList3(base, theirs, mine), freshItems(base, mine, theirs)]) assert.deepEqual(keys(out), ['p1/p1s:Start QQ', 'r/rs:rr text four'])
+})

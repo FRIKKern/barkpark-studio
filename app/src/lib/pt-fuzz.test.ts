@@ -83,10 +83,16 @@ function edit(rnd: () => number, letters: string, side: string): {blocks: B[]; d
 
 const count = (s: string, ch: string) => s.split(ch).length - 1
 
-test(`seeded fuzz (seed ${SEED}, ${CASES} pairs): either save order stores the same text, every added letter once, no base letter twice`, () => {
+/** Span keys used more than once in a field (an editor holding it reads one as another block's). */
+const spanKeysTwice = (v: unknown) => {
+  const keys = (v as {children?: {_key?: string}[]}[]).flatMap((b) => (b.children ?? []).map((c) => c._key))
+  return keys.filter((k, i) => k && keys.indexOf(k) !== i)
+}
+
+test(`seeded fuzz (seed ${SEED}, ${CASES} pairs): either save order stores the same text, every added letter once, no base letter twice, each span key once`, () => {
   const rnd = prng(SEED)
   const fails: string[] = []
-  const tally = {a: 0, b: 0, c: 0, kept: 0}
+  const tally = {a: 0, b: 0, c: 0, kept: 0, keys: 0}
   const net = caught.count
   for (let n = 0; n < CASES; n++) {
     const A = edit(rnd, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'a')
@@ -98,9 +104,11 @@ test(`seeded fuzz (seed ${SEED}, ${CASES} pairs): either save order stores the s
     const baseLetters = [...BASE.map((x) => x.text).join('')]
     const keptByBoth = baseLetters.filter((ch) => A.blocks.some((x) => x.text.includes(ch)) && Bv.blocks.some((x) => x.text.includes(ch)))
     for (const [name, merge] of [['mergeList3', mergeList3], ['freshItems', freshItems]] as const) {
-      const first = texts(merge(base, a, b)) // B saved first, A merges onto it
-      const second = texts(merge(base, b, a))
+      const [one, two] = [merge(base, a, b), merge(base, b, a)] // B saved first, A merges onto it; then the other way
+      const [first, second] = [texts(one), texts(two)]
       const why: string[] = []
+      const dup = [...spanKeysTwice(one), ...spanKeysTwice(two)]
+      if (dup.length) tally.keys++, why.push(`span key twice ${dup.join(',')}`)
       if (JSON.stringify(first) !== JSON.stringify(second)) tally.a++, why.push('(a) orders differ')
       const all = [first.join('|'), second.join('|')]
       const lost = added.filter((ch) => all.some((t) => count(t, ch) === 0))
@@ -114,7 +122,7 @@ test(`seeded fuzz (seed ${SEED}, ${CASES} pairs): either save order stores the s
   }
   const report = `fails ${JSON.stringify(tally)}, net added words ${caught.count - net} times\n${fails.join('\n')}`
   if (process.env.FUZZ_LOG) console.log(report)
-  assert.deepEqual(tally, {a: 0, b: 0, c: 0, kept: 0}, report)
+  assert.deepEqual(tally, {a: 0, b: 0, c: 0, kept: 0, keys: 0}, report)
 })
 
 /** Typing in one span only: what this editor's span-text save sends (a diff-match-patch). */

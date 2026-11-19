@@ -169,7 +169,12 @@ function cut(mine: (Obj & {children: Obj[]})[], ops: Op[], theirs: Obj[], now: s
   const j = segments[1]?.theirs
   if (j && segments[0]!.runs.every((r) => !r.from) && theirs[j - 1]) segments[0]!.who = theirs[j - 1]!
   const used = new Set<string>()
-  return segments.map(({who, runs}) => {
+  // Span keys are unique across the field: a span of mine whose letters went to two blocks (a
+  // split of theirs) keeps its key in the first; in the next it takes that block's own span key
+  // (their block as they have it), else a new one. Twice in one field, the editor holding their
+  // block took the second for another block and stored its text twice (task-30946f2255a30d93).
+  const spanKeys = new Set<string>()
+  const out = segments.map(({who, runs}) => {
     // A letter of theirs joins the span before it in the block, else the one after it.
     const span = (r: Run) => !!r.from && !r.obj
     runs.forEach((r, i) => {
@@ -181,17 +186,18 @@ function cut(mine: (Obj & {children: Obj[]})[], ops: Op[], theirs: Obj[], now: s
     const text = runs.map((r) => (r.obj ? OBJ : r.text)).join('')
     // No letter of mine in it: their block as they have it, when it says just that.
     const like = runs.every((r) => !r.from) ? ([who, ...theirs, ...mine].find((b) => isText(b) && keyOf(b) === keyOf(who) && textOf(b) === text) as (Obj & {children: Obj[]}) | undefined) : undefined
-    const keys = new Set<string>()
+    const theirsSpans = (Array.isArray(who.children) ? (who.children as Obj[]) : []).filter((c) => isSpan(c) && keyOf(c)).map((c) => keyOf(c)!)
     const children = like
       ? like.children
       : runs.flatMap((r): Obj[] => {
           if (!r.from) return r.text ? [{_type: 'span', _key: fresh(), text: r.text, marks: []}] : []
           const c = mine[r.from[0]]!.children[r.from[1]]!
           if (r.obj) return [c]
-          const k = keyOf(c) && !keys.has(keyOf(c)!) ? keyOf(c)! : fresh()
-          keys.add(k)
+          const k = keyOf(c) && !spanKeys.has(keyOf(c)!) ? keyOf(c)! : (theirsSpans.find((t) => !spanKeys.has(t)) ?? fresh())
+          spanKeys.add(k)
           return [{...c, _key: k, text: r.text}]
         })
+    for (const c of children) if (keyOf(c)) spanKeys.add(keyOf(c)!)
     if (!children.length) children.push({_type: 'span', _key: fresh(), text: '', marks: []})
     // Marks on a span that moved here name its block's markDefs: they come with it.
     const defs = new Map<string, unknown>()
@@ -202,6 +208,12 @@ function cut(mine: (Obj & {children: Obj[]})[], ops: Op[], theirs: Obj[], now: s
     const key = keyOf(who) && !used.has(keyOf(who)!) ? keyOf(who)! : fresh()
     used.add(key)
     return {...who, _key: key, children, ...(markDefs.length || 'markDefs' in who ? {markDefs} : {})}
+  })
+  // A block taken as they have it may carry a span key mine used before it: that one goes new.
+  const seen = new Set<string>()
+  return out.map((b) => {
+    const children = b.children.map((c) => (!keyOf(c) ? c : seen.has(keyOf(c)!) ? {...c, _key: fresh()} : (seen.add(keyOf(c)!), c)))
+    return children.every((c, i) => c === b.children[i]) ? b : {...b, children}
   })
 }
 
