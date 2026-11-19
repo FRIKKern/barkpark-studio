@@ -2,11 +2,12 @@ import {useEffect, useState, useSyncExternalStore} from 'react'
 import {MenuPopover} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {copy, isEmpty, read, signature, transfer} from '../lib/clipboard'
-import {schemasQuery, type Doc, type Schema} from '../lib/data'
+import {type Doc, type Schema} from '../lib/data'
 import {Check, ClipboardIcon, Copy, Ellipsis, Share, LinkIcon, TargetIcon, Transfer, EarthAmericas, JsonIcon, LaunchIcon, RestoreIcon, SyncIcon, TaskIcon} from './icons'
 import studio from '../studio.config'
-import {pasteDocumentReading, SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
-import {useCurrentUser, workspaceRolesQuery} from '../lib/session'
+import {SCHEMAS_NOT_LOADED} from '../lib/paste-locked'
+import {pasteDocumentWith} from '../lib/paste-reads'
+import {useCurrentUser} from '../lib/session'
 import {toast} from './Toasts'
 import {useScopedHref} from './PaneLink'
 import {t as tt, useT} from '../lib/i18n'
@@ -197,8 +198,7 @@ export function DocHeaderMenu({doc, schema, readOnly, onEdit, onInspect, onHisto
               // A field read-only, or hidden from this person but shown to another role, keeps its value at any depth;
               // rich-text objects are walked with the dialog's schemas, waited for, never guessed (lib/paste-locked.ts).
               // "Another role": each the workspace defines; today's five when Barkpark does not say (lib/workspace-roles.ts).
-              const reads = {schemas: () => qc.ensureQueryData(schemasQuery), roles: () => qc.ensureQueryData(workspaceRolesQuery)}
-              const {writes, named, refused} = await pasteDocumentReading(reads, schema.fields, values, {type: schema.name, doc, user, rules: studio.form?.conditions})
+              const {writes, named, refused} = await pasteDocumentWith(qc, schema.fields, values, {type: schema.name, doc, user, rules: studio.form?.conditions})
               if (refused) return toast({tone: 'critical', title: tt(SCHEMAS_NOT_LOADED)})
               // Sanity's toast: three names, then how many more.
               const fieldNames = named.slice(0, 3).join(', ')

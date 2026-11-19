@@ -8,7 +8,6 @@ import {currentScopeQuery} from './scope-switch'
 import {serviceAccess} from './token-self'
 import {headStartAllowed} from './gate-head-start'
 import {currentUserOf} from './conditions'
-import {rolesFor} from './workspace-roles'
 import {useMemo} from 'react'
 
 // Who is editing (server/auth.ts). Server functions: the session cookie is
@@ -176,16 +175,6 @@ export function useBoundElsewhere(): {bound: string; here: {workspace: string; p
 
 /** The studio's own Barkpark token is refused: the reason every read and save fails. */
 export const useStudioTokenRefused = () => !!useQuery(meQuery).data?.studioTokenRefused
-
-/**
- * The workspace's roles (lib/workspace-roles.ts), read with the signed-in person's own token as
- * the schemas are, never the studio's. Nobody signed in: none (no role rule locks a paste then).
- */
-const fetchWorkspaceRoles = createServerFn({method: 'GET'}).handler(async () => {
-  return rolesFor(currentEditor(), bpFetch)
-})
-/** Once per page load, which is one workspace (a scope switch loads the page again). Null: today's roles. */
-export const workspaceRolesQuery = queryOptions({queryKey: ['workspace-roles'], queryFn: async () => (await fetchWorkspaceRoles()) as string[] | null, staleTime: Infinity, retry: false})
 
 /** Sanity's useCurrentUser: the signed-in editor with their role under Sanity's name (lib/conditions.ts), or null. */
 export function useCurrentUser() {
