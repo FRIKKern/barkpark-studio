@@ -25,8 +25,8 @@ const block = (key: string, text: string) => ({_type: 'block', _key: key, style:
 const caret = (key: string, offset: number, end = offset) => ({type: 'select', at: {anchor: {path: [{_key: key}, 'children', {_key: `${key}s`}], offset}, focus: {path: [{_key: key}, 'children', {_key: `${key}s`}], offset: end}}})
 const ONE: Pick<Field, 'options'> = {options: {oneLine: true}}
 
-/** The editor as PortableTextInput mounts it: OneLine first, then the editable. */
-async function mount(field: Pick<Field, 'options'>, value: Block[]) {
+/** The editor as PortableTextInput mounts it: OneLine first, then the editable (with `editable`, its props). */
+async function mount(field: Pick<Field, 'options'>, value: Block[], editable: Record<string, unknown> = {}) {
   const React = await import('react')
   const {createRoot} = await import('react-dom/client')
   const {EditorProvider, PortableTextEditable, defineSchema, useEditor} = await import('@portabletext/editor')
@@ -41,7 +41,7 @@ async function mount(field: Pick<Field, 'options'>, value: Block[]) {
   const root = createRoot(box)
   const act = (f: () => unknown) => React.act(async () => void (await f()))
   const on = (e: {type: string}) => void (e.type === 'patch' || e.type === 'mutation' ? patches.push(e) : 0)
-  await act(() => root.render(h(EditorProvider, {initialConfig: {schemaDefinition: defineSchema({}), initialValue: value}}, h(OneLine, {field}), h(EventListenerPlugin, {on}), h(Grab), h(PortableTextEditable))))
+  await act(() => root.render(h(EditorProvider, {initialConfig: {schemaDefinition: defineSchema({}), initialValue: value}}, h(OneLine, {field}), h(EventListenerPlugin, {on}), h(Grab), h(PortableTextEditable, editable))))
   // The editor takes its value a tick after it mounts: a select or key sent before that finds no text.
   await act(() => new Promise((r) => setTimeout(r, 30)))
   const send = (e: Record<string, unknown>) => act(() => editor!.send(e))
@@ -53,7 +53,8 @@ async function mount(field: Pick<Field, 'options'>, value: Block[]) {
       await new Promise((r) => setTimeout(r, 20))
     })
   const texts = () => (editor!.getSnapshot().context.value ?? []).map((b) => b.children?.map((c) => c.text).join('') ?? `[${b._type}]`)
-  return {send, paste, texts, patches, value: () => editor!.getSnapshot().context.value, done: () => act(() => root.unmount())}
+  const el = () => box.querySelector('[contenteditable]')!
+  return {send, paste, el, texts, patches, value: () => editor!.getSnapshot().context.value, done: () => act(() => root.unmount())}
 }
 
 test('options.oneLine: the field is one line; it offers no block to insert, and no pasted image goes in as one', () => {
@@ -120,4 +121,41 @@ test('PortableTextInput mounts OneLine first, before the plugins that handle ins
   assert.ok(provider > 0 && at('<OneLine field={field} />') > provider)
   for (const later of ['<NodePlugin nodes={nodes} />', '{tables && <PtTablePlugin />}', '<SanityPlugins field={field} stored={stored} />', '<Saver id={id}']) assert.ok(at('<OneLine field={field} />') < at(later), later)
   assert.match(src, /data-one-line=\{isOneLine\(field\) \|\| undefined\}/)
+})
+
+test('PortableTextInput gives the field\'s editable its one-line props', () => {
+  const src = readFileSync(new URL('../components/PortableTextInput.tsx', import.meta.url), 'utf8')
+  assert.match(src, /<Editable id=\{id\} oneLine=\{isOneLine\(field\)\} \/>/)
+  assert.match(src, /<Text id=\{id\} oneLine=\{oneLine\} \/>/)
+  assert.match(src, /<PortableTextEditable id=\{id\} [^>]*\{\.\.\.oneLineEditable\(oneLine\)\} \/>/)
+  assert.equal(src.match(/<PortableTextEditable\b/g)?.length, 1, 'one editable, the one above')
+})
+
+test('a one-line field\'s editable says so: aria-multiline="false"; another field\'s stays multiline', async () => {
+  const {oneLineEditable} = await import('./pt-one-line.ts')
+  const one = await mount(ONE, [block('a', 'Hello')], oneLineEditable(isOneLine(ONE)))
+  assert.equal(one.el().getAttribute('role'), 'textbox')
+  assert.equal(one.el().getAttribute('aria-multiline'), 'false')
+  await one.done()
+  const many = await mount({}, [block('b', 'Hello')], oneLineEditable(isOneLine({})))
+  assert.equal(many.el().getAttribute('aria-multiline'), 'true')
+  await many.done()
+})
+
+// Dictation and text services put text in with a line break (beforeinput insertText or insertReplacementText):
+// the editor sends it on as insert.text. happy-dom's beforeinput does not reach the editor, so it is sent here.
+test('text put in with a line break lands as a space, in the one span', async () => {
+  const one = await mount(ONE, [block('a', 'Hello world')])
+  await one.send(caret('a', 6))
+  await one.send({type: 'insert.text', text: 'one\ntwo '})
+  await one.send({type: 'insert.text', text: 'three\r\n\r\nfour '})
+  assert.deepEqual(one.texts(), ['Hello one two three four world'])
+  assert.equal(one.value()![0].children!.length, 1, 'one span')
+  await one.done()
+  // Without oneLine the break stays in the text, so the asserts above can fail.
+  const many = await mount({}, [block('b', 'Hello world')])
+  await many.send(caret('b', 6))
+  await many.send({type: 'insert.text', text: 'one\ntwo '})
+  assert.deepEqual(many.texts(), ['Hello one\ntwo world'])
+  await many.done()
 })
