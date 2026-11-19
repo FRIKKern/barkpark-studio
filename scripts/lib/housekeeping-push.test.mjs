@@ -8,7 +8,7 @@ import {join} from 'node:path'
 import test, {after} from 'node:test'
 import {fileURLToPath} from 'node:url'
 
-import {BASH, keyShims} from './key-shims.mjs'
+import {BASH, beforeTheHelper, keyShims} from './key-shims.mjs'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const PUSH = join(root, 'scripts/housekeeping-push.sh')
@@ -85,6 +85,12 @@ test('housekeeping-push.sh handles no key itself: it sources scripts/lib/deploy-
   assert.deepEqual(code.filter((l) => /deploy-push\.sh/.test(l)), ['. "${BASH_SOURCE[0]%/*}/lib/deploy-push.sh"'])
   assert.deepEqual(code.filter((l) => /deploy_push/.test(l)), ['  if deploy_push "$commit:refs/heads/main" 2> "$err"; then rm -f "$err"; exit 0; fi'])
   assert.deepEqual(code.filter((l) => /DEPLOY_|deploy_key|keyfile/.test(l) || /ssh|git push|\btrap\b/i.test(l)), [], 'nothing else touches the key')
+
+  // Before that line DEPLOY_KEY is still in the env: only `set` and plain assignments, nothing that starts a process.
+  const text = readFileSync(PUSH, 'utf8')
+  assert.deepEqual(beforeTheHelper(text), [])
+  for (const added of ['x=$(/bin/date)', 'x=$(command -p date)', 'x=`date`', 'x="$(date)"', 'date', 'x=1 date', 'read -r x < <(date)', 'x=1; date', 'x=$(<f)'])
+    assert.deepEqual(beforeTheHelper(text.replace('set -euo pipefail\n', `set -euo pipefail\n${added}\n`)), [added], added)
 })
 
 test('housekeeping push: no change, or a picture refused, pushes nothing and never writes the key', () => {
