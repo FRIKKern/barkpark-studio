@@ -11,7 +11,7 @@
       "job": "housekeeping.yml push",
       "sha256": "1040be981e96a32428f977d32abdbe344e6cd5f0ae5de281b8dd34f68f3e0746",
       "runs": {
-        "scripts/housekeeping-push.sh": "68f28add639f832a378ee19122fc0ff500e019592c2ffd1763a2c513a666d274",
+        "scripts/housekeeping-push.sh": "dda2110c20fb3410c2f04439f5118678b269072736b52a76b338a3903a453e0a",
         "scripts/lib/deploy-push.sh": "16149248f006123f94d50b8e31749b928f5a1157a33dd55e3bd3f3a52da3abe9",
         "scripts/lib/svg-check.py": "15d07221304e4de1e4b1a38927067045485ac9771c67491f24667f2aa5a282a3",
         "scripts/lib/roadmap-style.css": "022f0e45bf55d72f81cfd43aff6fef5608c6b57674e8aa16c87b544033df3480"
@@ -21,7 +21,7 @@
       "job": "sync-pack.yml act",
       "sha256": "9a1b13f037cdaf0a4001eff5eeceadb55b9cc28ac2531b7ad2c9452c930774f6",
       "runs": {
-        "scripts/sync-act.sh": "b90f352cb363b3bc66153ab4e030ebfadf1561d9bc97e07e19c5f8da653965b0",
+        "scripts/sync-act.sh": "256742f23cfff12e610fb532eee0efd4c4390c87d9af9dab90c9296fc906b209",
         "scripts/lib/deploy-push.sh": "16149248f006123f94d50b8e31749b928f5a1157a33dd55e3bd3f3a52da3abe9"
       }
     },
