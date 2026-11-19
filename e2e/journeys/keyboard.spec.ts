@@ -7,7 +7,13 @@ import {referenceHold} from '../rig/reference'
 const ID = 'post-12'
 const TITLE = 'Fixture post 12'
 
-test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, {title: TITLE})))
+// Put back only by the tests that type into it: a restore is a Barkpark write and a publish.
+let edited = false
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
+  if (edited) await target(info).restore(ID, {title: TITLE})
+  edited = false
+})
 
 // @local: what it checks shows on screen when it breaks (CI's 5 s per journey rule).
 test('@local J19: search recovery and visible keyboard selection', async ({page}, info) => {
@@ -50,6 +56,7 @@ test('@local J19: search recovery and visible keyboard selection', async ({page}
 
 test('J19: keyboard only — search, open, edit, publish', async ({page}, info) => {
   const t = target(info)
+  edited = true
   await t.prepare(page.context())
   await page.goto('/structure')
   await t.settle(page)
@@ -112,6 +119,7 @@ test('@local J19: a slow doc read still puts the caret in its first field', asyn
 test('J19: Publish by Enter keeps the keyboard in the footer', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "ours (Sanity's drops focus on the page)")
+  edited = true
   await t.prepare(page.context())
   await page.goto(t.docPath('post', ID))
   await t.settle(page)
@@ -133,6 +141,7 @@ test('J19: Publish by Enter keeps the keyboard in the footer', async ({page}, in
 test('@local D: Cmd+Shift+8 makes a bullet list, Cmd+Shift+7 a numbered one, in the canvas', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'the canvas (Sanity has no list chords)')
+  edited = true
   const body = await t.docValue(ID, 'body')
   await t.prepare(page.context())
   try {
