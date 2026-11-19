@@ -62,3 +62,67 @@ for (const apart of [0, 1000])
       await closeAndSettle(page)
     }
   })
+
+// task-2c01c385ce7b51d0: the same two pastes, while A's save is out (held) and A reloads before
+// it lands, its unload beacon failing too: the edits kept in this browser are all that is left.
+// Restored over B's paste (B's paragraphs at the block's start: its key stays on "x"), A's line
+// goes back after the block's text. Both texts once.
+test('@local Portable Text: a paste kept while its page reloads mid-save, the other pasting into the block, both kept once', async ({page, browser}, info) => {
+  const ctxB = await browser.newContext()
+  await target(info).prepare(ctxB)
+  const b = await ctxB.newPage()
+  try {
+    // page.route never sees sendBeacon: it fails here, and each call is counted.
+    await page.addInitScript(() => {
+      navigator.sendBeacon = () => (localStorage.setItem('e2eBeacons', String(Number(localStorage.getItem('e2eBeacons') ?? 0) + 1)), false)
+    })
+    const [edA, edB] = await Promise.all([open(page, info, true), open(b, info, false)])
+    // A's saves hang (a slow connection) until the page goes; `held` counts them.
+    let held = 0
+    const slow = (route: import('@playwright/test').Route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes('mutations') ? void held++ : route.continue())
+    await page.route('**/_serverFn/**', slow)
+    await paste(edA, ' one two three')
+    await page.waitForTimeout(600) // kept in this browser
+    await paste(edB, 'x\n\ny\n\nz ')
+    await savesLanded(b)
+    await expect.poll(() => held, {timeout: 10_000}).toBeGreaterThan(0)
+    // …and kept in this browser (edits.ts writes it KEEP_GAP_MS after the edit): the reload comes after that.
+    const keptHere = () =>
+      page.evaluate(
+        () =>
+          new Promise<number>((res) => {
+            const q = indexedDB.open('bp-pending-edits')
+            q.onsuccess = () => {
+              try {
+                const c = q.result.transaction('docs').objectStore('docs').count()
+                c.onsuccess = () => res(c.result)
+                c.onerror = () => res(0)
+              } catch {
+                res(0)
+              }
+            }
+            q.onerror = () => res(0)
+          }),
+      )
+    await expect.poll(keptHere, {timeout: 5_000}).toBeGreaterThan(0)
+    // A reload right as the kept entry appears can put it back with no Restore card (seen on main
+    // too): task-e437f5ba355f317e. This scene reloads a moment later.
+    await page.waitForTimeout(1_000)
+    await page.reload()
+    await page.unroute('**/_serverFn/**', slow)
+    await target(info).settle(page)
+    await page.getByRole('tab', {name: 'All fields'}).click()
+    expect(Number(await page.evaluate(() => localStorage.getItem('e2eBeacons')))).toBeGreaterThan(0) // the unload tried it
+    const card = page.getByTestId('kept-edits')
+    await card.getByRole('button', {name: 'Restore'}).click()
+    await savesLanded(page)
+    await expect.poll(stored, {timeout: 15_000}).toEqual(WANT)
+    const again = page.locator('[id="body"][contenteditable="true"]')
+    await expect.poll(() => lines(again), {timeout: 15_000}).toEqual(WANT)
+    await expect.poll(() => lines(edB), {timeout: 15_000}).toEqual(WANT)
+  } finally {
+    await closeAndSettle(b)
+    await ctxB.close()
+    await closeAndSettle(page)
+  }
+})

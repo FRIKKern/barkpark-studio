@@ -22,7 +22,7 @@ import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, s
 import {spanAnswer, spanRoot, type Typed} from './pt-span'
 import {clientGone} from '../server/client-gone'
 import {gated, putBackKept, writeAllowed} from './doc-lock'
-import {combine, dropPending, judge, keepPlan, ownedElsewhere, pendingKey, putPending, readDocPending, restoreValue, TAB, type Pending} from './pending-edits'
+import {combine, dropPending, judge, keepPlan, ownedElsewhere, pendingKey, putPending, readDocPending, restoreBlock, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
 import {paceMs, paced} from './write-pace'
 
@@ -151,6 +151,8 @@ type DocEdits = Spots & {
   forks?: boolean
   /** For each field with edits in dirty or inflight: the server value they were made from. */
   base: Map<string, unknown>
+  /** For each list field with a block edited by its key: the field's block keys then (Pending `keys`). */
+  keys?: Map<string, string[]>
   /** Rebases in a row (a guard against a write that never gets through). */
   conflicts: number
   /** Text of ours someone rewrote meanwhile (clash): held, unsent, until the editor types on. */
@@ -317,7 +319,8 @@ function keepUnsaved(id: string, e: DocEdits) {
   if (e.pendingCreate || (!e.dirty.size && !e.inflight)) return void dropPending(key)
   e.keepTimer = setTimeout(() => {
     const fields = [...(e.inflight ?? []), ...e.dirty]
-    if (fields.length) void putPending(key, {at: Date.now(), type: e.type, rev: e.rev, fields, base: [...e.base], tab: TAB})
+    const keys = [...(e.keys ?? [])].filter(([root]) => fields.some(([f]) => within(f, root)))
+    if (fields.length) void putPending(key, {at: Date.now(), type: e.type, rev: e.rev, fields, base: [...e.base], ...(keys.length && {keys}), tab: TAB})
   }, KEEP_GAP_MS)
 }
 
@@ -459,6 +462,13 @@ function write(qc: QueryClient, doc: Doc, field: string, value: unknown, record 
   }
   // What this edit is made against: the server's value (and rev) as this browser has it.
   if (!e.dirty.size && !e.inflight) (e.rev = held._rev || undefined), (e.forks = held._draft === false && !e.pendingCreate)
+  // A block edited by its key: the field's block keys as this browser has them, when nothing
+  // in the field is pending yet (a restore's run stops at these, lib/pending-edits.ts restoreBlock).
+  const block = /^(\w+)\[_key=="[^"]+"\]$/.exec(field)?.[1]
+  if (block && ![...e.base.keys()].some((k) => within(k, block))) {
+    const list = getPath(held, block)
+    if (Array.isArray(list)) (e.keys ??= new Map()).set(block, list.map((b) => (b as {_key?: string})?._key ?? '').filter(Boolean))
+  }
   // What this spot is made from (lib/edit-bases.ts).
   takeBase(e, field, held, value)
   // One pending write per spot: a path inside an object already pending whole goes
@@ -1145,22 +1155,36 @@ export async function recoverPending(qc: QueryClient, doc: Doc, schema?: Schema)
   return {replayed: pending.at, put: verdict.fields.length - refused.length, refused}
 }
 
-/** The dead pages' kept edits go, but those to a refused field stay kept (keepPlan: kept first, then the rest dropped). */
-function keepRefused(id: string, keys: string[], pending: Pending, refused: string[]) {
+/** The dead pages' kept edits go, but those to a refused field stay kept (keepPlan: kept first, then the rest dropped). The key they stay under. */
+function keepRefused(id: string, keys: string[], pending: Pending, refused: string[]): string | undefined {
   const {keep, drop} = keepPlan(docKeyOf(id) || undefined, keys, pending, refused)
   void (keep ? putPending(...keep) : Promise.resolve()).then(() => Promise.all(drop.map((k) => dropPending(k))))
+  return keep?.[0]
 }
 
-/** Restore kept edits over the document as it is now (text merges with what changed since). Returns the fields not put back (read-only for this person), still kept. */
-export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys}: Recovered): string[] | null {
+/**
+ * Restore kept edits over the document as it is now (text merges with what changed since).
+ * Returns the fields not put back (read-only for this person), still kept; and `left`, the
+ * edits whose place cannot be told (lib/kept-stands.ts): not put back, still kept, still offered.
+ */
+export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys, gone}: Recovered): {refused: string[]; left: Recovered | null} | null {
   if (!writeAllowed('replay', doc._publishedId)) return null
+  const untold: string[] = []
   const refused = putBackKept(doc._publishedId, fields, (f, v) => {
     const now = qc.getQueryData<Doc>(['doc', doc._publishedId]) ?? doc
-    ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(f)
-    edit(qc, now, f, restoreValue(pending, f, v, now))
+    // A block kept by its key goes back as its field, merged with the field as it is now.
+    const [at, value, cannotTell] = restoreBlock(pending, f, v, now) ?? [f, restoreValue(pending, f, v, now)]
+    // Cannot be told where it goes (lib/kept-stands.ts): the server's text stays, nothing is
+    // written, and the edit stays kept, offered as before (task-28470f0d0ace566c says why).
+    if (cannotTell) return void untold.push(f)
+    // Its result already stands there (it landed; they edited on top): done, nothing to write.
+    if (same(value, getPath(now, at))) return
+    ;(entry(doc._publishedId, doc._type).noDmp ??= new Set()).add(at)
+    edit(qc, now, at, value)
   })
-  keepRefused(doc._publishedId, keys, pending, refused)
-  return refused
+  const kept = keepRefused(doc._publishedId, keys, pending, [...refused, ...untold])
+  const left = untold.length && kept ? {pending, fields: fields.filter(([f]) => untold.includes(f)), gone, keys: [kept]} : null
+  return {refused, left}
 }
 
 export function discardPending({keys}: Recovered) {

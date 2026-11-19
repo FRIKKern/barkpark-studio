@@ -834,9 +834,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
             <span className="pane-banner-actions">
               {recovered.fields.length > 0 && (
                 <button type="button" className="btn-text" onClick={() => {
-                  const refused = restorePending(qc, doc, recovered)
-                  if (refused?.length) notPutBack(refused, longDate(new Date(recovered.pending.at).toISOString(), locale), refused.length < recovered.fields.length)
-                  setRecovered(null)
+                  const done = restorePending(qc, doc, recovered)
+                  if (done?.refused.length) notPutBack(done.refused, longDate(new Date(recovered.pending.at).toISOString(), locale), done.refused.length < recovered.fields.length)
+                  // Edits whose place cannot be told stay kept, and the card stays up for them.
+                  setRecovered(done?.left ?? null)
                 }}>
                   {t('Restore')}
                 </button>
