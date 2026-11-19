@@ -1,7 +1,8 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {applyPatches, parsePatch} from '@sanity/diff-match-patch'
-import {caretOf, changedBlocks, remoteBlockPatches, remoteCarets, spanTextChanges, textPatches, unseen, withRemote, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
+import {mergeList3} from './merge.ts'
+import {caretOf, changedBlocks, remoteBlockPatches, remoteCarets, spanTextChanges, textPatches, withRemote, declaredVocabulary, editorSchema, equal, inferFields, insertable, isOutsideValue, isPortableTextField, markdownNames, mergeValue, newKey, objectChanges, objectFields, objectTitle, observedVocabulary, offeredAnnotations, pastesLinks, refTargets, storedShape, type PtBlock} from './pt-value.ts'
 
 // Made-up content only (the repo is public).
 const stored = (): PtBlock[] => [
@@ -384,15 +385,37 @@ test('pt: a caret goes out as block and span keys; others\' carets land where th
   assert.deepEqual(up[1]!.selection.focus, {path: [{_key: 'b1'}, 'children', {_key: 's1'}], offset: 4})
 })
 
-test('their split, held while this editor\'s paste was not emitted yet, is not inserted again after the save\'s merge put it on screen (task-30946f2255a30d93)', () => {
-  const blk = (key: string, text: string, span = `${key}s`) => ({_type: 'block', _key: key, style: 'normal', markDefs: [], children: [{_type: 'span', _key: span, text, marks: []}]}) as PtBlock
-  // What arrived while this editor's change was not emitted yet: their split, made on the block as it was.
-  const before = [blk('p1', 'Start text')]
-  const held = remoteBlockPatches(before, [blk('p1', 'Start QQ'), blk('r', 'rr text')], before, [], new Set(), new Map())
-  // The screen once this editor's save merged it and show() put that on.
-  const shown = [blk('p1', 'Start QQ'), blk('r', 'rr text four')]
-  const texts = (v: PtBlock[]) => v.map((b) => (b.children as {text: string}[]).map((c) => c.text).join(''))
-  // Given as they were, their block went in a second time.
-  assert.deepEqual(texts(withRemote(shown, held)).filter((t) => t.startsWith('rr')).length, 2)
-  assert.deepEqual(texts(withRemote(shown, unseen(held, shown))), ['Start QQ', 'rr text four'])
+// Another editor's frames that wait while this editor's own change is not emitted yet
+// (components/PortableTextInput.tsx `waitFrom`) are made into patches once it is, against the
+// screen then (task-30946f2255a30d93).
+const pb = (key: string, text: string, span = `${key}s`) => ({_type: 'block', _key: key, style: 'normal', markDefs: [], children: [{_type: 'span', _key: span, text, marks: []}]}) as PtBlock
+const textsOf = (v: PtBlock[]) => v.map((b) => (b.children as {text: string}[]).map((c) => c.text).join(''))
+
+test('their split made into patches before this editor\'s save put it on screen inserts its block twice; made against the screen after, once (task-30946f2255a30d93)', () => {
+  const before = [pb('p1', 'Start text')]
+  const split = [pb('p1', 'Start QQ'), pb('r', 'rr text')]
+  // The screen once this editor's save merged their split with its typing.
+  const shown = [pb('p1', 'Start QQ'), pb('r', 'rr text four')]
+  // Made at once (against the screen before the save) and given after it: the tail twice.
+  const early = remoteBlockPatches(before, split, before, [], new Set(), new Map())
+  assert.equal(textsOf(withRemote(shown, early)).filter((t) => t.startsWith('rr')).length, 2)
+  // Made when given, against the screen as it is then: no block twice, this editor's words kept.
+  assert.deepEqual(textsOf(withRemote(shown, remoteBlockPatches(before, split, shown, [], new Set(), new Map()))), ['Start QQ', 'rr text four'])
+})
+
+test('a frame that came after the save read the document still reaches the screen (task-30946f2255a30d93)', () => {
+  // What the save merged onto (their split), and their next frame: a paragraph pasted below.
+  const read = [pb('p1', 'Start QQ'), pb('r', 'rr text')]
+  const later = [...read, pb('z', 'zz new')]
+  const shown = [pb('p1', 'Start QQ'), pb('r', 'rr text four')]
+  assert.deepEqual(textsOf(withRemote(shown, remoteBlockPatches(read, later, shown, [], new Set(), new Map()))), ['Start QQ', 'rr text four', 'zz new'])
+})
+
+test('their pasted block with the same text as one on screen is still inserted (by key, never by text) (task-30946f2255a30d93)', () => {
+  const was = [pb('p1', 'Start QQ'), pb('r', 'rr text')]
+  const pasted = [...was, pb('n2', 'rr text')]
+  assert.deepEqual(textsOf(withRemote(was, remoteBlockPatches(was, pasted, was, [], new Set(), new Map()))), ['Start QQ', 'rr text', 'rr text'])
+  // And stored: this editor's next save, typing in p1, keeps it.
+  const mine = [pb('p1', 'Start QQ!'), pb('r', 'rr text')]
+  assert.deepEqual(textsOf(mergeList3(was, mine, pasted) as PtBlock[]), ['Start QQ!', 'rr text', 'rr text'])
 })

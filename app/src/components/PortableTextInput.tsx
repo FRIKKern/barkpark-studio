@@ -30,7 +30,7 @@ import {useFileInfo} from './FileInput'
 import {useT} from '../lib/i18n'
 import {insertItemProps, ptDeprecated} from '../lib/deprecated'
 import {OneLine, oneLineEditable} from '../lib/pt-one-line'
-import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, settledRemovals, noteKept, keptBase, type KeptFrom, spanTexts, textPatches, unseen, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, dialogFields, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
+import {asEditorHolds, caretOf, changedBlocks, remoteCarets, remoteBlockPatches, settledRemovals, noteKept, keptBase, type KeptFrom, spanTexts, textPatches, withRemote, freshItems, type RemotePatch, declaredVocabulary, editorSchema, equal, insertable, isOneLine, isOutsideValue, markdownNames, mergeValue, newKey, codeBlockOptions, dialogFields, objectChanges, objectFields, objectTitle, offeredAnnotations, pastesLinks, storedShape, type PtBlock, type PtSchema, type SchemaLike} from '../lib/pt-value'
 import {parsePatch} from '@sanity/diff-match-patch'
 import {applyText} from '../lib/merge'
 import {mergeBlock} from '../lib/pt-keep'
@@ -596,7 +596,17 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     const keys = (v: unknown) => (Array.isArray(v) ? v.map((b) => (b as PtBlock)?._key).join('\u0000') : '')
     const shifted = Array.isArray(there) && keys(there) !== keys(base)
     let saved: unknown = next
-    if (fine && !shifted && (fine.length * 2 <= next!.length || fine.every((p) => p.edits)))
+    // Their frames that waited for this change are in what the save merges onto (`now`, read
+    // here, after them): for what it merges, made into patches as well, theirs went in twice.
+    // The field whole: all of them. Blocks by their key: those blocks (the rest still come).
+    const took = (keys: string[] | null) => {
+      const w = waitFrom.current
+      if (!w) return
+      const at = (v: unknown, k: string) => (Array.isArray(v) ? (v as PtBlock[]).find((b) => b?._key === k) : undefined)
+      waitFrom.current = keys === null || !Array.isArray(w.value) ? null : {value: (w.value as PtBlock[]).map((b) => (keys.includes(b?._key ?? '') ? (at(known.current, b._key!) ?? b) : b))}
+    }
+    if (fine && !shifted && (fine.length * 2 <= next!.length || fine.every((p) => p.edits))) {
+      took(fine.map((p) => p.key))
       for (const p of fine) {
         sentAt.current.set(p.key, ++seq.current)
         sentWhen.current.set(p.key, Date.now())
@@ -616,16 +626,15 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
         if (!p.edits) editPath!(keyedPath(id, p.key), from ? (now: unknown) => (sent = mergeBlock(from, p.block, now) ?? p.block) : p.block)
         if (sent !== p.block) saved = next!.map((b) => (b._key === p.key ? sent : b))
       }
+    }
     // The field whole (a block came, went or moved): onto the blocks as they are held now, so
     // a block this editor did not touch goes as it is there, another editor's newest words in
     // it (freshItems; sent as this editor last drew it, their keys typed since were undone).
     else if (editPath && next) {
+      took(null)
       let sent: unknown = next
       editPath(id, (now: unknown) => (sent = freshItems(base, next, now, (b) => theirs(b._key as string, b))))
       saved = sent
-      // Their patches held meanwhile came in frames that are in `now`: the merge has them, and
-      // show() puts it on the screen. Given after it as well, their blocks went in twice.
-      held.current = []
     } else onChange(next)
     // The span texts this change made are accounted for. Not a span another editor's patch
     // still waits for (held until this editor's typing pauses): it stays at their text, or
@@ -645,25 +654,34 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
   const typing = useRef(0)
   const held = useRef<RemotePatch[]>([])
   // Since when this editor has changes the editor has not emitted yet (its `mutation` comes
-  // up to a second after a paste). Another editor's patches wait for them: given before, the
+  // up to a second after a paste). Another editor's frames wait for them, not made into
+  // patches yet (`waitFrom`: the value before the first that waited). Given before, the
   // screen's split block took them on the wrong letters while `drawn` took them as made, and
   // the save measured from that put back the letters they had taken out (task-ab6d751fa53fbda5).
+  // Made into patches only once it is emitted, against the screen then: made at once and held,
+  // they put in again a block the save's merge had put on the screen (task-30946f2255a30d93).
   const unsent = useRef(0)
+  const waitFrom = useRef<{value: unknown} | null>(null)
+  const bring = useRef((_from: unknown, _to: unknown) => {})
   const waitsForMine = () => unsent.current > 0 && Date.now() - unsent.current < MINE_WAIT_MS
   const releaseTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const release = useRef(() => {})
   release.current = () => {
     clearTimeout(releaseTimer.current)
+    if (waitsForMine()) {
+      if (held.current.length || waitFrom.current) releaseTimer.current = setTimeout(() => release.current(), unsent.current + MINE_WAIT_MS - Date.now())
+      return
+    }
+    const waited = waitFrom.current
+    waitFrom.current = null
+    if (waited) bring.current(waited.value, known.current)
     if (!held.current.length) return
-    if (waitsForMine()) releaseTimer.current = setTimeout(() => release.current(), unsent.current + MINE_WAIT_MS - Date.now())
     // Their text alone waits while this editor is typing a word (flushText); the rest goes now.
-    else if (held.current.every((p) => p.type === 'diffMatchPatch')) flushText.current()
+    if (held.current.every((p) => p.type === 'diffMatchPatch')) flushText.current()
     else give(held.current.splice(0), known.current)
   }
   useEffect(() => () => clearTimeout(releaseTimer.current), [])
-  const give = (all: RemotePatch[], snapshot: unknown) => {
-    const patches = unseen(all, editor.getSnapshot().context.value ?? [])
-    if (!patches.length) return
+  const give = (patches: RemotePatch[], snapshot: unknown) => {
     editor.send({type: 'patches', patches: patches as never, snapshot: snapshot as never})
     drawn.current = withRemote(drawn.current, patches, true)
   }
@@ -715,7 +733,15 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     known.current = incoming
     for (const b of Array.isArray(incoming) ? (incoming as PtBlock[]) : [])
       if (typeof b?._key === 'string') fromServer.current.set(b._key, [...(fromServer.current.get(b._key) ?? []).slice(-7), {block: b, at: ++seq.current}])
-    if (!focused.current || equal(prev ?? [], incoming ?? []) || mine.current.some((v) => equal(v, incoming ?? []))) return
+    if (!focused.current) return void (waitFrom.current = null)
+    if (equal(prev ?? [], incoming ?? []) || mine.current.some((v) => equal(v, incoming ?? []))) return
+    if (waitsForMine()) return void ((waitFrom.current ??= {value: prev}), release.current())
+    const waited = waitFrom.current
+    waitFrom.current = null
+    bring.current(waited ? waited.value : prev, incoming)
+  }, [incoming, editor, focused, mine, stored])
+  // Their change from `prev` to `incoming` (the server's value), onto the screen as it is now.
+  bring.current = (prev: unknown, incoming: unknown) => {
     // Sent in the last 10 s: maybe not landed yet, kept (a removal then answers that save).
     const recent = new Set([...sentWhen.current].filter(([, at]) => Date.now() - at < 10_000).map(([k]) => k))
     const echo = (at: string, t: string) => wrote.current.some((w) => w.at === at && w.text === t && Date.now() - w.when < 10_000)
@@ -739,11 +765,11 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     // lands right after the last). Anything else goes now, with what waited before it, unless
     // this editor's own change is not emitted yet (release).
     held.current.push(...patches)
-    release.current()
     // The next save is measured from the last one with their blocks in: they are not sent back
     // as this editor's own, and its typing not emitted yet still goes.
     last.current = withRemote(last.current, patches)
-  }, [incoming, editor, focused, mine, stored])
+    release.current()
+  }
   return <EventListenerPlugin on={on} />
 }
 
