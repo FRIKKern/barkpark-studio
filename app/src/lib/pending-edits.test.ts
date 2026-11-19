@@ -96,3 +96,18 @@ test('two dead pages combine their block keys: a key either knew is not new', ()
   assert.deepEqual(combine([a, b])?.keys, [['body', ['a', 'b', 'c']]])
   assert.equal(combine([{...a, keys: undefined}])?.keys, undefined)
 })
+
+// #1318 review (verdict2): only a block that cannot be told is flagged untold. A kept edit whose
+// result already stands (it landed, they added on top) is done: the field as it is, no flag.
+test('restore of a kept block: flagged untold only when it cannot be told; an edit that already stands is done', () => {
+  const flag = (base: string, mine: string, now: string[]) => {
+    const p: Pending = {at: 1, type: 'post', rev: 'r1', fields: [['body[_key=="b"]', blk('b', mine)]], base: [['body[_key=="b"]', blk('b', base)]], keys: [['body', ['b']]], tab: 'x'}
+    const r = restoreBlock(p, 'body[_key=="b"]', blk('b', mine), {_id: 'x', _type: 'post', body: now.map((t, i) => blk(i ? `n${i}` : 'b', t))} as unknown as Doc)
+    return [texts(r![1]), r![2] ?? false]
+  }
+  assert.deepEqual(flag('the cat sat', 'the sat', ['the sat down']), [['the sat down'], false], 'T3: landed, their words after it')
+  assert.deepEqual(flag('Start text', 'Start text one', ['x', 'Start text one']), [['x', 'Start text one'], false], 'landed, then their paste at its start')
+  assert.deepEqual(flag('one two three', 'one three', ['one tw three']), [['one tw three'], true], 'K13: their letters where it deleted')
+  assert.deepEqual(flag('the cat sat', 'the sat', ['A dog']), [['A dog'], true], 'C12: rewritten')
+  assert.deepEqual(flag('the cat sat', 'the sat', ['The cat sat down']), [['The sat down'], false], 'applied')
+})

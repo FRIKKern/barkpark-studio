@@ -1,7 +1,7 @@
 import type {Doc, Schema} from './data'
 import {merge3, mergeList3} from './merge.ts'
 import {getPath} from './paths.ts'
-import {keptReach} from './kept-stands.ts'
+import {keptReach, keptStands} from './kept-stands.ts'
 import {isText, keyOf, textOf} from './pt-merge.ts'
 
 // B11 widen, after the canvas's kept words (D21, lib/kept-words.ts): form edits not yet
@@ -204,9 +204,10 @@ function settled(merged: unknown[] | null, run: unknown[], split?: {from: number
  * stands there, and on into the new blocks right after it (keys new since the edit was made,
  * `p.keys`) only where they are a split of the block (lib/kept-stands.ts). Otherwise it cannot be
  * told, and the field comes back as the server has it. A block is never a target for the letters
- * it holds. Null: not such a block, or not there now (it goes as kept).
+ * it holds. Null: not such a block, or not there now (it goes as kept). `untold`: cannot be told,
+ * the field as it is; an edit whose result already stands there is done (the field as it is, no flag).
  */
-export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc): [string, unknown[]] | null {
+export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc): [string, unknown[], untold?: true] | null {
   const m = /^(\w+)\[_key=="([^"]+)"\]$/.exec(field)
   if (!m) return null
   const [, root, key] = m as unknown as [string, string, string]
@@ -221,9 +222,11 @@ export function restoreBlock(p: Pending, field: string, mine: unknown, doc: Doc)
   const old = new Map(p.keys ?? []).get(root)
   let last = at + 1
   while (old && last < list.length && isText(list[last]) && !old.includes(keyOf(list[last]) ?? '')) last++
-  const reach = keptReach(textOf(base), textOf(mine), list.slice(at, last).map((b) => textOf(b as Parameters<typeof textOf>[0])))
-  if (!reach) return [root, list]
+  const texts = list.slice(at, last).map((b) => textOf(b as Parameters<typeof textOf>[0]))
+  const untold = (): [string, unknown[], untold?: true] => (keptStands(textOf(base), textOf(mine), texts) ? [root, list] : [root, list, true])
+  const reach = keptReach(textOf(base), textOf(mine), texts)
+  if (!reach) return untold()
   const run = list.slice(at, at + reach.to + 1)
   const merged = settled(mergeList3([base], [mine], run), run, reach.split)
-  return [root, merged ? [...list.slice(0, at), ...merged, ...list.slice(at + reach.to + 1)] : list]
+  return merged ? [root, [...list.slice(0, at), ...merged, ...list.slice(at + reach.to + 1)]] : untold()
 }
