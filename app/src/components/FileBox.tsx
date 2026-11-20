@@ -3,7 +3,7 @@ import {BinaryDocumentIcon, Ellipsis, ErrorOutline, Search as SearchIcon, Undo, 
 import type {Field} from '../lib/data'
 import {useFileInfo} from '../lib/file-info'
 import {formatBytes} from '../lib/files'
-import {focusIn, heldKey, holdAct, settleBox, type Act} from '../lib/held-act'
+import {focusIn, holdAct, settleBox, type Act} from '../lib/held-act'
 import {useLocale, useT} from '../lib/i18n'
 
 // task-05dcdef359da08fc: the file input's box, one markup for both sides. The real input (FileInput,
@@ -47,11 +47,11 @@ export function FileBox({id, field, value, readOnly, live, children}: Props) {
   const title = field.title ?? field.name
   const name = info.data?.name
   // A press: the real input's, or kept for it by the button pressed (lib/held-act.ts).
-  const press = (act: Act) => (e: MouseEvent<HTMLButtonElement>) => (live ? live.act(act) : holdAct(heldKey(id), act, e.currentTarget))
+  const press = (act: Act) => (e: MouseEvent<HTMLButtonElement>) => (live ? live.act(act) : holdAct(id, act, e.currentTarget))
   // Drawn before the chunk: as React takes this box away for the real one, what had the focus in it
   // (and so whether a held press stands) is read, before the box leaves the page (lib/held-act.ts).
   const before = !live
-  useLayoutEffect(() => (before ? () => settleBox(heldKey(id), focusIn(id)) : undefined), [before, id])
+  useLayoutEffect(() => (before ? () => settleBox(id, focusIn(id)) : undefined), [before, id])
   // Before the chunk a dropped file is kept from the tab by DocEditors.tsx (guardDrops), server HTML or this.
   const target = live?.target ?? {}
   return (

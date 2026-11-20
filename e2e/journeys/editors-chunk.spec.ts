@@ -111,7 +111,7 @@ async function lateChunk(page: Page, docPath: string, drawn: 'photo' | 'mainImag
   const late = new Promise<void>((r) => (release = r))
   await page.route(/doc-editors/, async (route) => (await late, route.continue()))
   await page.clock.install()
-  await page.goto(docPath, {waitUntil: 'commit'})
+  const response = await page.goto(docPath, {waitUntil: 'commit'})
   const select = page.locator('fieldset.field').filter({has: page.locator('[id="photo"]')}).getByRole('button', {name: 'Select'})
   await expect(drawn === 'photo' ? select : page.locator(`[id="${drawn}"]`)).toBeVisible()
   // The drop zone where the server drew it (field-types-01 only), in view for the drop row's probe.
@@ -133,14 +133,14 @@ async function lateChunk(page: Page, docPath: string, drawn: 'photo' | 'mainImag
     await page.clock.resume() // real time again: the chunk's frames, the form's saves
     return r
   }
-  return {select, dropZone, landed}
+  return {select, dropZone, landed, html: () => response!.text()}
 }
 
 // A drop whose default is not prevented opens the file in the tab, leaving the studio. Synthetic
 // events have no default action, so the probe reads defaultPrevented, the browser's own cue.
-const probe = (page: Page, at: {x: number; y: number} | string, andDrop: boolean) =>
+const probe = (page: Page, at: {x: number; y: number}, andDrop: boolean) =>
   page.evaluate(({at, andDrop}) => {
-    const el = (typeof at === 'string' ? document.querySelector(at) : document.elementFromPoint(at.x, at.y)) ?? document.body
+    const el = document.elementFromPoint(at.x, at.y) ?? document.body
     const dataTransfer = new DataTransfer()
     dataTransfer.items.add(new File(['x'], 'kept.txt', {type: 'text/plain'}))
     const over = new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer})
@@ -149,201 +149,109 @@ const probe = (page: Page, at: {x: number; y: number} | string, andDrop: boolean
     if (andDrop) el.dispatchEvent(drop)
     return {on: String(el.className).split(' ')[0], dragover: over.defaultPrevented, drop: drop.defaultPrevented}
   }, {at, andDrop})
+const reactProps = (button: import('@playwright/test').Locator) =>
+  button.evaluate((el) => {
+    const key = Object.keys(el).find((k) => k.startsWith('__reactProps'))
+    return key ? {drawn: true, live: typeof (el as unknown as Record<string, {onPointerEnter?: unknown}>)[key].onPointerEnter === 'function'} : {drawn: false, live: false}
+  })
 /** The press reaches the box React drew in place of the server's (not the server's inert button). */
-const reactDrawn = (button: import('@playwright/test').Locator) =>
-  expect.poll(() => button.evaluate((el) => Object.keys(el).some((k) => k.startsWith('__reactProps'))), {message: "React's box, not the server's", timeout: 3_000}).toBe(true)
-/** The chunk's inputs are live (the file box answers a drop itself), and two frames have passed for their mount. */
-const inputsLive = async (page: Page) => {
-  await expect.poll(async () => (await probe(page, '.file-input .file-box', false)).dragover, {message: 'the inputs are live', timeout: 5_000}).toBe(true)
-  await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
+const reactDrawn = (button: import('@playwright/test').Locator) => expect.poll(async () => (await reactProps(button)).drawn, {message: "React's box, not the server's", timeout: 3_000}).toBe(true)
+
+/** Guard (task-05dc): the chunk's boundaries in a page's server HTML hold no control that takes typing: typing there
+ *  before the chunk lands would have nowhere to go once the real input replaces it. Read from the row's own page. */
+function typingInBoundaries(html: string) {
+  const typed = /<input\b(?![^>]*\btype="(?:hidden|file|checkbox|radio|button|submit|reset|range|color|image)")[^>]*>|<textarea\b|\bcontenteditable\b/gi
+  const form = html.slice(Math.max(0, html.indexOf('class="doc-form')))
+  let regions = 0
+  let depth = 0
+  let start = 0
+  const found: string[] = []
+  // The form's top-level Suspense regions (<!--$--> … <!--/$-->): the editors chunk's boundaries.
+  for (const m of form.matchAll(/<!--(\$\??!?|\/\$)-->/g)) {
+    if (m[1] !== '/$') {
+      if (depth++ === 0) start = m.index! + m[0].length
+    } else if (depth > 0 && --depth === 0) {
+      regions++
+      for (const hit of form.slice(start, m.index).match(typed) ?? []) found.push(hit.slice(0, 80))
+    }
+  }
+  return {regions, found}
 }
 
-// One page load, one held chunk: the inputs stay drawn, a drop on them is kept from the tab, and a
-// press on Select past the page's own click hold (DocEditors.tsx HOLD_MS, 3 s) opens it once the
-// chunk lands. Each check is soft and named, so a red run says which of them broke.
-test('a field group keeps its inputs drawn while the editors chunk is late; a drop is kept from the tab, a press on Select opens it on landing', async ({page}, info) => {
+// One page load, one held chunk: the inputs stay drawn; a drop on them is kept from the tab before the
+// chunk lands and in every frame after it, until the real input commits (React holds a fallback some
+// 250 ms: the guard stood down too soon there, review of #1337, P7b); a press on Select opens it once
+// the chunk lands. Each check is soft and named, so a red run says which of them broke.
+test('a field group keeps its inputs drawn while the editors chunk is late; no drop gets through before or as it lands; Select opens on landing', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  const {select, dropZone, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
+  const {select, dropZone, landed, html} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
   expect(dropZone, 'the server drew the drop zone').not.toBeNull()
-  const held = await probe(page, {x: dropZone!.x + dropZone!.width / 2, y: dropZone!.y + dropZone!.height / 2}, true)
-  await page.clock.fastForward(2_000)
+  const at = {x: dropZone!.x + dropZone!.width / 2, y: dropZone!.y + dropZone!.height / 2}
+  const held = await probe(page, at, true)
+  await reactDrawn(select)
   const pressed = await select.click({timeout: 2_000}).then(() => true, () => false)
   const {slots, emptied} = await landed()
-  console.log(`late chunk: server boundaries ${JSON.stringify(slots)}; emptied before it landed ${JSON.stringify(emptied)}; drop ${JSON.stringify(held)}`)
-  expect.soft(slots, "the server drew the chunk's inputs").toEqual(['file-input', 'photo'])
-  expect.soft(emptied, 'no input went missing before the chunk landed').toEqual([])
-  expect.soft(held, 'a drop while the chunk is late is kept from the browser').toMatchObject({dragover: true, drop: true})
-  expect.soft(pressed, 'Select was there to press while the chunk was late').toBe(true)
-  await expect.soft(page.getByRole('dialog'), 'the press on Select opened it once the chunk landed').toBeVisible({timeout: 5_000})
-  // The probe reads a live drop zone's answer (a dragover only: a drop there would upload).
-  await expect.soft.poll(async () => (await probe(page, '.file-input .file-box', false)).dragover, {message: 'the live drop zone answers the probe', timeout: 5_000}).toBe(true)
-})
-
-// The image's own fields (alt) sit outside the chunk's boundary (ImageBox.tsx, ImageFrame): typing in
-// one goes on while the chunk is late and as it lands, never swapped away mid-word.
-const ALT_ID = `post-late-alt-${Date.now().toString(36)}`
-// A fieldTypes document of the rows' own, for the rows that type (field-types-01 is shared) or open a second document.
-const PRESS_ID = `field-types-late-${Date.now().toString(36)}`
-const PRESS_TITLE = 'Late chunk press probe'
-test.afterEach(async ({}, info) => target(info).name === 'studio' && (await Promise.all([target(info).deleteDoc(ALT_ID, 'post'), target(info).deleteDoc(PRESS_ID, 'fieldTypes')])))
-
-test("typing in an image's Alt while the editors chunk is late keeps every letter and the focus as it lands", async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  await t.draftOnly(ALT_ID, 'post', {title: 'Late chunk Alt probe', slug: {_type: 'slug', current: ALT_ID}})
-  const {landed} = await lateChunk(page, t.docPath('post', ALT_ID), 'mainImage.alt')
-  const alt = page.locator('[id="mainImage.alt"]')
-  await alt.click({timeout: 5_000}) // gone on old code: it sat in the chunk's boundary
-  await page.keyboard.type('Held ')
-  await landed()
-  await page.keyboard.type('and landed', {delay: 15})
-  await expect(alt, 'every letter, across the chunk landing').toHaveValue('Held and landed')
-  await expect(alt, 'the focus stayed in Alt').toBeFocused()
-  await expect.poll(async () => ((await t.docValue(ALT_ID, 'mainImage')) as {alt?: string} | undefined)?.alt, {message: 'saved', timeout: 10_000}).toBe('Held and landed')
-})
-
-// A press held while the chunk is late fires as it lands only if the person is still on it: the same
-// button, still focused, on the same document. Anything else since, and it is dropped (lib/held-act.ts).
-test('a held Select and a held Upload are dropped once the person types in Title: no dialog, no chooser, every letter kept', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  await t.draftOnly(PRESS_ID, 'fieldTypes', {title: PRESS_TITLE})
-  let choosers = 0
-  page.on('filechooser', () => void choosers++)
-  const {select, landed} = await lateChunk(page, t.docPath('fieldTypes', PRESS_ID))
-  await page.clock.fastForward(2_000)
-  await reactDrawn(select)
-  await select.click({timeout: 2_000})
-  await page.locator('.file-input').getByRole('button', {name: 'Upload'}).click({timeout: 2_000})
-  const title = page.locator('[id="title"]')
-  await title.click()
-  await title.press('End')
-  await page.keyboard.type(' held')
-  await landed()
-  await page.keyboard.type(' on', {delay: 15})
-  await inputsLive(page)
-  await expect.soft(page.getByRole('dialog'), 'no dialog: the person moved on from Select').toHaveCount(0)
-  expect.soft(choosers, 'no file chooser: the person moved on from Upload').toBe(0)
-  await expect.soft(title, 'Title keeps the focus').toBeFocused()
-  await expect.soft(title, 'every letter, across the chunk landing').toHaveValue(`${PRESS_TITLE} held on`)
-  await expect.soft.poll(() => t.docValue(PRESS_ID, 'title', 'fieldTypes'), {message: 'saved', timeout: 10_000}).toBe(`${PRESS_TITLE} held on`)
-})
-
-test('a Select held on one document opens nothing on the next one the person goes to', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  await t.draftOnly(PRESS_ID, 'fieldTypes', {title: PRESS_TITLE})
-  const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
-  await page.clock.fastForward(2_000)
-  await reactDrawn(select)
-  await select.click({timeout: 2_000})
-  // A client navigation (the list's link), the chunk still held: the other document draws its own photo field.
-  await page.getByRole('link', {name: new RegExp(`^${PRESS_TITLE}`)}).first().click()
-  await expect(page.locator('[id="title"]')).toHaveValue(PRESS_TITLE)
-  await landed()
-  await inputsLive(page)
-  await expect(page.getByRole('dialog'), "no dialog on the other document: the press was the first one's").toHaveCount(0)
-})
-
-test('a held Select is dropped after a click elsewhere on the page', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
-  await page.clock.fastForward(2_000)
-  await reactDrawn(select)
-  await select.click({timeout: 2_000})
-  // A spot in the form that is nothing to press or type in.
-  const spot = await page.evaluate(() => {
-    const r = document.querySelector('.doc-form')!.getBoundingClientRect()
-    for (let y = r.top + 4; y < Math.min(r.bottom, innerHeight); y += 8)
-      for (let x = r.left + 2; x < r.right; x += 16) {
-        const el = document.elementFromPoint(x, y)
-        if (el && !el.closest('button, a, input, textarea, select, label, [tabindex], [contenteditable], [role]')) return {x, y}
-      }
-    return null
-  })
-  expect(spot, 'an empty spot in the form').not.toBeNull()
-  await page.mouse.click(spot!.x, spot!.y)
-  await landed()
-  await inputsLive(page)
-  await expect(page.getByRole('dialog'), 'no dialog: the person clicked elsewhere').toHaveCount(0)
-})
-
-// Safari does not focus a pressed button: a press whose button has lost the focus by the swap is dropped.
-test('a held Select whose button lost the focus before the chunk lands is dropped', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
-  await page.clock.fastForward(2_000)
-  await reactDrawn(select)
-  await select.click({timeout: 2_000})
-  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
-  await landed()
-  await inputsLive(page)
-  await expect(page.getByRole('dialog'), 'no dialog: the button was not focused at the swap').toHaveCount(0)
-})
-
-// The chunk lands right after React drew the boxes: the focus stays on the same button, and a drop in
-// the frames before the real input commits (React holds a fallback some 250 ms) is still kept from the tab.
-test('as the editors chunk lands, the focus stays on the same button and a drop is never let through', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
-  await reactDrawn(select)
-  await select.focus() // focused, not pressed
-  await landed()
+  // From the landing until the press opens the dialog (the real input is live by then): a dragover each frame.
   const frames = await page.evaluate(
-    () =>
+    (at) =>
       new Promise<boolean[]>((done) => {
         const seen: boolean[] = []
-        const end = performance.now() + 800
+        const end = performance.now() + 3_000
         const tick = () => {
-          const zone = document.querySelector('.file-input .file-box, .file-input .file-box.empty')
-          if (zone) {
+          const zone = document.elementFromPoint(at.x, at.y)
+          if (zone?.closest('.file-input')) {
             const dataTransfer = new DataTransfer()
             dataTransfer.items.add(new File(['x'], 'kept.txt', {type: 'text/plain'}))
             const over = new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer})
             zone.dispatchEvent(over)
             seen.push(over.defaultPrevented)
           }
-          if (performance.now() < end) requestAnimationFrame(tick)
-          else done(seen)
+          if (document.querySelector('[role="dialog"]') || performance.now() > end) done(seen)
+          else requestAnimationFrame(tick)
         }
         tick()
       }),
+    at,
   )
-  await inputsLive(page)
-  expect.soft(frames.length, 'frames probed').toBeGreaterThan(10)
-  expect.soft(frames.filter((x) => !x).length, 'frames where a drop would have opened the file').toBe(0)
-  await expect.soft(page.locator('[id="photo"] [data-act="select"]'), 'the live Select has the focus').toBeFocused()
-  await expect.soft(page.getByRole('dialog'), 'focused only: nothing opens').toHaveCount(0)
+  console.log(`late chunk: server boundaries ${JSON.stringify(slots)}; emptied before it landed ${JSON.stringify(emptied)}; drop ${JSON.stringify(held)}; frames ${frames.length}, let through ${frames.filter((x) => !x).length}`)
+  expect.soft(slots, "the server drew the chunk's inputs").toEqual(['file-input', 'photo'])
+  expect.soft(emptied, 'no input went missing before the chunk landed').toEqual([])
+  expect.soft(held, 'a drop while the chunk is late is kept from the browser').toMatchObject({dragover: true, drop: true})
+  expect.soft(frames.length, 'frames probed between the landing and the live input').toBeGreaterThan(0)
+  expect.soft(frames.filter((x) => !x).length, 'frames as the chunk lands where a drop would have opened the file').toBe(0)
+  expect.soft(pressed, 'Select was there to press while the chunk was late').toBe(true)
+  await expect.soft(page.getByRole('dialog'), 'the press on Select opened it once the chunk landed').toBeVisible({timeout: 5_000})
+  expect.soft(typingInBoundaries(await html()), "the page's chunk boundaries hold no typing control").toEqual({regions: 2, found: []})
 })
 
-// Guard (task-05dc): the chunk's boundaries on the server hold no control that takes typing.
-// Typing into a server-drawn input of the chunk before it lands would have nowhere to go once the
-// real input replaces it. No browser: the server's HTML only.
-test("the editors chunk's server HTML holds no input that takes typing", async ({request}, info) => {
+// The image's own fields (alt) sit outside the chunk's boundary (ImageBox.tsx, ImageFrame): typing in one
+// goes on while the chunk is late and as it lands. And a press held on the image's Select is dropped once
+// the person moved on to Alt (review of #1337, P1): it is done only if the focus is still on that button at
+// the swap (lib/held-act.ts afterSwap; its cases are unit tests in held-act.test.ts).
+const ALT_ID = `post-late-alt-${Date.now().toString(36)}`
+test.afterEach(async ({}, info) => target(info).name === 'studio' && (await target(info).deleteDoc(ALT_ID, 'post')))
+
+test("typing in an image's Alt while the editors chunk is late keeps every letter, the focus and the save as it lands; a Select held before it opens nothing", async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  const typed = /<input\b(?![^>]*\btype="(?:hidden|file|checkbox|radio|button|submit|reset|range|color|image)")[^>]*>|<textarea\b|\bcontenteditable\b/gi
-  let regions = 0
-  const found: string[] = []
-  for (const [type, id] of [['post', 'post-17'], [LATE.type, LATE.id]] as const) {
-    const html = await (await request.get(t.docPath(type, id))).text()
-    const form = html.slice(Math.max(0, html.indexOf('class="doc-form')))
-    // The form's top-level Suspense regions (<!--$--> … <!--/$-->): the editors chunk's boundaries.
-    let depth = 0
-    let start = 0
-    for (const m of form.matchAll(/<!--(\$\??!?|\/\$)-->/g)) {
-      if (m[1] !== '/$') {
-        if (depth++ === 0) start = m.index! + m[0].length
-      } else if (depth > 0 && --depth === 0) {
-        regions++
-        for (const hit of form.slice(start, m.index).match(typed) ?? []) found.push(`${id}: ${hit.slice(0, 80)}`)
-      }
-    }
-  }
-  expect(regions, 'the pages drew chunk boundaries on the server').toBeGreaterThan(0)
-  expect(found, 'no typing control inside them').toEqual([])
+  await t.draftOnly(ALT_ID, 'post', {title: 'Late chunk Alt probe', slug: {_type: 'slug', current: ALT_ID}})
+  const {landed, html} = await lateChunk(page, t.docPath('post', ALT_ID), 'mainImage.alt')
+  await page.clock.fastForward(2_000) // past the page's own click hold (DocEditors.tsx HOLD_MS): the press reaches the box
+  const select = page.locator('[id="mainImage"] [data-act="select"]')
+  await reactDrawn(select)
+  await select.click({timeout: 2_000})
+  const alt = page.locator('[id="mainImage.alt"]')
+  await alt.click({timeout: 5_000}) // gone on main's code: it sat in the chunk's boundary
+  await page.keyboard.type('Held ')
+  await landed()
+  await page.keyboard.type('and landed', {delay: 15})
+  // The live image box (its Select warms the media list); its mount has run by the next frames.
+  await expect.poll(async () => (await reactProps(select)).live, {message: 'the image input is live', timeout: 5_000}).toBe(true)
+  await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
+  await expect.soft(page.getByRole('dialog'), 'no dialog: the person moved on from Select to Alt').toHaveCount(0)
+  await expect.soft(alt, 'every letter, across the chunk landing').toHaveValue('Held and landed')
+  await expect.soft(alt, 'the focus stayed in Alt').toBeFocused()
+  await expect.soft.poll(async () => ((await t.docValue(ALT_ID, 'mainImage')) as {alt?: string} | undefined)?.alt, {message: 'saved', timeout: 10_000}).toBe('Held and landed')
+  expect.soft(typingInBoundaries(await html()), "the page's chunk boundaries hold no typing control").toMatchObject({found: []})
 })

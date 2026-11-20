@@ -15,7 +15,7 @@ import type {ImageMeta} from '../lib/image-meta'
 import {UploadProgress} from './UploadProgress'
 import {FileBox, carriesFiles} from './FileBox'
 import {useFileInfo} from '../lib/file-info'
-import {actControl, heldKey, markLive, takeHeld, type Act} from '../lib/held-act'
+import {actControl, markLive, takeHeld, type Act} from '../lib/held-act'
 
 // J54, after Sanity's file input: an empty box ("Drag or paste file here",
 // Upload, Select); a file shows its name and size with an options menu (Upload,
@@ -107,7 +107,7 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   // and a press held on it is done if the person was still on it (lib/held-act.ts).
   useEffect(() => {
     markLive(document.getElementById(id))
-    const {act, focus} = takeHeld(heldKey(id))
+    const {act, focus} = takeHeld(id)
     if (focus) actControl(id, focus)?.focus()
     if (act === 'upload') document.getElementById(id)?.querySelector<HTMLInputElement>('input[type=file]')?.click()
     else if (act === 'select') setBrowsing(true)

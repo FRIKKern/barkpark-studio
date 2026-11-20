@@ -4,7 +4,7 @@ import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {EditPathContext, FieldView, type OpenRef} from './Fields'
 import {ImageBox} from './ImageBox'
 import {carriesFiles} from './FileBox'
-import {actControl, heldKey, markLive, takeHeld, type Act} from '../lib/held-act'
+import {actControl, markLive, takeHeld, type Act} from '../lib/held-act'
 import {toast} from './Toasts'
 import {RefPreview} from './Preview'
 import {Close as CloseIcon, Copy as CopyIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Trash, Undo, Upload} from './icons'
@@ -118,7 +118,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   // and a press held on it is done if the person was still on it (lib/held-act.ts).
   useEffect(() => {
     markLive(document.getElementById(id))
-    const {act, focus} = takeHeld(heldKey(id))
+    const {act, focus} = takeHeld(id)
     if (focus) actControl(id, focus)?.focus()
     if (act === 'upload') file.current?.click()
     else if (act === 'select') setBrowsing(true)

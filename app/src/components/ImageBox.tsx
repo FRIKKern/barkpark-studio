@@ -5,7 +5,7 @@ import {Crop as CropIcon, Ellipsis, ErrorOutline, ImageIcon, Search as SearchIco
 import {UnsupportedAssetCard} from './BrokenValues'
 import type {Field} from '../lib/data'
 import {useFileInfo} from '../lib/file-info'
-import {focusIn, heldKey, holdAct, settleBox, type Act} from '../lib/held-act'
+import {focusIn, holdAct, settleBox, type Act} from '../lib/held-act'
 import {useT} from '../lib/i18n'
 import {cropView, imageRef, imageSrc, sanityImageId, type ImageValue} from '../lib/image'
 
@@ -77,11 +77,11 @@ export function ImageBox({id, field, value, readOnly, live}: BoxProps) {
       : undefined
   // Sanity's options.hotspot; Barkpark's schemas also say it on the field itself ({hotspot: true}).
   const hotspot = !!((field.options as {hotspot?: boolean} | undefined)?.hotspot || (field as {hotspot?: boolean}).hotspot)
-  const press = (act: Act) => (e: MouseEvent<HTMLButtonElement>) => (live ? live.act(act) : holdAct(heldKey(id), act, e.currentTarget))
+  const press = (act: Act) => (e: MouseEvent<HTMLButtonElement>) => (live ? live.act(act) : holdAct(id, act, e.currentTarget))
   // Drawn before the chunk: as React takes this box away for the real one, what had the focus in it
   // (and so whether a held press stands) is read, before the box leaves the page (lib/held-act.ts).
   const before = !live
-  useLayoutEffect(() => (before ? () => settleBox(heldKey(id), focusIn(id)) : undefined), [before, id])
+  useLayoutEffect(() => (before ? () => settleBox(id, focusIn(id)) : undefined), [before, id])
   // Before the chunk a dropped file is kept from the tab by DocEditors.tsx (guardDrops), server HTML or this.
   const target = live?.target ?? {}
   const over = live?.over || undefined
