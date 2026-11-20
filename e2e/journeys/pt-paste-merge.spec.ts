@@ -131,3 +131,56 @@ test('@local Portable Text: a paste kept while its page reloads mid-save, the ot
     await closeAndSettle(page)
   }
 })
+
+// task-28470f0d0ace566c: as above, but B rewrites the block ("A dog") while A's line is kept. Where
+// the line goes cannot be told (the text it touched is gone): B's text stays, and the card stays up,
+// saying it could not be put back, with A's text to copy. It is still offered after a reload.
+test('@local Portable Text: a line kept while its page reloads mid-save, the other rewriting the block: not put back, still offered with its text', async ({page, browser}, info) => {
+  const ctxB = await browser.newContext()
+  await target(info).prepare(ctxB)
+  const b = await ctxB.newPage()
+  try {
+    await page.addInitScript(() => {
+      navigator.sendBeacon = () => false
+    })
+    const [edA, edB] = await Promise.all([open(page, info, true), open(b, info, false)])
+    let held = 0
+    const slow = (route: import('@playwright/test').Route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes('mutations') ? void held++ : route.continue())
+    await page.route('**/_serverFn/**', slow)
+    await paste(edA, ' one two three')
+    await page.waitForTimeout(600) // kept in this browser
+    // B selects the block's text (ProseMirror reads the selection on selectionchange), then pastes over it.
+    await edB.evaluate((el) => {
+      const node = [...el.querySelectorAll('*')].find((e) => e.childElementCount === 0 && e.textContent === 'Start text')!.firstChild!
+      getSelection()!.setBaseAndExtent(node, 0, node, 'Start text'.length)
+    })
+    await b.waitForTimeout(200)
+    await paste(edB, 'A dog')
+    await savesLanded(b)
+    await expect.poll(stored, {timeout: 10_000}).toEqual(['Kettle on.', 'A dog', 'Cups out.'])
+    await expect.poll(() => held, {timeout: 10_000}).toBeGreaterThan(0)
+    await page.waitForTimeout(1_000) // kept in this browser, and a moment more (task-e437f5ba355f317e)
+    await page.reload()
+    await page.unroute('**/_serverFn/**', slow)
+    await target(info).settle(page)
+    await page.getByRole('tab', {name: 'All fields'}).click()
+    const card = page.getByTestId('kept-edits')
+    await card.getByRole('button', {name: 'Restore'}).click()
+    await expect(card).toContainText('could not be put back: the text changed since')
+    // The paste here drops the leading space today; this line and WANT gain the space when the paste keeps it.
+    await expect(card.getByTestId('kept-text')).toHaveText('Start textone two three')
+    await expect(card.getByRole('button', {name: 'Restore'})).toHaveCount(0)
+    await page.waitForTimeout(1_000)
+    expect(await stored()).toEqual(['Kettle on.', 'A dog', 'Cups out.'])
+    // Still kept in this browser: offered again after a reload.
+    await page.reload()
+    await target(info).settle(page)
+    await page.getByRole('tab', {name: 'All fields'}).click()
+    await expect(page.getByTestId('kept-edits')).toBeVisible({timeout: 8_000})
+    expect(await stored()).toEqual(['Kettle on.', 'A dog', 'Cups out.'])
+  } finally {
+    await closeAndSettle(b)
+    await ctxB.close()
+    await closeAndSettle(page)
+  }
+})

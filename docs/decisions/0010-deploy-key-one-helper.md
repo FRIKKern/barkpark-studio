@@ -20,16 +20,16 @@ step env DEPLOY_KEY ─► scripts/lib/deploy-push.sh: taken, unset ─► every
     file is removed after the push, and by an EXIT trap if the script ends mid-push;
   - GitHub's ed25519 host key is the only known host (no global known-hosts file, no SSH config);
   - the push is never forced; a caller may pass a lease (`--force-with-lease`).
-- Every workflow job holds no key or is pinned whole, with the files it runs, in
-  `scripts/lib/keyed-jobs.json` (`scripts/lib/workflow-keys.mjs`). Holding no key: every checkout keeps
-  no credentials, the token may write nothing, and no secret is read but a data-only one. Both pushing
-  jobs are pinned, with the helper among their files, so one changed byte in it reds both pins; every
-  action in a pinned job is named by a full commit SHA.
+- Every workflow job holds no key or is pinned whole, with the files it runs, in `scripts/lib/keyed-jobs.json`
+  (`scripts/lib/workflow-keys.mjs`). Holding no key: every checkout keeps no credentials, the token may write
+  nothing, and no secret is read but a data-only one. Both pushing jobs pin the helper among their files, so
+  one changed byte in it reds both pins; every action in a pinned job is named by a full commit SHA.
 - **Careful review** for a change to a pinned file or a guard; careful-review.test.mjs holds the list to both:
   `.github/workflows/` `housekeeping.yml` `sync-pack.yml`; `scripts/` `check-docs.mjs` `housekeeping-push.sh`
   `sync-act.sh`; `scripts/lib/` `careful-review.mjs` `careful-review.test.mjs` `deploy-push.sh`
-  `deploy-push.test.mjs` `housekeeping-push.test.mjs` `hygiene.test.mjs` `key-shims.mjs` `keyed-jobs.json`
-  `keyed-jobs.test.mjs` `roadmap-style.css` `svg-check.py` `sync-act.test.mjs` `workflow-keys.mjs`.
+  `deploy-push.test.mjs` `e2e-all.test.mjs` `housekeeping-push.test.mjs` `hygiene.test.mjs` `key-shims.mjs`
+  `keyed-jobs.json` `keyed-jobs.test.mjs` `roadmap-style.css` `svg-check.py` `sync-act.test.mjs`
+  `workflow-keys.mjs`.
 - `scripts/lib/deploy-push.test.mjs` holds the guarantees, once. Each script's own test shows it touches
   the key nowhere but `deploy_push`, and its runs, each with every external command shimmed and its own
   key-leak log (`scripts/lib/key-shims.mjs`), show no child process with the key in its env.

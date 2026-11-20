@@ -330,6 +330,7 @@ export default {
   'Unsaved changes from {date} were put back, except to {fields}: read-only for you. Those are kept in this browser.': 'Ulagrede endringer fra {date} er lagt tilbake, unntatt i {fields}: skrivebeskyttet for deg. De er tatt vare på i denne nettleseren.',
   'Unsaved changes to {fields} from {date} were not put back: read-only for you. They are kept in this browser.': 'Ulagrede endringer i {fields} fra {date} ble ikke lagt tilbake: skrivebeskyttet for deg. De er tatt vare på i denne nettleseren.',
   'Unsaved changes from {date}, kept in this browser. The document has changed since.': 'Ulagrede endringer fra {date}, tatt vare på i denne nettleseren. Dokumentet er endret siden.',
+  'Unsaved changes to {fields} from {date} could not be put back: the text changed since. They are kept in this browser.': 'Ulagrede endringer i {fields} fra {date} kunne ikke settes tilbake: teksten er endret siden. De er tatt vare på i denne nettleseren.',
   'Unsaved changes to {fields} from {date} cannot be put back: the schema has changed since.': 'Ulagrede endringer i {fields} fra {date} kan ikke settes tilbake: skjemaet er endret siden.',
   'Too many deletions at once (at most {limit}). Try fewer.': 'For mange slettinger på én gang (høyst {limit}). Prøv færre.',
   'Too many changes at once. Try fewer.': 'For mange endringer på én gang. Prøv færre.',
