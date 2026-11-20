@@ -38,8 +38,12 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
   // once in 56 CI runs no save came after Restore, and the failure said nothing more).
   const t0 = Date.now()
   const log: string[] = []
-  const say = (s: string) => log.push(`${Date.now() - t0} ms ${s}`)
-  page.on('request', (r) => void (r.url().includes('/_serverFn/') && say(`-> ${r.method()} ${(r.postData() ?? '').slice(0, 200)}`)))
+  // CI logs are public: no headers, no answer bodies, and a request body only for a save (a
+  // document mutation). Other server calls (sign-in, session, preview tokens) show method and status only.
+  const redact = (s: string) => s.replace(/Bearer\s+\S+|eyJ[\w-]+\.[\w-]+\.[\w-]*|\b(token|secret|password|cookie|session)\b(\W{0,3})\S+/gi, (m, k, sep) => (k ? `${k}${sep}[redacted]` : '[redacted]'))
+  const say = (s: string) => log.push(`${Date.now() - t0} ms ${redact(s)}`)
+  const body = (r: {postData: () => string | null}) => ((r.postData() ?? '').includes('mutations') ? ` ${(r.postData() ?? '').slice(0, 200)}` : '')
+  page.on('request', (r) => void (r.url().includes('/_serverFn/') && say(`-> ${r.method()}${body(r)}`)))
   page.on('response', (r) => void (r.url().includes('/_serverFn/') && say(`<- ${r.status()} ${r.request().method()}`)))
   page.on('requestfailed', (r) => void (r.url().includes('/_serverFn/') && say(`x ${r.failure()?.errorText}`)))
   page.on('console', (m) => say(`console.${m.type()} ${m.text().slice(0, 300)}`))
