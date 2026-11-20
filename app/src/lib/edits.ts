@@ -9,7 +9,7 @@ import {expectEcho, mutatedIds} from '../server/listen'
 import {docQuery, readServerDoc, schemasQuery, setUnsavedOverlay, type Doc, type Field, type ListPage, type Schema} from './data'
 import {advisoryFindings, findingsOf, findingsReason, type Finding} from './findings'
 import {localeQuery, t} from './i18n'
-import {startValues} from './today-start'
+import {startValues, type Start} from './today-start'
 import {setFooterOffline} from './footer-offline'
 import {heldFor} from './held-for'
 import {slugsTakenNow} from './slug-unique'
@@ -942,8 +942,8 @@ async function send(qc: QueryClient, id: string) {
  * only here until the first edit, which creates it. Leaving untouched leaves
  * nothing behind. "$today" in them is resolved here (lib/today-start).
  */
-export function draftNew(qc: QueryClient, type: string, id: string, initial: Record<string, unknown>) {
-  startValues(qc, localeQuery, initial, (values) => {
+export function draftNew(qc: QueryClient, type: string, id: string, start: Start) {
+  startValues(qc, localeQuery, start, (values) => {
     const e = entry(id, type)
     if (qc.getQueryData(['doc', id])) return
     e.pendingCreate = values
@@ -954,12 +954,11 @@ export function draftNew(qc: QueryClient, type: string, id: string, initial: Rec
 /**
  * Create a draft now and hold every edit to it until the server has it. The
  * cache gets the doc at once (a pane can open on it in the same frame); its
- * empty _updatedAt lets the server's copy replace it. "$today" in `fields` is
- * resolved here (lib/today-start), except in a copy (`asIs`: Duplicate).
+ * empty _updatedAt lets the server's copy replace it. "$today" in `start` is
+ * resolved here (lib/today-start), never in its `asIs` part (typed text, a copy).
  */
-export function createDoc(qc: QueryClient, type: string, id: string, fields: Record<string, unknown>, {asIs = false} = {}): Promise<void> {
-  if (asIs) return createNow(qc, type, id, fields)
-  return new Promise((resolve, reject) => startValues(qc, localeQuery, fields, (values) => void createNow(qc, type, id, values).then(resolve, reject)))
+export function createDoc(qc: QueryClient, type: string, id: string, start: Start): Promise<void> {
+  return new Promise((resolve, reject) => startValues(qc, localeQuery, start, (values) => void createNow(qc, type, id, values).then(resolve, reject)))
 }
 
 async function createNow(qc: QueryClient, type: string, id: string, fields: Record<string, unknown>) {

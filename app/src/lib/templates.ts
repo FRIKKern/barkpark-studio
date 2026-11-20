@@ -40,10 +40,13 @@ export function choiceById(schemas: Schema[], type: string, id: string, params?:
  * Open a new document from `choice` as `id`: it exists only here until its first edit
  * (Sanity's way), except a type with an Expectation (D04), which Barkpark builds at once.
  * `extra` (a reference field's search text as the title) goes on top of the template.
- * draftNew and createDoc resolve "$today" in either (lib/today-start).
+ * draftNew and createDoc resolve "$today" in either (lib/today-start): the type's own
+ * values are the schema's, Barkpark's too; a template's and `extra` exist only here.
  */
 export function startNew(qc: QueryClient, schemas: Schema[], choice: Choice, id: string, extra: Record<string, unknown> = {}): Promise<void> {
-  if (editorMode(choice.type, schemaOf(schemas, choice.type)) !== 'none') return createDoc(qc, choice.type, id, {...(choice.id === choice.type ? {} : choice.value), ...extra})
-  draftNew(qc, choice.type, id, {...choice.value, ...extra})
+  const own = choice.id === choice.type
+  const local = {...(own ? {} : choice.value), ...extra}
+  if (editorMode(choice.type, schemaOf(schemas, choice.type)) !== 'none') return createDoc(qc, choice.type, id, {local})
+  draftNew(qc, choice.type, id, {schema: own ? choice.value : {}, local})
   return Promise.resolve()
 }

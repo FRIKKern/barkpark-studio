@@ -17,7 +17,7 @@ function start(zone: string | null, value: unknown, now: Date): unknown {
   const qc = new QueryClient()
   qc.setQueryData(read.queryKey, zone === null ? {locale: 'en'} : {locale: 'en', timeZone: zone})
   let out: unknown
-  startValues(qc, read, value, (v) => (out = v), now)
+  startValues(qc, read, {schema: value as Record<string, unknown>}, (v) => (out = v), now)
   return out
 }
 

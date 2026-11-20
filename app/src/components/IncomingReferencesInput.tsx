@@ -129,7 +129,7 @@ function TypeList({decl, type, titled, doc, panes, index, published, revision, l
     if (rows.length >= FIRST_ROWS) setAll(true)
     // As a reference field's Create new (J22): the document exists at once, pointing here,
     // and opens in the next pane; over the chosen template's values (J18).
-    createDoc(qc, type.type, newId, {...(choice.id === type.type ? {} : choice.value), ...preset}).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
+    createDoc(qc, type.type, newId, {local: choice.id === type.type ? {} : choice.value, asIs: preset}).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
     void navigate({href: openAfter(panes, index, {kind: 'doc', id: newId, type: type.type})})
     focusFirstField(newId)
   }
