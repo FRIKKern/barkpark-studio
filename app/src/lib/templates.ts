@@ -4,6 +4,8 @@ import {createDoc, draftNew} from './edits'
 import {editorMode} from './editor-mode'
 import studio from '../studio.config'
 import {resolveTemplate} from './template-resolve'
+import {localeQuery} from './i18n'
+import {resolveToday} from './today'
 
 // J18, Sanity's initial value templates: each type starts the one way its schema says
 // (its initial values), and the studio config can add more (`templates`). Every Create
@@ -40,9 +42,13 @@ export function choiceById(schemas: Schema[], type: string, id: string, params?:
  * Open a new document from `choice` as `id`: it exists only here until its first edit
  * (Sanity's way), except a type with an Expectation (D04), which Barkpark builds at once.
  * `extra` (a reference field's search text as the title) goes on top of the template.
+ * "$today" in either becomes today in the workspace's time zone, else the editor's (lib/today).
  */
 export function startNew(qc: QueryClient, schemas: Schema[], choice: Choice, id: string, extra: Record<string, unknown> = {}): Promise<void> {
-  if (editorMode(choice.type, schemaOf(schemas, choice.type)) !== 'none') return createDoc(qc, choice.type, id, {...(choice.id === choice.type ? {} : choice.value), ...extra})
-  draftNew(qc, choice.type, id, {...choice.value, ...extra})
+  const schema = schemaOf(schemas, choice.type)
+  const zone = qc.getQueryData(localeQuery.queryKey)?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  const today = (values: Record<string, unknown>) => resolveToday(values, schema?.fields, new Date(), zone)
+  if (editorMode(choice.type, schema) !== 'none') return createDoc(qc, choice.type, id, today({...(choice.id === choice.type ? {} : choice.value), ...extra}))
+  draftNew(qc, choice.type, id, today({...choice.value, ...extra}))
   return Promise.resolve()
 }
