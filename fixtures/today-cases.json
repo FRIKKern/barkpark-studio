@@ -1,140 +1,928 @@
 {
- "about": "Cases for Barkpark's \"$today\" token (api/lib/barkpark/content/today.ex). 'server' per case is Barkpark's answer for that value at 'now' in 'zone'. app/src/lib/today-server.test.ts checks the studio gives the same. Barkpark's api/test/barkpark/content/today_test.exs pins the same cases. Regenerate: elixir scripts/today-cases.exs <barkpark checkout>. G2 / S3 (task-a34b8c24295dd488, task-f78a513602faee55).",
- "cases": [
-  {
-   "name": "23:30 UTC, Oslo is already tomorrow",
-   "now": "2026-11-20T23:30:00Z",
-   "server": "2026-11-21",
-   "value": "$today",
-   "zone": "Europe/Oslo"
-  },
-  {
-   "name": "23:30 UTC, no zone reads UTC",
-   "now": "2026-11-20T23:30:00Z",
-   "server": "2026-11-20",
-   "value": "$today",
-   "zone": "Etc/UTC"
-  },
-  {
-   "name": "an unknown zone reads UTC",
-   "now": "2026-11-20T23:30:00Z",
-   "server": "2026-11-20",
-   "value": "$today",
-   "zone": "Not/AZone"
-  },
-  {
-   "name": "the night summer time starts, before the change",
-   "now": "2026-03-28T23:30:00Z",
-   "server": "2026-03-29",
-   "value": "$today",
-   "zone": "Europe/Oslo"
-  },
-  {
-   "name": "summer time, 23:59:59 in Oslo",
-   "now": "2026-03-29T21:59:59Z",
-   "server": "2026-03-29",
-   "value": "$today",
-   "zone": "Europe/Oslo"
-  },
-  {
-   "name": "summer time, 00:00 in Oslo",
-   "now": "2026-03-29T22:00:00Z",
-   "server": "2026-03-30",
-   "value": "$today",
-   "zone": "Europe/Oslo"
-  },
-  {
-   "name": "the night summer time ends, 00:30 in Oslo",
-   "now": "2026-10-24T22:30:00Z",
-   "server": "2026-10-25",
-   "value": "$today",
-   "zone": "Europe/Oslo"
-  },
-  {
-   "name": "winter time again, 23:30 in Oslo",
-   "now": "2026-10-25T22:30:00Z",
-   "server": "2026-10-25",
-   "value": "$today",
-   "zone": "Europe/Oslo"
-  },
-  {
-   "name": "winter time again, 00:00 in Oslo",
-   "now": "2026-10-25T23:00:00Z",
-   "server": "2026-10-26",
-   "value": "$today",
-   "zone": "Europe/Oslo"
-  },
-  {
-   "name": "the year, New Year's Eve 23:30 UTC in Oslo",
-   "now": "2026-12-31T23:30:00Z",
-   "server": "2027",
-   "value": "$today.year",
-   "zone": "Europe/Oslo"
-  },
-  {
-   "name": "the year, the same instant in UTC",
-   "now": "2026-12-31T23:30:00Z",
-   "server": "2026",
-   "value": "$today.year",
-   "zone": "Etc/UTC"
-  },
-  {
-   "name": "nested and in a list",
-   "now": "2026-11-20T23:30:00Z",
-   "server": {
-    "a": {
-     "b": "2026-11-21"
+  "about": "Cases for Barkpark's \"$today\" token (api/lib/barkpark/content/today.ex). 'server' per case is Barkpark's answer for that value at 'now' in 'zone'; zone null is a workspace with no zone, which Barkpark reads as UTC (Today.clock). app/src/lib/today-server.test.ts checks the studio gives the same, through its one resolver (lib/today-start.ts). Seeded from review-56's 890-case table, trimmed to the cases that carry the meaning. Regenerate: elixir scripts/today-cases.exs <barkpark checkout>. G2 / S3 (task-a34b8c24295dd488, task-f78a513602faee55).",
+  "server": "barkpark d4881c07c6",
+  "cases": [
+    {
+      "name": "Oslo winter 22:30 UTC: still the 15th",
+      "now": "2026-01-15T22:30:00.123Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-01-15",
+        "tittel": "Ny sak"
+      }
     },
-    "c": [
-     "2026-11-21",
-     1
-    ]
-   },
-   "value": {
-    "a": {
-     "b": "$today"
+    {
+      "name": "Oslo winter 23:30 UTC: already the 16th",
+      "now": "2026-01-15T23:30:00.123Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-01-16",
+        "tittel": "Ny sak"
+      }
     },
-    "c": [
-     "$today",
-     1
-    ]
-   },
-   "zone": "Europe/Oslo"
-  },
-  {
-   "name": "only the exact string is a token",
-   "now": "2026-11-20T23:30:00Z",
-   "server": [
-    "$todayx",
-    " $today",
-    "fra $today",
-    "$tomorrow",
-    "$TODAY",
-    "today"
-   ],
-   "value": [
-    "$todayx",
-    " $today",
-    "fra $today",
-    "$tomorrow",
-    "$TODAY",
-    "today"
-   ],
-   "zone": "Europe/Oslo"
-  },
-  {
-   "name": "a fixed initial value starts as written",
-   "now": "2026-11-20T23:30:00Z",
-   "server": {
-    "publisert": "2026-01-01",
-    "tittel": "Ny sak"
-   },
-   "value": {
-    "publisert": "2026-01-01",
-    "tittel": "Ny sak"
-   },
-   "zone": "Europe/Oslo"
-  }
- ],
- "server": "barkpark d4881c07c6"
+    {
+      "name": "Oslo summer 21:30 UTC: still the 15th",
+      "now": "2026-07-15T21:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-07-15",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Oslo summer 22:30 UTC: already the 16th",
+      "now": "2026-07-15T22:30:00.999Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-07-16",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Oslo 20 Nov 23:30 UTC: every value shape (literals, nested, arrays, year, undeclared, string fields)",
+      "now": "2026-11-20T23:30:00.123Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "a": "$todayx",
+        "antall": "$today",
+        "b": " $today",
+        "c": "fra $today",
+        "d": "$tomorrow",
+        "datoMedObjekt": {
+          "inni": "$today"
+        },
+        "e": "$TODAY",
+        "f": "$today ",
+        "g": "$today.month",
+        "h": null,
+        "i": true,
+        "j": 42,
+        "liste": [
+          {
+            "_key": "a",
+            "n": "$today"
+          },
+          "$today",
+          [
+            "$today",
+            "$today.year"
+          ],
+          null,
+          3
+        ],
+        "meta": {
+          "dag": "$today",
+          "dypere": {
+            "x": "$today"
+          },
+          "naar": "$today",
+          "navn": "$today",
+          "ukjent": "$today"
+        },
+        "publisert": "$today",
+        "tekst": "$today.year",
+        "tid": "$today",
+        "tittel": "$today",
+        "undeclared": "$today",
+        "year": "$today.year"
+      },
+      "server": {
+        "a": "$todayx",
+        "antall": "2026-11-21",
+        "b": " $today",
+        "c": "fra $today",
+        "d": "$tomorrow",
+        "datoMedObjekt": {
+          "inni": "2026-11-21"
+        },
+        "e": "$TODAY",
+        "f": "$today ",
+        "g": "$today.month",
+        "h": null,
+        "i": true,
+        "j": 42,
+        "liste": [
+          {
+            "_key": "a",
+            "n": "2026-11-21"
+          },
+          "2026-11-21",
+          [
+            "2026-11-21",
+            "2026"
+          ],
+          null,
+          3
+        ],
+        "meta": {
+          "dag": "2026-11-21",
+          "dypere": {
+            "x": "2026-11-21"
+          },
+          "naar": "2026-11-21",
+          "navn": "2026-11-21",
+          "ukjent": "2026-11-21"
+        },
+        "publisert": "2026-11-21",
+        "tekst": "2026",
+        "tid": "2026-11-21",
+        "tittel": "2026-11-21",
+        "undeclared": "2026-11-21",
+        "year": "2026"
+      }
+    },
+    {
+      "name": "summer time starts: 28 Mar 22:30 UTC",
+      "now": "2026-03-28T22:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-03-28",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "summer time starts: 28 Mar 23:30 UTC is the 29th",
+      "now": "2026-03-28T23:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-03-29",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "summer time starts: 29 Mar 00:30 UTC",
+      "now": "2026-03-29T00:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-03-29",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "summer time starts: 29 Mar 01:30 UTC, after the jump",
+      "now": "2026-03-29T01:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-03-29",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "summer time starts: 29 Mar 21:30 UTC, 23:30 local",
+      "now": "2026-03-29T21:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-03-29",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "summer time starts: 29 Mar 22:30 UTC is the 30th",
+      "now": "2026-03-29T22:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-03-30",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "summer time ends: 24 Oct 21:30 UTC",
+      "now": "2026-10-24T21:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-10-24",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "summer time ends: 24 Oct 22:30 UTC is the 25th",
+      "now": "2026-10-24T22:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-10-25",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "summer time ends: 25 Oct 01:30 UTC, after the step back",
+      "now": "2026-10-25T01:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-10-25",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "summer time ends: 25 Oct 22:30 UTC, 23:30 local",
+      "now": "2026-10-25T22:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-10-25",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "summer time ends: 25 Oct 23:30 UTC is the 26th",
+      "now": "2026-10-25T23:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-10-26",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "New York summer time starts: 8 Mar 04:30 UTC",
+      "now": "2026-03-08T04:30:00.000Z",
+      "zone": "America/New_York",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-03-07",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "New York summer time starts: 8 Mar 05:30 UTC",
+      "now": "2026-03-08T05:30:00.000Z",
+      "zone": "America/New_York",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-03-08",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "New York summer time ends: 1 Nov 03:30 UTC is still 31 Oct",
+      "now": "2026-11-01T03:30:00.000Z",
+      "zone": "America/New_York",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-10-31",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "New York summer time ends: 1 Nov 04:30 UTC",
+      "now": "2026-11-01T04:30:00.000Z",
+      "zone": "America/New_York",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-01",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "US/Eastern (a link) as New York",
+      "now": "2026-11-01T03:30:00.000Z",
+      "zone": "US/Eastern",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-10-31",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Kolkata +5:30, one ms before midnight",
+      "now": "2026-11-20T18:29:59.999Z",
+      "zone": "Asia/Kolkata",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-20",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Kolkata +5:30, midnight",
+      "now": "2026-11-20T18:30:00.000Z",
+      "zone": "Asia/Kolkata",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-21",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Asia/Calcutta (a link) as Kolkata",
+      "now": "2026-11-20T18:30:00.000Z",
+      "zone": "Asia/Calcutta",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-21",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Kathmandu +5:45, one ms before midnight",
+      "now": "2026-11-20T18:14:59.999Z",
+      "zone": "Asia/Kathmandu",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-20",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Kathmandu +5:45, midnight",
+      "now": "2026-11-20T18:15:00.000Z",
+      "zone": "Asia/Kathmandu",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-21",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Kiritimati +14, one ms before midnight",
+      "now": "2026-11-20T09:59:59.999Z",
+      "zone": "Pacific/Kiritimati",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-20",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Kiritimati +14, midnight",
+      "now": "2026-11-20T10:00:00.000Z",
+      "zone": "Pacific/Kiritimati",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-21",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Pago Pago -11, one ms before midnight",
+      "now": "2026-11-20T10:59:59.999Z",
+      "zone": "Pacific/Pago_Pago",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-19",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Pago Pago -11, midnight",
+      "now": "2026-11-20T11:00:00.000Z",
+      "zone": "Pacific/Pago_Pago",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-20",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Etc/GMT-14 is UTC+14",
+      "now": "2026-11-20T10:00:00.000Z",
+      "zone": "Etc/GMT-14",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-21",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Etc/GMT+5 is UTC-5",
+      "now": "2026-11-20T04:30:00.000Z",
+      "zone": "Etc/GMT+5",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-19",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Oslo New Year's Eve 22:59:59.999 UTC: still 2026",
+      "now": "2026-12-31T22:59:59.999Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-12-31",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "Oslo New Year's Eve 23:00 UTC: 2027 in Oslo",
+      "now": "2026-12-31T23:00:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2027",
+        "publisert": "2027-01-01",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "UTC New Year's Eve 23:00: still 2026",
+      "now": "2026-12-31T23:00:00.000Z",
+      "zone": "Etc/UTC",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-12-31",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "leap year: 28 Feb 23:30 UTC is 29 Feb in Oslo",
+      "now": "2028-02-28T23:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2028",
+        "publisert": "2028-02-29",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "leap year: 29 Feb 23:30 UTC is 1 Mar in Oslo",
+      "now": "2028-02-29T23:30:00.000Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2028",
+        "publisert": "2028-03-01",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "zone UTC",
+      "now": "2026-11-20T23:30:00.123Z",
+      "zone": "UTC",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-20",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "a misspelled zone (Europe/Olso) reads UTC",
+      "now": "2026-11-20T23:30:00.123Z",
+      "zone": "Europe/Olso",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-20",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "a three-part unknown zone (Europe/Oslo/Extra) reads UTC",
+      "now": "2026-11-20T23:30:00.123Z",
+      "zone": "Europe/Oslo/Extra",
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-20",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "an unknown zone (Not/AZone) reads UTC, every value shape",
+      "now": "2026-11-20T23:30:00.123Z",
+      "zone": "Not/AZone",
+      "value": {
+        "a": "$todayx",
+        "antall": "$today",
+        "b": " $today",
+        "c": "fra $today",
+        "d": "$tomorrow",
+        "datoMedObjekt": {
+          "inni": "$today"
+        },
+        "e": "$TODAY",
+        "f": "$today ",
+        "g": "$today.month",
+        "h": null,
+        "i": true,
+        "j": 42,
+        "liste": [
+          {
+            "_key": "a",
+            "n": "$today"
+          },
+          "$today",
+          [
+            "$today",
+            "$today.year"
+          ],
+          null,
+          3
+        ],
+        "meta": {
+          "dag": "$today",
+          "dypere": {
+            "x": "$today"
+          },
+          "naar": "$today",
+          "navn": "$today",
+          "ukjent": "$today"
+        },
+        "publisert": "$today",
+        "tekst": "$today.year",
+        "tid": "$today",
+        "tittel": "$today",
+        "undeclared": "$today",
+        "year": "$today.year"
+      },
+      "server": {
+        "a": "$todayx",
+        "antall": "2026-11-20",
+        "b": " $today",
+        "c": "fra $today",
+        "d": "$tomorrow",
+        "datoMedObjekt": {
+          "inni": "2026-11-20"
+        },
+        "e": "$TODAY",
+        "f": "$today ",
+        "g": "$today.month",
+        "h": null,
+        "i": true,
+        "j": 42,
+        "liste": [
+          {
+            "_key": "a",
+            "n": "2026-11-20"
+          },
+          "2026-11-20",
+          [
+            "2026-11-20",
+            "2026"
+          ],
+          null,
+          3
+        ],
+        "meta": {
+          "dag": "2026-11-20",
+          "dypere": {
+            "x": "2026-11-20"
+          },
+          "naar": "2026-11-20",
+          "navn": "2026-11-20",
+          "ukjent": "2026-11-20"
+        },
+        "publisert": "2026-11-20",
+        "tekst": "2026",
+        "tid": "2026-11-20",
+        "tittel": "2026-11-20",
+        "undeclared": "2026-11-20",
+        "year": "2026"
+      }
+    },
+    {
+      "name": "no workspace zone: UTC, Oslo winter 23:30 UTC is still the 15th",
+      "now": "2026-01-15T23:30:00.123Z",
+      "zone": null,
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-01-15",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "no workspace zone: UTC, Kiritimati's midnight is not the 21st",
+      "now": "2026-11-20T10:00:00.000Z",
+      "zone": null,
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-11-20",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "no workspace zone: UTC New Year's Eve 23:00 is 2026",
+      "now": "2026-12-31T23:00:00.000Z",
+      "zone": null,
+      "value": {
+        "aar": "$today.year",
+        "publisert": "$today",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "aar": "2026",
+        "publisert": "2026-12-31",
+        "tittel": "Ny sak"
+      }
+    },
+    {
+      "name": "no workspace zone: every value shape",
+      "now": "2026-11-20T23:30:00.123Z",
+      "zone": null,
+      "value": {
+        "a": "$todayx",
+        "antall": "$today",
+        "b": " $today",
+        "c": "fra $today",
+        "d": "$tomorrow",
+        "datoMedObjekt": {
+          "inni": "$today"
+        },
+        "e": "$TODAY",
+        "f": "$today ",
+        "g": "$today.month",
+        "h": null,
+        "i": true,
+        "j": 42,
+        "liste": [
+          {
+            "_key": "a",
+            "n": "$today"
+          },
+          "$today",
+          [
+            "$today",
+            "$today.year"
+          ],
+          null,
+          3
+        ],
+        "meta": {
+          "dag": "$today",
+          "dypere": {
+            "x": "$today"
+          },
+          "naar": "$today",
+          "navn": "$today",
+          "ukjent": "$today"
+        },
+        "publisert": "$today",
+        "tekst": "$today.year",
+        "tid": "$today",
+        "tittel": "$today",
+        "undeclared": "$today",
+        "year": "$today.year"
+      },
+      "server": {
+        "a": "$todayx",
+        "antall": "2026-11-20",
+        "b": " $today",
+        "c": "fra $today",
+        "d": "$tomorrow",
+        "datoMedObjekt": {
+          "inni": "2026-11-20"
+        },
+        "e": "$TODAY",
+        "f": "$today ",
+        "g": "$today.month",
+        "h": null,
+        "i": true,
+        "j": 42,
+        "liste": [
+          {
+            "_key": "a",
+            "n": "2026-11-20"
+          },
+          "2026-11-20",
+          [
+            "2026-11-20",
+            "2026"
+          ],
+          null,
+          3
+        ],
+        "meta": {
+          "dag": "2026-11-20",
+          "dypere": {
+            "x": "2026-11-20"
+          },
+          "naar": "2026-11-20",
+          "navn": "2026-11-20",
+          "ukjent": "2026-11-20"
+        },
+        "publisert": "2026-11-20",
+        "tekst": "2026",
+        "tid": "2026-11-20",
+        "tittel": "2026-11-20",
+        "undeclared": "2026-11-20",
+        "year": "2026"
+      }
+    },
+    {
+      "name": "fixed initial values stay as written",
+      "now": "2026-11-20T23:30:00.123Z",
+      "zone": "Europe/Oslo",
+      "value": {
+        "publisert": "2026-01-01",
+        "tittel": "Ny sak"
+      },
+      "server": {
+        "publisert": "2026-01-01",
+        "tittel": "Ny sak"
+      }
+    }
+  ]
 }

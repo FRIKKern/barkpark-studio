@@ -27,10 +27,11 @@ export function dateIn(now: Date, zone: string): string {
   return `${p.year}-${p.month}-${p.day}`
 }
 
-function hasToken(v: unknown): boolean {
+/** Whether `v` holds a token anywhere. */
+export function hasToday(v: unknown): boolean {
   if (v === TOKEN || v === YEAR_TOKEN) return true
-  if (Array.isArray(v)) return v.some(hasToken)
-  return !!v && typeof v === 'object' && Object.values(v).some(hasToken)
+  if (Array.isArray(v)) return v.some(hasToday)
+  return !!v && typeof v === 'object' && Object.values(v).some(hasToday)
 }
 
 function walk(v: unknown, now: Date, zone: string): unknown {
@@ -42,9 +43,9 @@ function walk(v: unknown, now: Date, zone: string): unknown {
 }
 
 /**
- * `value` with "$today" resolved at `now` in `zone` (the workspace's zone, else the
- * editor's own). No token: the same value, untouched.
+ * `value` with "$today" resolved at `now` in `zone` (the workspace's; lib/today-start picks
+ * it). No token: the same value, untouched.
  */
 export function resolveToday<T>(value: T, now: Date, zone: string): T {
-  return hasToken(value) ? (walk(value, now, zone) as T) : value
+  return hasToday(value) ? (walk(value, now, zone) as T) : value
 }

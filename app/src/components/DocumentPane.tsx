@@ -484,7 +484,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const duplicate = (from: Doc) => {
     const id = crypto.randomUUID()
     const fields = copyFields(from, copyRank(qc, from))
-    const created = createDoc(qc, from._type, id, fields)
+    // A copy as it is: a "$today" typed into a field stays text (asIs).
+    const created = createDoc(qc, from._type, id, fields, {asIs: true})
     navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined, path: undefined, rev: undefined}])})
     created.then(
       () => toast({title: tt('The document was successfully duplicated')}),
