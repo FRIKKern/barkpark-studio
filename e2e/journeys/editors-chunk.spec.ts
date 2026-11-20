@@ -149,6 +149,9 @@ const probe = (page: Page, at: {x: number; y: number} | string, andDrop: boolean
     if (andDrop) el.dispatchEvent(drop)
     return {on: String(el.className).split(' ')[0], dragover: over.defaultPrevented, drop: drop.defaultPrevented}
   }, {at, andDrop})
+/** The press reaches the box React drew in place of the server's (not the server's inert button). */
+const reactDrawn = (button: import('@playwright/test').Locator) =>
+  expect.poll(() => button.evaluate((el) => Object.keys(el).some((k) => k.startsWith('__reactProps'))), {message: "React's box, not the server's", timeout: 3_000}).toBe(true)
 /** The chunk's inputs are live (the file box answers a drop itself), and two frames have passed for their mount. */
 const inputsLive = async (page: Page) => {
   await expect.poll(async () => (await probe(page, '.file-input .file-box', false)).dragover, {message: 'the inputs are live', timeout: 5_000}).toBe(true)
@@ -210,6 +213,7 @@ test('a held Select and a held Upload are dropped once the person types in Title
   page.on('filechooser', () => void choosers++)
   const {select, landed} = await lateChunk(page, t.docPath('fieldTypes', PRESS_ID))
   await page.clock.fastForward(2_000)
+  await reactDrawn(select)
   await select.click({timeout: 2_000})
   await page.locator('.file-input').getByRole('button', {name: 'Upload'}).click({timeout: 2_000})
   const title = page.locator('[id="title"]')
@@ -232,6 +236,7 @@ test('a Select held on one document opens nothing on the next one the person goe
   await t.draftOnly(PRESS_ID, 'fieldTypes', {title: PRESS_TITLE})
   const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
   await page.clock.fastForward(2_000)
+  await reactDrawn(select)
   await select.click({timeout: 2_000})
   // A client navigation (the list's link), the chunk still held: the other document draws its own photo field.
   await page.getByRole('link', {name: new RegExp(`^${PRESS_TITLE}`)}).first().click()
@@ -246,6 +251,7 @@ test('a held Select is dropped after a click elsewhere on the page', async ({pag
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
   const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
   await page.clock.fastForward(2_000)
+  await reactDrawn(select)
   await select.click({timeout: 2_000})
   // A spot in the form that is nothing to press or type in.
   const spot = await page.evaluate(() => {
@@ -262,6 +268,56 @@ test('a held Select is dropped after a click elsewhere on the page', async ({pag
   await landed()
   await inputsLive(page)
   await expect(page.getByRole('dialog'), 'no dialog: the person clicked elsewhere').toHaveCount(0)
+})
+
+// Safari does not focus a pressed button: a press whose button has lost the focus by the swap is dropped.
+test('a held Select whose button lost the focus before the chunk lands is dropped', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
+  const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
+  await page.clock.fastForward(2_000)
+  await reactDrawn(select)
+  await select.click({timeout: 2_000})
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await landed()
+  await inputsLive(page)
+  await expect(page.getByRole('dialog'), 'no dialog: the button was not focused at the swap').toHaveCount(0)
+})
+
+// The chunk lands right after React drew the boxes: the focus stays on the same button, and a drop in
+// the frames before the real input commits (React holds a fallback some 250 ms) is still kept from the tab.
+test('as the editors chunk lands, the focus stays on the same button and a drop is never let through', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
+  const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
+  await reactDrawn(select)
+  await select.focus() // focused, not pressed
+  await landed()
+  const frames = await page.evaluate(
+    () =>
+      new Promise<boolean[]>((done) => {
+        const seen: boolean[] = []
+        const end = performance.now() + 800
+        const tick = () => {
+          const zone = document.querySelector('.file-input .file-box, .file-input .file-box.empty')
+          if (zone) {
+            const dataTransfer = new DataTransfer()
+            dataTransfer.items.add(new File(['x'], 'kept.txt', {type: 'text/plain'}))
+            const over = new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer})
+            zone.dispatchEvent(over)
+            seen.push(over.defaultPrevented)
+          }
+          if (performance.now() < end) requestAnimationFrame(tick)
+          else done(seen)
+        }
+        tick()
+      }),
+  )
+  await inputsLive(page)
+  expect.soft(frames.length, 'frames probed').toBeGreaterThan(10)
+  expect.soft(frames.filter((x) => !x).length, 'frames where a drop would have opened the file').toBe(0)
+  await expect.soft(page.locator('[id="photo"] [data-act="select"]'), 'the live Select has the focus').toBeFocused()
+  await expect.soft(page.getByRole('dialog'), 'focused only: nothing opens').toHaveCount(0)
 })
 
 // Guard (task-05dc): the chunk's boundaries on the server hold no control that takes typing.
