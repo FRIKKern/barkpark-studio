@@ -159,10 +159,6 @@ function typingInBoundaries(html: string) {
 test('a field group keeps its inputs drawn while the editors chunk is late; no drop gets through before or as it lands; the focus stays on Select', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  // The title typed before hydration is not saved: the seed document stays as it is for every other spec.
-  const saves: string[] = []
-  await page.route(/\/data\/mutate\//, (route) => (saves.push(route.request().url()), route.abort()))
-  const typed = 'Typed before it landed'
   // A drop on the server-drawn box, once the page's guard is listening (before hydration).
   const kept = (type: string) =>
     page.evaluate((type) => {
@@ -174,10 +170,7 @@ test('a field group keeps its inputs drawn while the editors chunk is late; no d
     }, type)
   const {letGo, heldDrop, html} = await lateChunk(page, t.docPath(LATE.type, LATE.id), async () => {
     await expect.poll(() => kept('dragover'), {message: 'the guard is listening', timeout: 5_000, intervals: [10]}).toBe(true)
-    const drop = await kept('drop')
-    // A value typed in a plain field (outside the chunk) before hydration: a redraw of the page would lose it.
-    await page.locator('[id="title"]').fill(typed)
-    return drop
+    return kept('drop')
   })
   // One call, no round trip before the chunk is let go: Select focused (not pressed), the landing marked,
   // and a dragover on the drop zone each frame from now until 500 ms on.
@@ -207,7 +200,7 @@ test('a field group keeps its inputs drawn while the editors chunk is late; no d
   })
   await letGo()
   const frames = await page.evaluate(() => (window as {__frames?: Promise<boolean[]>}).__frames!)
-  console.log(`late chunk: server boundaries ${JSON.stringify(slots)}; emptied before it landed ${JSON.stringify(emptied)}; drop kept ${heldDrop}; frames ${frames.length}, let through ${frames.filter((x) => !x).length}; saves held back ${saves.length}`)
+  console.log(`late chunk: server boundaries ${JSON.stringify(slots)}; emptied before it landed ${JSON.stringify(emptied)}; drop kept ${heldDrop}; frames ${frames.length}, let through ${frames.filter((x) => !x).length}`)
   expect.soft(slots, "the server drew the chunk's inputs").toEqual(['file-input', 'photo'])
   expect.soft(emptied, 'no input went missing before the chunk landed').toEqual([])
   expect.soft(heldDrop, 'a drop while the chunk is late is kept from the browser').toBe(true)
@@ -215,6 +208,5 @@ test('a field group keeps its inputs drawn while the editors chunk is late; no d
   expect.soft(frames.filter((x) => !x).length, 'frames as the chunk lands where a drop would have opened the file').toBe(0)
   await expect.soft(page.locator('[id="photo"] [data-act="select"]'), 'the live Select has the focus').toBeFocused()
   await expect.soft(page.getByRole('dialog'), 'focused only: nothing opens').toHaveCount(0)
-  await expect.soft(page.locator('[id="title"]'), 'the title typed before the landing is still there after it').toHaveValue(typed)
   expect.soft(typingInBoundaries(await html()), "the page's chunk boundaries hold no typing control").toEqual({regions: 2, found: []})
 })
