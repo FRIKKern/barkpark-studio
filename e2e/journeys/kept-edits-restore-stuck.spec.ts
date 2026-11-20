@@ -1,5 +1,5 @@
 import {expect, test, type Route} from '../rig/test'
-import {bpMutate, bpRemove, signInIfAsked, target, closeAndSettle, savesLanded} from '../rig/targets'
+import {bpBase, bpDataset, bpMutate, bpRemove, signInIfAsked, target, closeAndSettle, savesLanded} from '../rig/targets'
 
 // task-a0122b1b04971f52 step 1: Restore on a deleted doc with kept edits, when the restore
 // call fails and when it never answers. Each case pins what a person gets: the error shows,
@@ -64,3 +64,30 @@ for (const mode of ['fails', 'never answers'] as const)
     await savesLanded(page)
     await expect.soft.poll(() => t.docValue(ID, 'name', 'author'), {message: '3b. the second Restore sends the kept edits', timeout: 15_000}).toBe('Kept Author typed')
   })
+
+// The late answer, in Barkpark's own order (no browser): restore #1 is still on its way,
+// restore #2 lands, the kept edits are sent, THEN #1 lands. Does #1 write the old revision
+// over the edits? Barkpark's restore carries no expected rev (api content/revisions.ex
+// restore_revision: get_revision, then upsert_document on the draft, unconditionally).
+test('a late restore after the kept edits were sent keeps them', async ({}, info) => {
+  test.skip(target(info).name !== 'studio', 'ours only')
+  test.skip(!/^(e2e-|ci)/.test(bpDataset()), 'writes: an e2e or ci dataset only')
+  const auth = {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}
+  const name = async () => {
+    const r = await fetch(`${bpBase()}/v1/data/doc/${bpDataset()}/author/${ID}?perspective=drafts`, {headers: auth})
+    return r.ok ? ((await r.json()) as {result: {name?: string}}).result.name : `(${r.status})`
+  }
+  await bpMutate([{createOrReplace: {_id: ID, _type: 'author', title: 'Kept Author', name: 'Kept Author'}}, {publish: {id: ID, type: 'author'}}])
+  await bpMutate([{delete: {id: ID, type: 'author', force: true}}])
+  const history = (await (await fetch(`${bpBase()}/v1/data/history/${bpDataset()}/author/${ID}?limit=10`, {headers: auth})).json()) as {revisions: {id: string; action: string}[]}
+  const last = history.revisions.find((r) => r.action !== 'delete')!
+  const restore = () => fetch(`${bpBase()}/v1/data/revision/${bpDataset()}/${last.id}/restore?type=author`, {method: 'POST', headers: auth})
+  expect((await restore()).status, '#2 lands').toBe(200)
+  await bpMutate([{patch: {id: ID, type: 'author', set: {name: 'Kept Author typed'}}}])
+  expect(await name(), 'the kept edits are sent').toBe('Kept Author typed')
+  const late = await restore()
+  const after = await name()
+  console.log(`a012 late: #1 answered ${late.status}; name after it: "${after}"`)
+  expect.soft(late.status, '#1 refused as stale').not.toBe(200)
+  expect.soft(after, 'the kept edits survive #1').toBe('Kept Author typed')
+})
