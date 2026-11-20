@@ -1,3 +1,4 @@
+import {writeFileSync} from 'node:fs'
 import {expect, test, type Route} from '../rig/test'
 import {bpMutate, bpRemove, signInIfAsked, target, closeAndSettle, savesLanded} from '../rig/targets'
 
@@ -33,6 +34,25 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
   await signInIfAsked(page)
   await t.settle(page)
   await expect(t.field(page, 'name')).toHaveValue('Kept Author', {timeout: 15_000})
+  // The page's saves and console from here, for a failure at Restore (task-a0122b1b04971f52:
+  // once in 56 CI runs no save came after Restore, and the failure said nothing more).
+  const t0 = Date.now()
+  const log: string[] = []
+  const say = (s: string) => log.push(`${Date.now() - t0} ms ${s}`)
+  page.on('request', (r) => void (r.url().includes('/_serverFn/') && say(`-> ${r.method()} ${(r.postData() ?? '').slice(0, 200)}`)))
+  page.on('response', (r) => void (r.url().includes('/_serverFn/') && say(`<- ${r.status()} ${r.request().method()}`)))
+  page.on('requestfailed', (r) => void (r.url().includes('/_serverFn/') && say(`x ${r.failure()?.errorText}`)))
+  page.on('console', (m) => say(`console.${m.type()} ${m.text().slice(0, 300)}`))
+  const evidence = async (err: unknown) => {
+    const footer = await page.locator('.doc-footer').first().textContent().catch(() => null)
+    const aria = await page.locator('body').ariaSnapshot().catch((e: Error) => `(no snapshot: ${e.message})`)
+    const text = [`held: ${held.length}`, `footer: ${footer}`, ...log, '--- page', aria].join('\n')
+    const file = info.outputPath('restore-evidence.txt')
+    writeFileSync(file, text)
+    await info.attach('restore-evidence', {path: file, contentType: 'text/plain'})
+    console.log(`kept-edits-restore evidence:\n${text}`)
+    throw err
+  }
   const held: Route[] = []
   const hold = (route: Route) => (route.request().method() === 'POST' && (route.request().postData() ?? '').includes('mutations') ? void held.push(route) : route.continue())
   await page.route('**/_serverFn/**', hold)
@@ -46,7 +66,7 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
   await expect(banner).toContainText('Your unsaved edits from', {timeout: 15_000})
   // Restore; the kept edits' save is held while Barkpark gets a newer version of the name.
   await banner.getByRole('button', {name: 'Restore most recent revision'}).click()
-  await expect.poll(() => held.length, {intervals: [50], timeout: 15_000}).toBeGreaterThan(0)
+  await expect.poll(() => held.length, {intervals: [50], timeout: 15_000}).toBeGreaterThan(0).catch(evidence)
   // The restore has landed on Barkpark (the kept edits' save is still held).
   await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author')
   // Landed (bpMutate has its answer): the held save meets the 412 whether its frame came yet or not.
