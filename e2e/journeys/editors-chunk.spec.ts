@@ -192,29 +192,31 @@ test('a field group keeps its inputs drawn while the editors chunk is late; no d
   await page.clock.fastForward(2_000) // past the page's own click hold (DocEditors.tsx HOLD_MS): the press reaches the box
   await reactDrawn(select)
   const pressed = await select.click({timeout: 2_000}).then(() => true, () => false)
-  const {slots, emptied} = await landed()
-  // From the landing until the press opens the dialog (the real input is live by then): a dragover each frame.
-  const frames = await page.evaluate(
-    (at) =>
-      new Promise<boolean[]>((done) => {
-        const seen: boolean[] = []
-        const end = performance.now() + 3_000
-        const tick = () => {
-          const zone = document.elementFromPoint(at.x, at.y)
-          if (zone?.closest('.file-input')) {
-            const dataTransfer = new DataTransfer()
-            dataTransfer.items.add(new File(['x'], 'kept.txt', {type: 'text/plain'}))
-            const over = new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer})
-            zone.dispatchEvent(over)
-            seen.push(over.defaultPrevented)
-          }
-          if (document.querySelector('[role="dialog"]') || performance.now() > end) done(seen)
-          else requestAnimationFrame(tick)
+  // A dragover each frame, started before the chunk is let go and kept until the press opens the dialog
+  // (the real input is live by then): the frames as it lands are the ones the guard once left open.
+  await page.evaluate((at) => {
+    const w = window as {__frames?: Promise<{landed: boolean; kept: boolean}[]>; __chunkIn?: boolean}
+    w.__frames = new Promise((done) => {
+      const seen: {landed: boolean; kept: boolean}[] = []
+      const end = performance.now() + 3_000
+      const tick = () => {
+        const zone = document.elementFromPoint(at.x, at.y)
+        if (zone?.closest('.file-input')) {
+          const dataTransfer = new DataTransfer()
+          dataTransfer.items.add(new File(['x'], 'kept.txt', {type: 'text/plain'}))
+          const over = new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer})
+          zone.dispatchEvent(over)
+          seen.push({landed: !!w.__chunkIn, kept: over.defaultPrevented})
         }
-        tick()
-      }),
-    at,
-  )
+        if (document.querySelector('[role="dialog"]') || performance.now() > end) done(seen)
+        else requestAnimationFrame(tick)
+      }
+      tick()
+    })
+  }, at)
+  const {slots, emptied} = await landed()
+  const probed = await page.evaluate(() => (window as {__frames?: Promise<{landed: boolean; kept: boolean}[]>}).__frames!)
+  const frames = probed.filter((f) => f.landed).map((f) => f.kept)
   console.log(`late chunk: server boundaries ${JSON.stringify(slots)}; emptied before it landed ${JSON.stringify(emptied)}; drop ${JSON.stringify(held)}; frames ${frames.length}, let through ${frames.filter((x) => !x).length}`)
   expect.soft(slots, "the server drew the chunk's inputs").toEqual(['file-input', 'photo'])
   expect.soft(emptied, 'no input went missing before the chunk landed').toEqual([])
