@@ -136,6 +136,25 @@ async function lateChunk(page: Page, docPath: string, drawn: 'photo' | 'mainImag
   return {select, dropZone, landed}
 }
 
+// A drop whose default is not prevented opens the file in the tab, leaving the studio. Synthetic
+// events have no default action, so the probe reads defaultPrevented, the browser's own cue.
+const probe = (page: Page, at: {x: number; y: number} | string, andDrop: boolean) =>
+  page.evaluate(({at, andDrop}) => {
+    const el = (typeof at === 'string' ? document.querySelector(at) : document.elementFromPoint(at.x, at.y)) ?? document.body
+    const dataTransfer = new DataTransfer()
+    dataTransfer.items.add(new File(['x'], 'kept.txt', {type: 'text/plain'}))
+    const over = new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer})
+    el.dispatchEvent(over)
+    const drop = new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer})
+    if (andDrop) el.dispatchEvent(drop)
+    return {on: String(el.className).split(' ')[0], dragover: over.defaultPrevented, drop: drop.defaultPrevented}
+  }, {at, andDrop})
+/** The chunk's inputs are live (the file box answers a drop itself), and two frames have passed for their mount. */
+const inputsLive = async (page: Page) => {
+  await expect.poll(async () => (await probe(page, '.file-input .file-box', false)).dragover, {message: 'the inputs are live', timeout: 5_000}).toBe(true)
+  await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
+}
+
 // One page load, one held chunk: the inputs stay drawn, a drop on them is kept from the tab, and a
 // press on Select past the page's own click hold (DocEditors.tsx HOLD_MS, 3 s) opens it once the
 // chunk lands. Each check is soft and named, so a red run says which of them broke.
@@ -144,20 +163,7 @@ test('a field group keeps its inputs drawn while the editors chunk is late; a dr
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
   const {select, dropZone, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
   expect(dropZone, 'the server drew the drop zone').not.toBeNull()
-  // A drop whose default is not prevented opens the file in the tab, leaving the studio. Synthetic
-  // events have no default action, so the probe reads defaultPrevented, the browser's own cue.
-  const probe = (at: {x: number; y: number} | string, andDrop: boolean) =>
-    page.evaluate(({at, andDrop}) => {
-      const el = (typeof at === 'string' ? document.querySelector(at) : document.elementFromPoint(at.x, at.y)) ?? document.body
-      const dataTransfer = new DataTransfer()
-      dataTransfer.items.add(new File(['x'], 'kept.txt', {type: 'text/plain'}))
-      const over = new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer})
-      el.dispatchEvent(over)
-      const drop = new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer})
-      if (andDrop) el.dispatchEvent(drop)
-      return {on: String(el.className).split(' ')[0], dragover: over.defaultPrevented, drop: drop.defaultPrevented}
-    }, {at, andDrop})
-  const held = await probe({x: dropZone!.x + dropZone!.width / 2, y: dropZone!.y + dropZone!.height / 2}, true)
+  const held = await probe(page, {x: dropZone!.x + dropZone!.width / 2, y: dropZone!.y + dropZone!.height / 2}, true)
   await page.clock.fastForward(2_000)
   const pressed = await select.click({timeout: 2_000}).then(() => true, () => false)
   const {slots, emptied} = await landed()
@@ -168,13 +174,16 @@ test('a field group keeps its inputs drawn while the editors chunk is late; a dr
   expect.soft(pressed, 'Select was there to press while the chunk was late').toBe(true)
   await expect.soft(page.getByRole('dialog'), 'the press on Select opened it once the chunk landed').toBeVisible({timeout: 5_000})
   // The probe reads a live drop zone's answer (a dragover only: a drop there would upload).
-  await expect.soft.poll(async () => (await probe('.file-input .file-box', false)).dragover, {message: 'the live drop zone answers the probe', timeout: 5_000}).toBe(true)
+  await expect.soft.poll(async () => (await probe(page, '.file-input .file-box', false)).dragover, {message: 'the live drop zone answers the probe', timeout: 5_000}).toBe(true)
 })
 
 // The image's own fields (alt) sit outside the chunk's boundary (ImageBox.tsx, ImageFrame): typing in
 // one goes on while the chunk is late and as it lands, never swapped away mid-word.
 const ALT_ID = `post-late-alt-${Date.now().toString(36)}`
-test.afterEach(async ({}, info) => target(info).name === 'studio' && (await target(info).deleteDoc(ALT_ID, 'post')))
+// A fieldTypes document of the rows' own, for the rows that type (field-types-01 is shared) or open a second document.
+const PRESS_ID = `field-types-late-${Date.now().toString(36)}`
+const PRESS_TITLE = 'Late chunk press probe'
+test.afterEach(async ({}, info) => target(info).name === 'studio' && (await Promise.all([target(info).deleteDoc(ALT_ID, 'post'), target(info).deleteDoc(PRESS_ID, 'fieldTypes')])))
 
 test("typing in an image's Alt while the editors chunk is late keeps every letter and the focus as it lands", async ({page}, info) => {
   const t = target(info)
@@ -189,6 +198,70 @@ test("typing in an image's Alt while the editors chunk is late keeps every lette
   await expect(alt, 'every letter, across the chunk landing').toHaveValue('Held and landed')
   await expect(alt, 'the focus stayed in Alt').toBeFocused()
   await expect.poll(async () => ((await t.docValue(ALT_ID, 'mainImage')) as {alt?: string} | undefined)?.alt, {message: 'saved', timeout: 10_000}).toBe('Held and landed')
+})
+
+// A press held while the chunk is late fires as it lands only if the person is still on it: the same
+// button, still focused, on the same document. Anything else since, and it is dropped (lib/held-act.ts).
+test('a held Select and a held Upload are dropped once the person types in Title: no dialog, no chooser, every letter kept', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
+  await t.draftOnly(PRESS_ID, 'fieldTypes', {title: PRESS_TITLE})
+  let choosers = 0
+  page.on('filechooser', () => void choosers++)
+  const {select, landed} = await lateChunk(page, t.docPath('fieldTypes', PRESS_ID))
+  await page.clock.fastForward(2_000)
+  await select.click({timeout: 2_000})
+  await page.locator('.file-input').getByRole('button', {name: 'Upload'}).click({timeout: 2_000})
+  const title = page.locator('[id="title"]')
+  await title.click()
+  await title.press('End')
+  await page.keyboard.type(' held')
+  await landed()
+  await page.keyboard.type(' on', {delay: 15})
+  await inputsLive(page)
+  await expect.soft(page.getByRole('dialog'), 'no dialog: the person moved on from Select').toHaveCount(0)
+  expect.soft(choosers, 'no file chooser: the person moved on from Upload').toBe(0)
+  await expect.soft(title, 'Title keeps the focus').toBeFocused()
+  await expect.soft(title, 'every letter, across the chunk landing').toHaveValue(`${PRESS_TITLE} held on`)
+  await expect.soft.poll(() => t.docValue(PRESS_ID, 'title', 'fieldTypes'), {message: 'saved', timeout: 10_000}).toBe(`${PRESS_TITLE} held on`)
+})
+
+test('a Select held on one document opens nothing on the next one the person goes to', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
+  await t.draftOnly(PRESS_ID, 'fieldTypes', {title: PRESS_TITLE})
+  const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
+  await page.clock.fastForward(2_000)
+  await select.click({timeout: 2_000})
+  // A client navigation (the list's link), the chunk still held: the other document draws its own photo field.
+  await page.getByRole('link', {name: new RegExp(`^${PRESS_TITLE}`)}).first().click()
+  await expect(page.locator('[id="title"]')).toHaveValue(PRESS_TITLE)
+  await landed()
+  await inputsLive(page)
+  await expect(page.getByRole('dialog'), "no dialog on the other document: the press was the first one's").toHaveCount(0)
+})
+
+test('a held Select is dropped after a click elsewhere on the page', async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
+  const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
+  await page.clock.fastForward(2_000)
+  await select.click({timeout: 2_000})
+  // A spot in the form that is nothing to press or type in.
+  const spot = await page.evaluate(() => {
+    const r = document.querySelector('.doc-form')!.getBoundingClientRect()
+    for (let y = r.top + 4; y < Math.min(r.bottom, innerHeight); y += 8)
+      for (let x = r.left + 2; x < r.right; x += 16) {
+        const el = document.elementFromPoint(x, y)
+        if (el && !el.closest('button, a, input, textarea, select, label, [tabindex], [contenteditable], [role]')) return {x, y}
+      }
+    return null
+  })
+  expect(spot, 'an empty spot in the form').not.toBeNull()
+  await page.mouse.click(spot!.x, spot!.y)
+  await landed()
+  await inputsLive(page)
+  await expect(page.getByRole('dialog'), 'no dialog: the person clicked elsewhere').toHaveCount(0)
 })
 
 // Guard (task-05dc): the chunk's boundaries on the server hold no control that takes typing.
