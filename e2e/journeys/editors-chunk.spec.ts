@@ -194,7 +194,7 @@ test('a field group keeps its inputs drawn while the editors chunk is late; no d
   const pressed = await select.click({timeout: 2_000}).then(() => true, () => false)
   // A dragover each frame, started before the chunk is let go and kept for 300 ms after: the frames as it
   // lands, before the real input is live, are the ones the guard once left open (the live box answers itself).
-  await page.evaluate((at) => {
+  await page.evaluate(() => {
     const w = window as {__frames?: Promise<{landed: boolean; kept: boolean}[]>; __chunkIn?: boolean}
     w.__frames = new Promise((done) => {
       const seen: {landed: boolean; kept: boolean}[] = []
@@ -202,8 +202,9 @@ test('a field group keeps its inputs drawn while the editors chunk is late; no d
       let landedAt = 0
       const tick = () => {
         if (w.__chunkIn && !landedAt) end = Math.min(end, (landedAt = performance.now()) + 300)
-        const zone = document.elementFromPoint(at.x, at.y)
-        if (zone?.closest('.file-input')) {
+        // On the drop zone itself (the image's dialog covers the point once it opens).
+        const zone = document.querySelector('.file-input .file-box')
+        if (zone) {
           const dataTransfer = new DataTransfer()
           dataTransfer.items.add(new File(['x'], 'kept.txt', {type: 'text/plain'}))
           const over = new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer})
@@ -215,7 +216,7 @@ test('a field group keeps its inputs drawn while the editors chunk is late; no d
       }
       tick()
     })
-  }, at)
+  })
   const {slots, emptied} = await landed()
   const probed = await page.evaluate(() => (window as {__frames?: Promise<{landed: boolean; kept: boolean}[]>}).__frames!)
   const frames = probed.filter((f) => f.landed).map((f) => f.kept)
