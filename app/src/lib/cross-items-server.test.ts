@@ -5,8 +5,8 @@ import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {test} from 'node:test'
 import type {Doc, Field, Schema} from './data.ts'
-import {crossProblems} from './cross-rules.ts'
-import {advisoryProblems, formPathIn, type Finding} from './findings.ts'
+import {crossProblems, ITEM_CAP} from './cross-rules.ts'
+import {advisoryProblems, formPathIn, keyedAt, type Finding} from './findings.ts'
 
 type Case = {name: string; rule: unknown; doc: Record<string, unknown>; server: string[] | 'skip'}
 const {cases} = JSON.parse(readFileSync(new URL('../../../fixtures/cross-item-cases.json', import.meta.url), 'utf8')) as {cases: Case[]}
@@ -21,7 +21,7 @@ const schemaOf = (rule: unknown) => ({name: 't', title: 'T', fields, crossValida
 const docOf = (c: Case) => ({_id: 'x', _type: 't', ...c.doc}) as unknown as Doc
 
 test('the studio shows each item rule on the item Barkpark names (fixtures/cross-item-cases.json)', () => {
-  assert.equal(cases.length, 31)
+  assert.equal(cases.length, 38)
   const wrong = cases.flatMap((c) => {
     const studio = crossProblems(docOf(c), schemaOf(c.rule)).map((p) => p.path)
     const want = c.server === 'skip' ? [] : c.server.map((p) => formPathIn(p, c.doc)) // a rule Barkpark cannot evaluate is no finding
@@ -46,7 +46,21 @@ test("after a save, Barkpark's item finding is the problem the studio already sh
   const c = cases.find((x) => x.name === 'meny: second item has neither')!
   const own = crossProblems(docOf(c), schemaOf(c.rule))
   const finding: Finding = {path: '/meny/1/side', message: 'Velg en side eller et område', code: 'cross_validation'}
-  assert.deepEqual(advisoryProblems([finding], schemaOf(c.rule), own, (s) => s, c.doc), [])
+  assert.deepEqual(advisoryProblems(keyedAt([finding], c.doc), schemaOf(c.rule), own, (s) => s), [])
+  // Keyed by the document it was found in (the save's), not the form's list reordered since.
+  const saved = {meny: [{_key: 'a'}, {_key: 'b'}]}
+  assert.equal(keyedAt([finding], saved)[0]!.at, 'meny[_key=="b"].side')
+  const [moved] = advisoryProblems(keyedAt([finding], saved), schemaOf(c.rule), [], (s) => s)
+  assert.equal(moved!.path, 'meny[_key=="b"].side')
+  // Other findings keep their own path.
+  assert.equal(keyedAt([{path: '/meny/1/tittel', message: 'Required', code: 'required'}], saved)[0]!.at, undefined)
   assert.equal(formPathIn('/meny/0/under/1/side', {meny: [{_key: 'a', under: [{}, {}]}]}), 'meny[_key=="a"].under[1].side')
   assert.equal(formPathIn('/seo/metaTitle', {}), 'seo.metaTitle')
+})
+
+test('past 50 broken items, one problem on the list says how many more', () => {
+  const c = cases.find((x) => x.name === 'cap: 52 broken items name 50, then one at the list')!
+  const got = crossProblems(docOf(c), schemaOf(c.rule))
+  assert.equal(got.length, ITEM_CAP + 1)
+  assert.deepEqual(got.at(-1), {path: 'meny', title: 'Meny', message: 'Velg en side eller et område (2 more items)', level: 'error'})
 })

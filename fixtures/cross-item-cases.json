@@ -1,6 +1,6 @@
 {
  "about": "Cases for Barkpark's item rules (cross_validator.ex `each` / `type`, task-5bb338ffd4621865). 'server' per case is the paths of the findings Barkpark gives for the one rule on a schema with fields meny innhold tittel innstillinger, or skip (unevaluable). app/src/lib/cross-items-server.test.ts checks the studio puts its problems at the same items. Regenerate: elixir scripts/field-visibility-cases.exs <barkpark checkout>.",
- "server": "barkpark cf10acf5f3",
+ "server": "barkpark 68d820e716",
  "cases": [
   {
    "name": "meny: second item has neither",
@@ -951,6 +951,827 @@
    "server": [
     "/tittel"
    ]
+  },
+  {
+   "name": "cap: 52 broken items name 50, then one at the list",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {
+      "_key": "k0"
+     },
+     {
+      "_key": "k1"
+     },
+     {
+      "_key": "k2"
+     },
+     {
+      "_key": "k3"
+     },
+     {
+      "_key": "k4"
+     },
+     {
+      "_key": "k5"
+     },
+     {
+      "_key": "k6"
+     },
+     {
+      "_key": "k7"
+     },
+     {
+      "_key": "k8"
+     },
+     {
+      "_key": "k9"
+     },
+     {
+      "_key": "k10"
+     },
+     {
+      "_key": "k11"
+     },
+     {
+      "_key": "k12"
+     },
+     {
+      "_key": "k13"
+     },
+     {
+      "_key": "k14"
+     },
+     {
+      "_key": "k15"
+     },
+     {
+      "_key": "k16"
+     },
+     {
+      "_key": "k17"
+     },
+     {
+      "_key": "k18"
+     },
+     {
+      "_key": "k19"
+     },
+     {
+      "_key": "k20"
+     },
+     {
+      "_key": "k21"
+     },
+     {
+      "_key": "k22"
+     },
+     {
+      "_key": "k23"
+     },
+     {
+      "_key": "k24"
+     },
+     {
+      "_key": "k25"
+     },
+     {
+      "_key": "k26"
+     },
+     {
+      "_key": "k27"
+     },
+     {
+      "_key": "k28"
+     },
+     {
+      "_key": "k29"
+     },
+     {
+      "_key": "k30"
+     },
+     {
+      "_key": "k31"
+     },
+     {
+      "_key": "k32"
+     },
+     {
+      "_key": "k33"
+     },
+     {
+      "_key": "k34"
+     },
+     {
+      "_key": "k35"
+     },
+     {
+      "_key": "k36"
+     },
+     {
+      "_key": "k37"
+     },
+     {
+      "_key": "k38"
+     },
+     {
+      "_key": "k39"
+     },
+     {
+      "_key": "k40"
+     },
+     {
+      "_key": "k41"
+     },
+     {
+      "_key": "k42"
+     },
+     {
+      "_key": "k43"
+     },
+     {
+      "_key": "k44"
+     },
+     {
+      "_key": "k45"
+     },
+     {
+      "_key": "k46"
+     },
+     {
+      "_key": "k47"
+     },
+     {
+      "_key": "k48"
+     },
+     {
+      "_key": "k49"
+     },
+     {
+      "_key": "k50"
+     },
+     {
+      "_key": "k51"
+     }
+    ]
+   },
+   "server": [
+    "/meny/0/side",
+    "/meny/1/side",
+    "/meny/2/side",
+    "/meny/3/side",
+    "/meny/4/side",
+    "/meny/5/side",
+    "/meny/6/side",
+    "/meny/7/side",
+    "/meny/8/side",
+    "/meny/9/side",
+    "/meny/10/side",
+    "/meny/11/side",
+    "/meny/12/side",
+    "/meny/13/side",
+    "/meny/14/side",
+    "/meny/15/side",
+    "/meny/16/side",
+    "/meny/17/side",
+    "/meny/18/side",
+    "/meny/19/side",
+    "/meny/20/side",
+    "/meny/21/side",
+    "/meny/22/side",
+    "/meny/23/side",
+    "/meny/24/side",
+    "/meny/25/side",
+    "/meny/26/side",
+    "/meny/27/side",
+    "/meny/28/side",
+    "/meny/29/side",
+    "/meny/30/side",
+    "/meny/31/side",
+    "/meny/32/side",
+    "/meny/33/side",
+    "/meny/34/side",
+    "/meny/35/side",
+    "/meny/36/side",
+    "/meny/37/side",
+    "/meny/38/side",
+    "/meny/39/side",
+    "/meny/40/side",
+    "/meny/41/side",
+    "/meny/42/side",
+    "/meny/43/side",
+    "/meny/44/side",
+    "/meny/45/side",
+    "/meny/46/side",
+    "/meny/47/side",
+    "/meny/48/side",
+    "/meny/49/side",
+    "/meny"
+   ]
+  },
+  {
+   "name": "cap: exactly 50 broken items, no summary",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {
+      "_key": "k0"
+     },
+     {
+      "_key": "k1"
+     },
+     {
+      "_key": "k2"
+     },
+     {
+      "_key": "k3"
+     },
+     {
+      "_key": "k4"
+     },
+     {
+      "_key": "k5"
+     },
+     {
+      "_key": "k6"
+     },
+     {
+      "_key": "k7"
+     },
+     {
+      "_key": "k8"
+     },
+     {
+      "_key": "k9"
+     },
+     {
+      "_key": "k10"
+     },
+     {
+      "_key": "k11"
+     },
+     {
+      "_key": "k12"
+     },
+     {
+      "_key": "k13"
+     },
+     {
+      "_key": "k14"
+     },
+     {
+      "_key": "k15"
+     },
+     {
+      "_key": "k16"
+     },
+     {
+      "_key": "k17"
+     },
+     {
+      "_key": "k18"
+     },
+     {
+      "_key": "k19"
+     },
+     {
+      "_key": "k20"
+     },
+     {
+      "_key": "k21"
+     },
+     {
+      "_key": "k22"
+     },
+     {
+      "_key": "k23"
+     },
+     {
+      "_key": "k24"
+     },
+     {
+      "_key": "k25"
+     },
+     {
+      "_key": "k26"
+     },
+     {
+      "_key": "k27"
+     },
+     {
+      "_key": "k28"
+     },
+     {
+      "_key": "k29"
+     },
+     {
+      "_key": "k30"
+     },
+     {
+      "_key": "k31"
+     },
+     {
+      "_key": "k32"
+     },
+     {
+      "_key": "k33"
+     },
+     {
+      "_key": "k34"
+     },
+     {
+      "_key": "k35"
+     },
+     {
+      "_key": "k36"
+     },
+     {
+      "_key": "k37"
+     },
+     {
+      "_key": "k38"
+     },
+     {
+      "_key": "k39"
+     },
+     {
+      "_key": "k40"
+     },
+     {
+      "_key": "k41"
+     },
+     {
+      "_key": "k42"
+     },
+     {
+      "_key": "k43"
+     },
+     {
+      "_key": "k44"
+     },
+     {
+      "_key": "k45"
+     },
+     {
+      "_key": "k46"
+     },
+     {
+      "_key": "k47"
+     },
+     {
+      "_key": "k48"
+     },
+     {
+      "_key": "k49"
+     }
+    ]
+   },
+   "server": [
+    "/meny/0/side",
+    "/meny/1/side",
+    "/meny/2/side",
+    "/meny/3/side",
+    "/meny/4/side",
+    "/meny/5/side",
+    "/meny/6/side",
+    "/meny/7/side",
+    "/meny/8/side",
+    "/meny/9/side",
+    "/meny/10/side",
+    "/meny/11/side",
+    "/meny/12/side",
+    "/meny/13/side",
+    "/meny/14/side",
+    "/meny/15/side",
+    "/meny/16/side",
+    "/meny/17/side",
+    "/meny/18/side",
+    "/meny/19/side",
+    "/meny/20/side",
+    "/meny/21/side",
+    "/meny/22/side",
+    "/meny/23/side",
+    "/meny/24/side",
+    "/meny/25/side",
+    "/meny/26/side",
+    "/meny/27/side",
+    "/meny/28/side",
+    "/meny/29/side",
+    "/meny/30/side",
+    "/meny/31/side",
+    "/meny/32/side",
+    "/meny/33/side",
+    "/meny/34/side",
+    "/meny/35/side",
+    "/meny/36/side",
+    "/meny/37/side",
+    "/meny/38/side",
+    "/meny/39/side",
+    "/meny/40/side",
+    "/meny/41/side",
+    "/meny/42/side",
+    "/meny/43/side",
+    "/meny/44/side",
+    "/meny/45/side",
+    "/meny/46/side",
+    "/meny/47/side",
+    "/meny/48/side",
+    "/meny/49/side"
+   ]
+  },
+  {
+   "name": "cap: nested list summary",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny.under",
+    "fields": [],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {
+      "_key": "a",
+      "under": [
+       {
+        "_key": "u0"
+       },
+       {
+        "_key": "u1"
+       },
+       {
+        "_key": "u2"
+       },
+       {
+        "_key": "u3"
+       },
+       {
+        "_key": "u4"
+       },
+       {
+        "_key": "u5"
+       },
+       {
+        "_key": "u6"
+       },
+       {
+        "_key": "u7"
+       },
+       {
+        "_key": "u8"
+       },
+       {
+        "_key": "u9"
+       },
+       {
+        "_key": "u10"
+       },
+       {
+        "_key": "u11"
+       },
+       {
+        "_key": "u12"
+       },
+       {
+        "_key": "u13"
+       },
+       {
+        "_key": "u14"
+       },
+       {
+        "_key": "u15"
+       },
+       {
+        "_key": "u16"
+       },
+       {
+        "_key": "u17"
+       },
+       {
+        "_key": "u18"
+       },
+       {
+        "_key": "u19"
+       },
+       {
+        "_key": "u20"
+       },
+       {
+        "_key": "u21"
+       },
+       {
+        "_key": "u22"
+       },
+       {
+        "_key": "u23"
+       },
+       {
+        "_key": "u24"
+       },
+       {
+        "_key": "u25"
+       },
+       {
+        "_key": "u26"
+       },
+       {
+        "_key": "u27"
+       },
+       {
+        "_key": "u28"
+       },
+       {
+        "_key": "u29"
+       },
+       {
+        "_key": "u30"
+       },
+       {
+        "_key": "u31"
+       },
+       {
+        "_key": "u32"
+       },
+       {
+        "_key": "u33"
+       },
+       {
+        "_key": "u34"
+       },
+       {
+        "_key": "u35"
+       },
+       {
+        "_key": "u36"
+       },
+       {
+        "_key": "u37"
+       },
+       {
+        "_key": "u38"
+       },
+       {
+        "_key": "u39"
+       },
+       {
+        "_key": "u40"
+       },
+       {
+        "_key": "u41"
+       },
+       {
+        "_key": "u42"
+       },
+       {
+        "_key": "u43"
+       },
+       {
+        "_key": "u44"
+       },
+       {
+        "_key": "u45"
+       },
+       {
+        "_key": "u46"
+       },
+       {
+        "_key": "u47"
+       },
+       {
+        "_key": "u48"
+       },
+       {
+        "_key": "u49"
+       },
+       {
+        "_key": "u50"
+       }
+      ]
+     }
+    ]
+   },
+   "server": [
+    "/meny/0/under/0",
+    "/meny/0/under/1",
+    "/meny/0/under/2",
+    "/meny/0/under/3",
+    "/meny/0/under/4",
+    "/meny/0/under/5",
+    "/meny/0/under/6",
+    "/meny/0/under/7",
+    "/meny/0/under/8",
+    "/meny/0/under/9",
+    "/meny/0/under/10",
+    "/meny/0/under/11",
+    "/meny/0/under/12",
+    "/meny/0/under/13",
+    "/meny/0/under/14",
+    "/meny/0/under/15",
+    "/meny/0/under/16",
+    "/meny/0/under/17",
+    "/meny/0/under/18",
+    "/meny/0/under/19",
+    "/meny/0/under/20",
+    "/meny/0/under/21",
+    "/meny/0/under/22",
+    "/meny/0/under/23",
+    "/meny/0/under/24",
+    "/meny/0/under/25",
+    "/meny/0/under/26",
+    "/meny/0/under/27",
+    "/meny/0/under/28",
+    "/meny/0/under/29",
+    "/meny/0/under/30",
+    "/meny/0/under/31",
+    "/meny/0/under/32",
+    "/meny/0/under/33",
+    "/meny/0/under/34",
+    "/meny/0/under/35",
+    "/meny/0/under/36",
+    "/meny/0/under/37",
+    "/meny/0/under/38",
+    "/meny/0/under/39",
+    "/meny/0/under/40",
+    "/meny/0/under/41",
+    "/meny/0/under/42",
+    "/meny/0/under/43",
+    "/meny/0/under/44",
+    "/meny/0/under/45",
+    "/meny/0/under/46",
+    "/meny/0/under/47",
+    "/meny/0/under/48",
+    "/meny/0/under/49",
+    "/meny/under"
+   ]
+  },
+  {
+   "name": "skip: each ends with a dot",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny.",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: each names an index",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny.0",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: each with an empty step",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny..under",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {
+      "under": [
+       {}
+      ]
+     }
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: each starts with a dot",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": ".meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": "skip"
   }
  ]
 }

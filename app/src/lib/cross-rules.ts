@@ -46,7 +46,8 @@ function evaluable(body: unknown, names: Set<string> | null, item = false): bool
 function shapeOk(r: CrossRule, names: Set<string>): boolean {
   const {each, type} = r
   const has = (v: unknown) => v !== undefined && v !== null
-  if (has(each) && (typeof each !== 'string' || each === '' || !names.has(each.split('.')[0]!))) return false
+  // A path that can never find items ("meny.", "meny.0", "meny..under") is malformed there too.
+  if (has(each) && (typeof each !== 'string' || each.split('.').some((s) => s === '' || /^\d+$/.test(s)) || !names.has(each.split('.')[0]!))) return false
   if (has(type) && (!has(each) || typeof type !== 'string' || type === '')) return false
   return evaluable(r.rule, names, has(each))
 }
@@ -107,20 +108,26 @@ export function crossProblems(doc: Doc, schema: Schema): Problem[] {
   })
 }
 
+/** How many broken items one item rule names (cross_validator.ex @item_cap); the rest are one problem on the list. */
+export const ITEM_CAP = 50
+
 /**
  * An item rule's problems: on each broken item, under each field the rule names (the item
- * itself when it names none), titled as the form titles that item's field.
+ * itself when it names none), titled as the form titles that item's field. Past ITEM_CAP
+ * items, one problem at the list's path says how many more, as Barkpark's finding does.
  */
 function itemProblems(r: CrossRule, doc: Doc, schema: Schema, fields: string[], message: string, level: Level): Problem[] {
   const body = itemScoped(r.rule)
-  const found = items(doc, (r.each as string).split('.'), '', schema.fields, [])
-  const group = schema.fields.find((f) => f.name === (r.each as string).split('.')[0])?.group
-  return found.flatMap(({item, path, lists}) => {
-    if ((r.type !== undefined && r.type !== null && item._type !== r.type) || holds(body, doc as Record<string, unknown>, item)) return []
+  const segs = (r.each as string).split('.')
+  const group = schema.fields.find((f) => f.name === segs[0])?.group
+  const broken = items(doc, segs, '', schema.fields, []).filter(({item}) => !((r.type !== undefined && r.type !== null && item._type !== r.type) || holds(body, doc as Record<string, unknown>, item)))
+  const more = broken.length - ITEM_CAP
+  const summary: Problem[] = more > 0 ? [{path: segs.join('.'), title: broken[0]!.lists.at(-1)?.title ?? segs.at(-1)!, ...(group ? {group} : {}), message: `${message} (${more} more ${more === 1 ? 'item' : 'items'})`, level}] : []
+  return broken.slice(0, ITEM_CAP).flatMap(({path, lists}) => {
     const parents = lists.map((f) => f.title ?? f.name)
     const at = {...(group ? {group} : {}), message, level}
     if (!fields.length) return [{path, title: parents.pop() ?? '', ...(parents.length ? {parents} : {}), ...at}]
     const own = lists.at(-1)?.of?.fields
     return fields.map((f) => ({path: `${path}.${f}`, title: own?.find((x) => x.name === f)?.title ?? f, parents, ...at}))
-  })
+  }).concat(summary)
 }

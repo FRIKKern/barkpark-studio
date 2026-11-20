@@ -9,7 +9,8 @@ import type {Field, Schema} from './data'
 import type {Level, Problem} from './validation'
 import {itemPath} from './refs.ts'
 
-export type Finding = {path: string; message: string; code: string; params?: Record<string, unknown>}
+/** `at`: the form's path for it, when the studio named it from the saved document (keyedAt). */
+export type Finding = {path: string; message: string; code: string; params?: Record<string, unknown>; at?: string}
 type Translate = (en: string, vars?: Record<string, string | number>) => string
 
 const SENTENCES: Record<string, string> = {
@@ -106,17 +107,20 @@ export function formPathIn(path: string, doc: unknown): string {
   return out
 }
 
+/** A cross rule's findings on list items, named as the form keys those items in the document they were found in (lib/cross-rules). */
+export const keyedAt = (findings: Finding[], saved: unknown): Finding[] =>
+  findings.map((f) => (f.code === 'cross_validation' && /\/\d+(\/|$)/.test(f.path) ? {...f, at: formPathIn(f.path, saved)} : f))
+
 /**
  * Barkpark's advisory findings (#22406) for the rules
  * (array lengths, patterns, allowed values, shapes) that lib/validation.ts does not
  * check itself: one problem each, in the studio's words, at its field's level. A path
  * the studio already flags is left to it.
  */
-export function advisoryProblems(findings: Finding[], schema: Schema, known: Problem[], t: Translate, doc?: unknown): Problem[] {
+export function advisoryProblems(findings: Finding[], schema: Schema, known: Problem[], t: Translate): Problem[] {
   const flagged = new Set(known.map((p) => p.path))
   return findings.flatMap((f) => {
-    // A cross rule's finding on a list item is named as the form keys that item (lib/cross-rules).
-    const path = f.code === 'cross_validation' && doc ? formPathIn(f.path, doc) : formPath(f.path)
+    const path = f.at ?? formPath(f.path)
     if (flagged.has(path)) return []
     const parents: string[] = []
     let fields: Field[] | undefined = schema.fields
