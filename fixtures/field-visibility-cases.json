@@ -1,0 +1,670 @@
+{
+ "about": "Cases for Barkpark's condition rules (api/lib/barkpark/content/field_visibility.ex apply_op/walk_path, cross_validator.ex partition). 'server' per case is Barkpark's answer for a cross rule {name: r, rule, fields: [a]} on a schema with fields a n tags links obj ref d: ok, violated, or skip (unevaluable). app/src/lib/conditions-server.test.ts checks the studio gives the same. Regenerate: elixir scripts/field-visibility-cases.exs <barkpark checkout>. Cases from the PR #1336 review.",
+ "server": "barkpark 0bb8b0ebf9",
+ "cases": [
+  {
+   "name": "eq x, a=x",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "value": "x"
+   },
+   "doc": {
+    "a": "x"
+   },
+   "server": "ok"
+  },
+  {
+   "name": "eq x, a missing",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "value": "x"
+   },
+   "doc": {},
+   "server": "violated"
+  },
+  {
+   "name": "eq null, a missing",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "value": null
+   },
+   "doc": {},
+   "server": "ok"
+  },
+  {
+   "name": "eq null, a=null",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "value": null
+   },
+   "doc": {
+    "a": null
+   },
+   "server": "ok"
+  },
+  {
+   "name": "eq no value, a missing",
+   "rule": {
+    "field": "a",
+    "operator": "eq"
+   },
+   "doc": {},
+   "server": "ok"
+  },
+  {
+   "name": "eq no value, a=null",
+   "rule": {
+    "field": "a",
+    "operator": "eq"
+   },
+   "doc": {
+    "a": null
+   },
+   "server": "ok"
+  },
+  {
+   "name": "neq null, a missing",
+   "rule": {
+    "field": "a",
+    "operator": "neq",
+    "value": null
+   },
+   "doc": {},
+   "server": "violated"
+  },
+  {
+   "name": "neq x, a missing",
+   "rule": {
+    "field": "a",
+    "operator": "neq",
+    "value": "x"
+   },
+   "doc": {},
+   "server": "ok"
+  },
+  {
+   "name": "in [x,null], a missing",
+   "rule": {
+    "field": "a",
+    "operator": "in",
+    "value": [
+     "x",
+     null
+    ]
+   },
+   "doc": {},
+   "server": "ok"
+  },
+  {
+   "name": "in [1], n=1.0",
+   "rule": {
+    "field": "n",
+    "operator": "in",
+    "value": [
+     1
+    ]
+   },
+   "doc": {
+    "n": 1.0
+   },
+   "server": "violated"
+  },
+  {
+   "name": "eq 1, n=1.0",
+   "rule": {
+    "field": "n",
+    "operator": "eq",
+    "value": 1
+   },
+   "doc": {
+    "n": 1.0
+   },
+   "server": "ok"
+  },
+  {
+   "name": "eq 3, n='3'",
+   "rule": {
+    "field": "n",
+    "operator": "eq",
+    "value": 3
+   },
+   "doc": {
+    "n": "3"
+   },
+   "server": "violated"
+  },
+  {
+   "name": "in not list",
+   "rule": {
+    "field": "a",
+    "operator": "in",
+    "value": "x"
+   },
+   "doc": {
+    "a": "x"
+   },
+   "server": "violated"
+  },
+  {
+   "name": "empty, a=''",
+   "rule": {
+    "field": "a",
+    "operator": "empty"
+   },
+   "doc": {
+    "a": ""
+   },
+   "server": "ok"
+  },
+  {
+   "name": "empty, a=' '",
+   "rule": {
+    "field": "a",
+    "operator": "empty"
+   },
+   "doc": {
+    "a": " "
+   },
+   "server": "violated"
+  },
+  {
+   "name": "empty, a missing",
+   "rule": {
+    "field": "a",
+    "operator": "empty"
+   },
+   "doc": {},
+   "server": "ok"
+  },
+  {
+   "name": "empty, a=0",
+   "rule": {
+    "field": "a",
+    "operator": "empty"
+   },
+   "doc": {
+    "a": 0
+   },
+   "server": "violated"
+  },
+  {
+   "name": "empty, a=false",
+   "rule": {
+    "field": "a",
+    "operator": "empty"
+   },
+   "doc": {
+    "a": false
+   },
+   "server": "violated"
+  },
+  {
+   "name": "empty, obj={}",
+   "rule": {
+    "field": "obj",
+    "operator": "empty"
+   },
+   "doc": {
+    "obj": {}
+   },
+   "server": "ok"
+  },
+  {
+   "name": "non_empty, tags=[]",
+   "rule": {
+    "field": "tags",
+    "operator": "non_empty"
+   },
+   "doc": {
+    "tags": []
+   },
+   "server": "violated"
+  },
+  {
+   "name": "count_eq 0, a='abc'",
+   "rule": {
+    "field": "a",
+    "operator": "count_eq",
+    "value": 0
+   },
+   "doc": {
+    "a": "abc"
+   },
+   "server": "ok"
+  },
+  {
+   "name": "count_lt 1, a='abc'",
+   "rule": {
+    "field": "a",
+    "operator": "count_lt",
+    "value": 1
+   },
+   "doc": {
+    "a": "abc"
+   },
+   "server": "ok"
+  },
+  {
+   "name": "count_gt 0, a='abc'",
+   "rule": {
+    "field": "a",
+    "operator": "count_gt",
+    "value": 0
+   },
+   "doc": {
+    "a": "abc"
+   },
+   "server": "violated"
+  },
+  {
+   "name": "count_eq 0, n=5",
+   "rule": {
+    "field": "n",
+    "operator": "count_eq",
+    "value": 0
+   },
+   "doc": {
+    "n": 5
+   },
+   "server": "ok"
+  },
+  {
+   "name": "count_gt '1', tags=[1]",
+   "rule": {
+    "field": "tags",
+    "operator": "count_gt",
+    "value": "1"
+   },
+   "doc": {
+    "tags": [
+     1
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "name": "count_eq '1', tags=[1]",
+   "rule": {
+    "field": "tags",
+    "operator": "count_eq",
+    "value": "1"
+   },
+   "doc": {
+    "tags": [
+     1
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "name": "count_gt 1.5, tags=[1]",
+   "rule": {
+    "field": "tags",
+    "operator": "count_gt",
+    "value": 1.5
+   },
+   "doc": {
+    "tags": [
+     1
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "name": "count_eq 2, obj 2 keys",
+   "rule": {
+    "field": "obj",
+    "operator": "count_eq",
+    "value": 2
+   },
+   "doc": {
+    "obj": {
+     "x": 1,
+     "y": 2
+    }
+   },
+   "server": "ok"
+  },
+  {
+   "name": "links.url empty, links=[{}]",
+   "rule": {
+    "field": "links",
+    "operator": "empty"
+   },
+   "doc": {
+    "links": [
+     {}
+    ]
+   },
+   "server": "violated"
+  },
+  {
+   "name": "links.url empty, [{}]",
+   "rule": {
+    "field": "links.url",
+    "operator": "empty"
+   },
+   "doc": {
+    "links": [
+     {}
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "name": "links.url non_empty, [{}]",
+   "rule": {
+    "field": "links.url",
+    "operator": "non_empty"
+   },
+   "doc": {
+    "links": [
+     {}
+    ]
+   },
+   "server": "violated"
+  },
+  {
+   "name": "links.url count_eq 1, [{url:a},{}]",
+   "rule": {
+    "field": "links.url",
+    "operator": "count_eq",
+    "value": 1
+   },
+   "doc": {
+    "links": [
+     {
+      "url": "a"
+     },
+     {}
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "name": "links.url count_eq 1, [{url:a},{url:null}]",
+   "rule": {
+    "field": "links.url",
+    "operator": "count_eq",
+    "value": 1
+   },
+   "doc": {
+    "links": [
+     {
+      "url": "a"
+     },
+     {
+      "url": null
+     }
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "name": "links.url eq a, [{url:a}]",
+   "rule": {
+    "field": "links.url",
+    "operator": "eq",
+    "value": "a"
+   },
+   "doc": {
+    "links": [
+     {
+      "url": "a"
+     }
+    ]
+   },
+   "server": "violated"
+  },
+  {
+   "name": "tags.x empty, tags=['s']",
+   "rule": {
+    "field": "tags.x",
+    "operator": "empty"
+   },
+   "doc": {
+    "tags": [
+     "s"
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "name": "obj.x eq 1",
+   "rule": {
+    "field": "obj.x",
+    "operator": "eq",
+    "value": 1
+   },
+   "doc": {
+    "obj": {
+     "x": 1
+    }
+   },
+   "server": "ok"
+  },
+  {
+   "name": "obj.x eq 1, obj='str'",
+   "rule": {
+    "field": "obj.x",
+    "operator": "empty"
+   },
+   "doc": {
+    "obj": "str"
+   },
+   "server": "ok"
+  },
+  {
+   "name": "ref._ref eq id",
+   "rule": {
+    "field": "ref._ref",
+    "operator": "eq",
+    "value": "id"
+   },
+   "doc": {
+    "ref": {
+     "_ref": "id",
+     "_type": "reference"
+    }
+   },
+   "server": "ok"
+  },
+  {
+   "name": "d starts_with 2026",
+   "rule": {
+    "field": "d",
+    "operator": "starts_with",
+    "value": "2026"
+   },
+   "doc": {
+    "d": "2026-11-20"
+   },
+   "server": "ok"
+  },
+  {
+   "name": "starts_with on number",
+   "rule": {
+    "field": "n",
+    "operator": "starts_with",
+    "value": "1"
+   },
+   "doc": {
+    "n": 12
+   },
+   "server": "violated"
+  },
+  {
+   "name": "eq [a], tags=[a]",
+   "rule": {
+    "field": "tags",
+    "operator": "eq",
+    "value": [
+     "a"
+    ]
+   },
+   "doc": {
+    "tags": [
+     "a"
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "name": "eq {x:1}, obj={x:1}",
+   "rule": {
+    "field": "obj",
+    "operator": "eq",
+    "value": {
+     "x": 1
+    }
+   },
+   "doc": {
+    "obj": {
+     "x": 1
+    }
+   },
+   "server": "ok"
+  },
+  {
+   "name": "neq [a], tags=[a]",
+   "rule": {
+    "field": "tags",
+    "operator": "neq",
+    "value": [
+     "a"
+    ]
+   },
+   "doc": {
+    "tags": [
+     "a"
+    ]
+   },
+   "server": "violated"
+  },
+  {
+   "name": "eq true, a=true",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "value": true
+   },
+   "doc": {
+    "a": true
+   },
+   "server": "ok"
+  },
+  {
+   "name": "title non_empty (title only on row)",
+   "rule": {
+    "field": "title",
+    "operator": "non_empty"
+   },
+   "doc": {
+    "title": "T"
+   },
+   "server": "ok"
+  },
+  {
+   "name": "any [] nested in all",
+   "rule": {
+    "all": [
+     {
+      "field": "a",
+      "operator": "non_empty"
+     },
+     {
+      "any": [
+       {
+        "field": "n",
+        "operator": "eq",
+        "value": 1
+       }
+      ]
+     }
+    ]
+   },
+   "doc": {
+    "a": "x",
+    "n": 2
+   },
+   "server": "violated"
+  },
+  {
+   "name": "all false,any list",
+   "rule": {
+    "all": false,
+    "any": [
+     {
+      "field": "a",
+      "operator": "eq",
+      "value": "q"
+     }
+    ]
+   },
+   "doc": {
+    "a": "x"
+   },
+   "server": "violated"
+  },
+  {
+   "name": "scope parent leaf",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "value": "x",
+    "scope": "parent"
+   },
+   "doc": {
+    "a": "x"
+   },
+   "server": "ok"
+  },
+  {
+   "name": "leaf + all keys",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "value": "nope",
+    "all": [
+     {
+      "field": "a",
+      "operator": "eq",
+      "value": "x"
+     }
+    ]
+   },
+   "doc": {
+    "a": "x"
+   },
+   "server": "ok"
+  },
+  {
+   "name": "nested leaf all/any 3 deep",
+   "rule": {
+    "any": [
+     {
+      "all": [
+       {
+        "any": [
+         {
+          "field": "a",
+          "operator": "eq",
+          "value": "x"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "doc": {
+    "a": "x"
+   },
+   "server": "ok"
+  }
+ ]
+}
