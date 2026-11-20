@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '../rig/test'
 import {seedAssets} from '../../scripts/lib/seed-assets.mjs'
-import {bpBase, bpDataset, bpRemove, signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {bpBase, bpDataset, bpRemove, deleteAsset, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // B08 (Barkpark-native, ours only), after LiveView's media library: the Media tool
 // lists the dataset's assets; search and the visibility filter narrow them; an asset's
@@ -24,7 +24,7 @@ test.afterEach(async ({page}, info) => {
   if (target(info).name !== 'studio') return
   if (asset) {
     await fetch(`${media()}/${asset.id}/undo-checkout`, {method: 'POST', headers: auth()})
-    await fetch(`${media()}/${asset.id}`, {method: 'DELETE', headers: auth()})
+    await deleteAsset(asset.id)
   }
   const listed = (await (await fetch(`${media()}/collections?limit=100`, {headers: auth()})).json()) as {result?: {collections?: {id: string; title: string}[]}}
   const ours = new Set([...(folder ? [folder] : []), ...(listed.result?.collections ?? []).filter((c) => c.title.startsWith('B08 folder')).map((c) => c.id)])

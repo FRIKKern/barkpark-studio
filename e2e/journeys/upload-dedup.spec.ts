@@ -1,6 +1,6 @@
 import {randomBytes} from 'node:crypto'
 import {expect, test} from '../rig/test'
-import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {deleteAsset, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // The same bytes give one asset (Barkpark #22700), and the second time nothing is sent:
 // the studio hashes the file first and uses the asset with that SHA-1, as Sanity does.
@@ -50,6 +50,6 @@ test('@local J54: the same file twice is one asset, and the second time nothing 
     // a deleted asset, health run 2026-10-10).
     await closeAndSettle(page)
     await t.restore(ID, {title: 'Fixture post 03', attachment: before})
-    for (const a of await named(name)) await fetch(`${base()}/v1/media/${process.env.BARKPARK_DATASET}/${a.id}`, {method: 'DELETE', headers: auth()})
+    for (const a of await named(name)) await deleteAsset(a.id)
   }
 })

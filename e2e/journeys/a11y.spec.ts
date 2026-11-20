@@ -15,7 +15,13 @@ const scan = async (page: Page) => {
   return violations.map((v) => ({id: v.id, impact: v.impact, nodes: v.nodes.length, where: v.nodes.slice(0, 3).map((n) => n.target.join(' '))}))
 }
 
-test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).restore(ID, {title: TITLE})))
+// Put back only after a test that opened the doc: it is set before the doc opens, so before any write (c1df slice 2).
+let opened = false
+test.afterEach(async ({page}, info) => {
+  await closeAndSettle(page)
+  if (opened) await target(info).restore(ID, {title: TITLE})
+  opened = false
+})
 
 test('@evidence F13: axe on the J01–J04 screens', async ({page}, info) => {
   const t = target(info)
@@ -30,6 +36,7 @@ test('@evidence F13: axe on the J01–J04 screens', async ({page}, info) => {
   await expect(t.listItem(page, ID)).toBeVisible()
   const all = [record('J01 list', await scan(page))]
 
+  opened = true
   await t.listItem(page, ID).click()
   await expect(t.field(page, 'title')).toHaveValue(TITLE)
   all.push(record('J02 open post', await scan(page)))
@@ -80,6 +87,7 @@ test('@local J47: the list, a list search and validation are announced', async (
   const said = await page.evaluate(() => (window as unknown as {said: string[]}).said)
   expect(said.filter((s) => / for |No results/.test(s)), said.join(' | ')).toHaveLength(1)
   await box.fill('')
+  opened = true
   await t.listItem(page, ID).click()
   await expect(page.getByRole('region', {name: TITLE})).toBeVisible()
   try {
@@ -115,6 +123,7 @@ test('a11y: an errored field is aria-invalid, its problem the description, its n
   const t = target(info)
   test.skip(t.name === 'sanity', "ours: Sanity's input carries none of these")
   await t.prepare(page.context())
+  opened = true
   await page.goto(t.docPath('post', ID))
   await signInIfAsked(page)
   await t.settle(page)

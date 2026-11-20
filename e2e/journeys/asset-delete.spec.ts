@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '../rig/test'
-import {bpMutate, target, closeAndSettle} from '../rig/targets'
+import {bpMutate, deleteAsset, target, closeAndSettle} from '../rig/targets'
 
 // J36, Sanity's asset Delete: an image a document uses can't be deleted. The dialog
 // says so and lists the document (found through Barkpark's backlinks, #22042), and
@@ -17,7 +17,7 @@ test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
   if (target(info).name !== 'studio') return
   await bpMutate([{discardDraft: {id: ID, type: 'post'}}]).catch(() => {})
-  for (const id of [asset, file]) if (id) await fetch(`${media()}/${id}`, {method: 'DELETE', headers: auth()})
+  for (const id of [asset, file]) if (id) await deleteAsset(id)
 })
 
 test('@local J36: an image in use cannot be deleted; unused, Delete asks and deletes it', async ({page}, info) => {

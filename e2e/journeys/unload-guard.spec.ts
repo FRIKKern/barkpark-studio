@@ -13,8 +13,8 @@ test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
   const t = target(info)
   if (t.name !== 'studio') return
-  await t.resetDoc(POST, 'post')
-  if (blocks) await t.restore(NOTE, {title: SEED.title, label: SEED.label, body: SEED.body, blocks}, 'note')
+  // Each a different doc: both at once.
+  await Promise.all([t.resetDoc(POST, 'post'), blocks && t.restore(NOTE, {title: SEED.title, label: SEED.label, body: SEED.body, blocks}, 'note')])
 })
 
 /** Close the tab the way a person does; whether the browser asked first. */

@@ -12,9 +12,9 @@ let created: string | undefined
 const MOVED = 'post-06'
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
-  if (created) await target(info).deleteDoc(created, 'post')
+  // Each a different doc: both at once.
+  await Promise.all([created && target(info).deleteDoc(created, 'post'), target(info).name === 'studio' && target(info).resetDoc(MOVED, 'post')])
   created = undefined
-  if (target(info).name === 'studio') await target(info).resetDoc(MOVED, 'post')
 })
 
 test("J17: an author's form lists their posts, opens one in the next pane, and Add item creates a post by them", async ({page}, info) => {

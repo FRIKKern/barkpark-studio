@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs'
 import {expect, test} from '../rig/test'
-import {bpMutate, target, closeAndSettle} from '../rig/targets'
+import {bpMutate, deleteAsset, target, closeAndSettle} from '../rig/targets'
 
 // B08 + J36 (ours only: LiveView's library has neither): the Media tool's asset shows the
 // documents using it, and Delete is the image field's (Sanity's) dialog — an asset in use
@@ -16,7 +16,7 @@ test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
   if (target(info).name !== 'studio') return
   await bpMutate([{delete: {id: POST, type: 'post', force: true}}]).catch(() => {})
-  if (asset) await fetch(`${media()}/${asset}`, {method: 'DELETE', headers: auth()})
+  if (asset) await deleteAsset(asset)
 })
 
 test('@local B08: an asset lists the documents using it; in use it is not deleted, unused it is', async ({page}, info) => {
