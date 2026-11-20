@@ -24,6 +24,7 @@ import {clientGone} from '../server/client-gone'
 import {gated, putBackKept, writeAllowed} from './doc-lock'
 import {combine, dropPending, judge, keepPlan, ownedElsewhere, pendingKey, putPending, readDocPending, restoreBlock, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
+import {noteEdit} from './pane-clock'
 import {paceMs, paced} from './write-pace'
 
 // Local-first editing. A keystroke writes the query cache at once (input, pane
@@ -222,6 +223,8 @@ export function bodyHistory(id: string, type: string, field: string, kind: 'step
     }
   }
   if (kind === 'step') {
+    // The canvas writes its own batches (lib/blocks.ts); its step is this door's note of them.
+    noteEdit(id)
     for (let n = 0; n < count; n++) e.undo.push({field, steps: [], at: 0, body: true})
     e.redo = []
   } else if (kind === 'undo') move(e.undo, e.redo)
@@ -439,6 +442,9 @@ function write(qc: QueryClient, doc: Doc, field: string, value: unknown, record 
     if (now && typeof now === 'object' && !Array.isArray(now) && Object.entries(now).every(([k, v]) => k === '_type' || k === own || blank(v))) return write(qc, doc, parent, undefined, record)
   }
   const id = doc._publishedId
+  // The door every field write passes (an edit by hand, an action's set, undo, a put-back): D04's
+  // "edited in this page" is noted here, once, for every writer (lib/pane-clock.ts unedited).
+  noteEdit(id)
   const e = entry(id, doc._type)
   const held = qc.getQueryData<Doc>(['doc', id]) ?? doc
   // A change given as what it does to the spot (a Portable Text span's typing, as its

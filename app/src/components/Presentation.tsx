@@ -14,6 +14,7 @@ import {RefPreview} from './Preview'
 import {iconBody} from './DeskIcon'
 import type {DeskNode} from '../lib/desk'
 import {Structure} from './Structure'
+import {LoadedAtContext} from '../lib/pane-clock'
 import {usePresentationComlink} from '../lib/presentation-channels'
 import {frameSrc, ownPath} from '../lib/presentation-comlink'
 
@@ -108,7 +109,7 @@ export function matchRoute(routes: MainDocument[], path: string): {route: MainDo
  * `?pane=` the document panel's pane chain (a structure path), so the panel is the
  * same panes as /structure, hosted here (PaneHrefContext maps their hrefs).
  */
-export function Presentation({previewUrl, preview = '/', panes, mainDocuments = [], viewport, perspective}: {previewUrl: string; preview?: string; panes: Pane[] | null; mainDocuments?: MainDocument[]; viewport?: 'mobile'; perspective?: string}) {
+export function Presentation({previewUrl, preview = '/', panes, at, mainDocuments = [], viewport, perspective}: {previewUrl: string; preview?: string; panes: Pane[] | null; at?: number; mainDocuments?: MainDocument[]; viewport?: 'mobile'; perspective?: string}) {
   const t = useT()
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -449,7 +450,9 @@ export function Presentation({previewUrl, preview = '/', panes, mainDocuments = 
         {docPane ? (
           <aside className="presentation-panel docked" id="presentation-narrow-panel-content" aria-label={t('Document')}>
             <InPresentationContext.Provider value={true}>
-              <Structure panes={panes} widthHint={325} />
+              <LoadedAtContext.Provider value={at}>
+                <Structure panes={panes} widthHint={325} />
+              </LoadedAtContext.Provider>
             </InPresentationContext.Provider>
           </aside>
         ) : (

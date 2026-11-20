@@ -85,6 +85,11 @@ type FieldProps = {field: Field; path: string; value: unknown; openRef: OpenRef;
 
 export const ProblemsContext = createContext<Problem[]>([])
 /**
+ * task-96c28256661a6179: the form's problems as a field draws them (its mark, `data-invalid`, an
+ * input's `invalid`), the one door to them. Read problems here, never from ProblemsContext itself.
+ */
+export const useProblems = (): Problem[] => useContext(ProblemsContext)
+/**
  * J13/J14: which collapsible objects are open (Sanity's `options.collapsible` /
  * `collapsed`). The pane owns it, so a validation click can open the way to a field.
  */
@@ -151,7 +156,7 @@ export function LevelIcon({level, label}: {level: Level; label?: string}) {
 /** The mark beside a field label; `within`: also what a collapsed object hides. */
 export function ProblemMark({path, within, id}: {path: string; within?: boolean; id?: string}) {
   const t = useT()
-  const all = useContext(ProblemsContext).filter((p) => p.path === path || (within && p.path.startsWith(`${path}.`)))
+  const all = useProblems().filter((p) => p.path === path || (within && p.path.startsWith(`${path}.`)))
   const level = worst(all)
   // Sanity's: under the pointer the mark lists every message, each with its level's icon, above it.
   const {anchor, tip} = useTip(() => (
@@ -276,7 +281,7 @@ function FieldBody(props: FieldProps) {
   const label = props.field.title ?? props.field.name
   // The field's visible title: it describes the field's action and comment buttons (one per field, same names).
   const titleId = useId()
-  const invalid = useContext(ProblemsContext).some((p) => p.path === props.path && p.level === 'error') || undefined
+  const invalid = useProblems().some((p) => p.path === props.path && p.level === 'error') || undefined
   const box = useRef<HTMLDivElement>(null)
   useFieldAria(box, props.path, titleId, fieldAria(props.path, props.field, !!invalid))
   // Sanity: a boolean is a switch with its label beside it, in a box.
@@ -517,7 +522,7 @@ function FieldActions({field, path, value, onChange, readOnly, titleId}: FieldPr
 function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProps) {
   const t = useT()
   const editPath = useContext(EditPathContext)
-  const invalid = useContext(ProblemsContext).some((p) => p.path === path && p.level === 'error')
+  const invalid = useProblems().some((p) => p.path === path && p.level === 'error')
   // A form shown to read (the published version, a revision, no write access): its fieldset
   // disables the inputs, and the text editor (no input, the fieldset does not reach it) is told.
   const formDisabled = useContext(FormDisabledContext)
