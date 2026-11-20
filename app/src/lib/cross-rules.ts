@@ -1,6 +1,6 @@
 import type {Doc, Schema} from './data'
 import type {Level, Problem} from './validation'
-import {matches, type Condition} from './conditions.ts'
+import {holds} from './conditions.ts'
 import {describeField} from './custom-rules.ts'
 
 // A schema's cross-field rules (Barkpark's `cross_validations`, api/lib/barkpark/content/
@@ -24,19 +24,19 @@ const isMap = (v: unknown): v is Body => !!v && typeof v === 'object' && !Array.
 /** Whether the server can evaluate this body (cross_validator.ex `partition`): known operators on declared fields. */
 function evaluable(body: unknown, names: Set<string>): boolean {
   if (!isMap(body) || !Object.keys(body).length) return false
-  const preds = body.all ?? body.any
+  // Elixir's `all || any`: false and null fall through.
+  const truthy = (v: unknown) => (v === false || v === null || v === undefined ? undefined : v)
+  const preds = truthy(body.all) ?? truthy(body.any)
   if (preds !== undefined) return Array.isArray(preds) && preds.length > 0 && preds.every((p) => evaluable(p, names))
   const {field, operator} = body
   return typeof field === 'string' && field !== '' && typeof operator === 'string' && OPERATORS.has(operator) && names.has(field.split('.')[0]!)
 }
 
-function holds(body: Body, doc: Record<string, unknown>): boolean {
-  if (Array.isArray(body.all)) return body.all.every((p) => holds(p as Body, doc))
-  if (Array.isArray(body.any)) return body.any.some((p) => holds(p as Body, doc))
-  return matches(body as Condition, doc)
-}
-
-const levelOf = (level: unknown): Level => (level === 'warning' || level === 'warn' ? 'warning' : level === 'info' ? 'info' : 'error')
+// Barkpark's: only "warning" and "info" are warnings; any other level (a "warn" too) is an error.
+const levelOf = (level: unknown): Level => (level === 'warning' ? 'warning' : level === 'info' ? 'info' : 'error')
+// Where Barkpark puts a rule naming no field (cross_validator.ex `to_finding`, "/_document"), as
+// the form reads a finding's path (lib/findings.ts formPath): its advisory after a save is the same problem.
+const DOCUMENT = '_document'
 
 /**
  * The violated rules as problems: one under each field the rule names (a document problem
@@ -48,9 +48,10 @@ export function crossProblems(doc: Doc, schema: Schema): Problem[] {
   const names = new Set(['title', ...schema.fields.map((f) => f.name)])
   const describe = describeField(schema)
   return rules.flatMap((r) => {
-    if (!isMap(r) || !evaluable(r.rule, names) || holds(r.rule as Body, doc as Record<string, unknown>)) return []
+    if (!isMap(r) || !evaluable(r.rule, names) || holds(r.rule, doc as Record<string, unknown>)) return []
     const message = r.title || r.name || 'Cross-field rule'
     const fields = Array.isArray(r.fields) ? r.fields.filter((f): f is string => typeof f === 'string' && f !== '') : []
-    return (fields.length ? fields : ['']).map((path) => ({path, ...describe(path), message, level: levelOf(r.level)}))
+    if (!fields.length) return [{path: DOCUMENT, title: '', message, level: levelOf(r.level)}]
+    return fields.map((path) => ({path, ...describe(path), message, level: levelOf(r.level)}))
   })
 }

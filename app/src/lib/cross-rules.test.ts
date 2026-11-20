@@ -33,7 +33,7 @@ test('a cross rule naming two fields shows under both; naming none, on the docum
   assert.deepEqual(cross(doc({rating: 3, stage: 'draft'}), s), [
     {path: 'rating', title: 'Rating', group: 'meta', message: 'Rule two', level: 'error'},
     {path: 'stage', title: 'Stage', group: 'meta', message: 'Rule two', level: 'error'},
-    {path: '', title: '', message: 'Rule none', level: 'error'},
+    {path: '_document', title: '', message: 'Rule none', level: 'error'},
   ])
   assert.deepEqual(cross(doc({rating: 3, stage: 'done'}), s), [])
 })

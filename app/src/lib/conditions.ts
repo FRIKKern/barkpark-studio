@@ -24,43 +24,82 @@ import {segments} from './paths.ts'
  */
 export type Condition = {field: string; operator: string; value?: unknown; scope?: 'document' | 'parent'}
 
-// Dotted path from the document root; a list on the way fans out over its rows.
+// Each rule below is Barkpark's own (api/lib/barkpark/content/field_visibility.ex, walk_path and
+// apply_op), so a field shows, locks or breaks a cross rule here exactly when Barkpark says so.
+// JSON has one "nothing" there (nil): a missing key, null and undefined are all null here.
+// fixtures/field-visibility-cases.json pins the answers Barkpark gives (conditions-server.test.ts).
+const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+
+// Dotted path from the document root. A missing or null step is null; a list on the way fans
+// out over its rows, dropping rows where the path finds nothing and splicing lists it finds.
 function lookup(doc: unknown, path: string[]): unknown {
-  if (!path.length) return doc
-  if (Array.isArray(doc)) return doc.flatMap((row) => lookup(row, path) as unknown[])
-  if (doc && typeof doc === 'object') return lookup((doc as Record<string, unknown>)[path[0]!], path.slice(1))
-  return undefined
+  if (!path.length) return doc ?? null
+  if (isMap(doc)) {
+    const next = doc[path[0]!]
+    return next === undefined || next === null ? null : lookup(next, path.slice(1))
+  }
+  if (Array.isArray(doc)) return doc.flatMap((row) => {
+    const v = lookup(row, path)
+    return v === null ? [] : Array.isArray(v) ? v : [v]
+  })
+  return null
 }
 
-const count = (v: unknown) => (Array.isArray(v) ? v.length : v && typeof v === 'object' ? Object.keys(v).length : v == null || v === '' ? 0 : 1)
-const isEmpty = (v: unknown) => count(v) === 0
+/** Elixir's `==`: structural, with null for undefined. */
+function same(a: unknown, b: unknown): boolean {
+  a = a ?? null
+  b = b ?? null
+  if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => same(x, b[i]))
+  if (isMap(a) || isMap(b)) {
+    if (!isMap(a) || !isMap(b)) return false
+    const keys = Object.keys(a)
+    return keys.length === Object.keys(b).length && keys.every((k) => k in b && same(a[k], b[k]))
+  }
+  return a === b
+}
+
+// A list counts its rows, an object its keys, anything else 0.
+const count = (v: unknown) => (Array.isArray(v) ? v.length : isMap(v) ? Object.keys(v).length : 0)
+const isEmpty = (v: unknown) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0) || (isMap(v) && Object.keys(v).length === 0)
 
 export function matches(c: Condition, doc: Record<string, unknown>): boolean {
+  if (typeof c.field !== 'string' || typeof c.operator !== 'string') return true // not a leaf: holds, as Barkpark's
   const v = lookup(doc, c.field.split('.'))
+  const n = c.value
+  // count_*: only with a whole number; any other value holds (Barkpark's unknown-shape rule).
+  const counted = typeof n === 'number' && Number.isInteger(n)
   switch (c.operator) {
     case 'eq':
-      return v === c.value
+      return same(v, n)
     case 'neq':
-      return v !== c.value
+      return !same(v, n)
     case 'in':
-      return Array.isArray(c.value) && c.value.includes(v)
+      return Array.isArray(n) && n.some((x) => same(v, x))
     case 'empty':
       return isEmpty(v)
     case 'non_empty':
       return !isEmpty(v)
     case 'starts_with':
-      return typeof v === 'string' && typeof c.value === 'string' && v.startsWith(c.value)
+      return typeof v === 'string' && typeof n === 'string' && v.startsWith(n)
     case 'count_eq':
-      return count(v) === c.value
+      return !counted || count(v) === n
     case 'count_neq':
-      return count(v) !== c.value
+      return !counted || count(v) !== n
     case 'count_gt':
-      return count(v) > Number(c.value)
+      return !counted || count(v) > n
     case 'count_lt':
-      return count(v) < Number(c.value)
+      return !counted || count(v) < n
     default:
       return true // an operator we don't know never hides a field
   }
+}
+
+/** A condition with `all` / `any` (Barkpark's holds?): each leaf reads its own scope. An empty `any` holds, as there. */
+export function holds(c: unknown, doc: Record<string, unknown>, parent?: Record<string, unknown>): boolean {
+  if (!isMap(c)) return true
+  if (Array.isArray(c.all)) return c.all.every((x) => holds(x, doc, parent))
+  if (Array.isArray(c.any) && c.any.length) return c.any.some((x) => holds(x, doc, parent))
+  return matches(c as Condition, base(c as Condition, doc, parent))
 }
 
 /** What a condition reads from: the enclosing object for scope "parent" (the document when there is none). */
@@ -70,10 +109,10 @@ export const alwaysHidden = (f: Field) => f.hidden === true
 /** The schema's `readOnly: true`, whatever the document. */
 export const alwaysReadOnly = (f: Field) => f.readOnly === true
 const readOnlyWhen = (f: Field) => (typeof f.readOnly === 'object' && f.readOnly !== null ? f.readOnly : undefined)
-export const isHidden = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => alwaysHidden(f) || (!!f.visibleWhen && !matches(f.visibleWhen, base(f.visibleWhen, doc, parent)))
+export const isHidden = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => alwaysHidden(f) || (!!f.visibleWhen && !holds(f.visibleWhen, doc, parent))
 export const isReadOnly = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => {
   const when = readOnlyWhen(f)
-  return alwaysReadOnly(f) || (!!when && matches(when, base(when, doc, parent)))
+  return alwaysReadOnly(f) || (!!when && holds(when, doc, parent))
 }
 
 /** Sanity shows a group's tab only while some field in it shows (`visibleGroups`): one whose fields are all hidden has none. */
