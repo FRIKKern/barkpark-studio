@@ -84,11 +84,11 @@ async function lateChunk(page: Page, docPath: string, drawn: 'photo' | 'mainImag
     // Each server-drawn Suspense boundary in the form (React marks it <!--$--> … <!--/$-->), named
     // by its field (the file input sits in no fieldset: by its class), with its parent's elements
     // outside it: "empty" is the parent holding only those.
-    // Read again on each mutation while the server's HTML is still streaming in (a boundary not yet
-    // parsed is not yet there), then kept: React's swaps come after the parse.
+    // Read once the server's HTML is parsed (DOMContentLoaded: a boundary still streaming in is not
+    // there before), and before React can swap any (it hydrates after the page's deferred scripts).
     const find = () => {
       const form = document.querySelector('.doc-form')
-      if (!form || (w.__slots && document.readyState !== 'loading')) return
+      if (!form || w.__slots) return
       const slots: Slot[] = []
       const walk = document.createTreeWalker(form, NodeFilter.SHOW_COMMENT)
       for (let c = walk.nextNode(); c; c = walk.nextNode()) {
@@ -103,10 +103,11 @@ async function lateChunk(page: Page, docPath: string, drawn: 'photo' | 'mainImag
       w.__slots = slots
     }
     const check = () => {
-      find()
       if (w.__chunkIn) return
       for (const s of w.__slots ?? []) if ((!s.parent.isConnected || s.parent.childElementCount <= s.others) && !w.__emptied!.includes(s.name)) w.__emptied!.push(s.name)
     }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', find, {once: true})
+    else find()
     new MutationObserver(check).observe(document, {subtree: true, childList: true})
   })
   let release!: () => void
