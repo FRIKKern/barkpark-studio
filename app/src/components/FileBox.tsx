@@ -1,9 +1,9 @@
-import type {ClipboardEvent, DragEvent, ReactNode} from 'react'
+import {useLayoutEffect, type ClipboardEvent, type DragEvent, type MouseEvent, type ReactNode} from 'react'
 import {BinaryDocumentIcon, Ellipsis, ErrorOutline, Search as SearchIcon, Undo, Upload} from './icons'
 import type {Field} from '../lib/data'
 import {useFileInfo} from '../lib/file-info'
 import {formatBytes} from '../lib/files'
-import {heldFocus, holdAct, type Act} from '../lib/held-act'
+import {focusIn, heldKey, holdAct, settleBox, type Act} from '../lib/held-act'
 import {useLocale, useT} from '../lib/i18n'
 
 // task-05dcdef359da08fc: the file input's box, one markup for both sides. The real input (FileInput,
@@ -46,9 +46,12 @@ export function FileBox({id, field, value, readOnly, live, children}: Props) {
   const info = useFileInfo(ref)
   const title = field.title ?? field.name
   const name = info.data?.name
-  // A press: the real input's, or kept for it. The focus is noted so it stays across the swap.
-  const press = (act: Act) => (live ? live.act(act) : holdAct(id, act))
-  const focusOf = (act: Act) => (live ? {} : heldFocus(id, act))
+  // A press: the real input's, or kept for it by the button pressed (lib/held-act.ts).
+  const press = (act: Act) => (e: MouseEvent<HTMLButtonElement>) => (live ? live.act(act) : holdAct(heldKey(id), act, e.currentTarget))
+  // Drawn before the chunk: as React takes this box away for the real one, what had the focus in it
+  // (and so whether a held press stands) is read, before the box leaves the page (lib/held-act.ts).
+  const before = !live
+  useLayoutEffect(() => (before ? () => settleBox(heldKey(id), focusIn(id)) : undefined), [before, id])
   // Before the chunk a dropped file is kept from the tab by DocEditors.tsx (guardDrops), server HTML or this.
   const target = live?.target ?? {}
   return (
@@ -77,10 +80,10 @@ export function FileBox({id, field, value, readOnly, live, children}: Props) {
                 <Undo /> {t('Retry')}
               </button>
             )}
-            <button type="button" className="btn ghost" data-act="upload" disabled={readOnly} onClick={() => press('upload')} {...focusOf('upload')}>
+            <button type="button" className="btn ghost" data-act="upload" disabled={readOnly} onClick={press('upload')}>
               <Upload /> {t('Upload')}
             </button>
-            <button type="button" className="btn ghost" data-act="select" disabled={readOnly} onClick={() => press('select')} {...focusOf('select')}>
+            <button type="button" className="btn ghost" data-act="select" disabled={readOnly} onClick={press('select')}>
               <SearchIcon /> {t('Select')}
             </button>
           </span>
@@ -102,7 +105,7 @@ export function FileBox({id, field, value, readOnly, live, children}: Props) {
             )}
           </span>
           <div className="menu-wrap" onBlur={(e) => live && !e.currentTarget.contains(e.relatedTarget) && live.onMenuBlur()}>
-            <button id={`${id}-menuButton`} type="button" className="icon-btn" data-act="menu" aria-label={t('Open file options menu')} aria-haspopup="menu" aria-expanded={!!live?.menu} onClick={() => press('menu')} {...focusOf('menu')}>
+            <button id={`${id}-menuButton`} type="button" className="icon-btn" data-act="menu" aria-label={t('Open file options menu')} aria-haspopup="menu" aria-expanded={!!live?.menu} onClick={press('menu')}>
               <Ellipsis />
             </button>
             {live?.menu && live.menuItems}

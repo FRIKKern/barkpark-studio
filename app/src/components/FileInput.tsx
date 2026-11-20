@@ -15,7 +15,7 @@ import type {ImageMeta} from '../lib/image-meta'
 import {UploadProgress} from './UploadProgress'
 import {FileBox, carriesFiles} from './FileBox'
 import {useFileInfo} from '../lib/file-info'
-import {actControl, takeHeld, type Act} from '../lib/held-act'
+import {actControl, heldKey, markLive, takeHeld, type Act} from '../lib/held-act'
 
 // J54, after Sanity's file input: an empty box ("Drag or paste file here",
 // Upload, Select); a file shows its name and size with an options menu (Upload,
@@ -103,14 +103,15 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   const name = info.data?.name
 
   const act = (a: Act) => (a === 'upload' ? pick() : a === 'select' ? setBrowsing(true) : a === 'menu' ? setMenu((m) => !m) : undefined)
-  // task-05dc: what was pressed on the box before this chunk was here, done now; the focus stays where it was.
+  // task-05dc: as this replaces the box drawn before the chunk, the focus goes to the same button,
+  // and a press held on it is done if the person was still on it (lib/held-act.ts).
   useEffect(() => {
-    const {act: held, focused} = takeHeld(id)
-    const back = focused ?? held
-    if (back) actControl(id, back)?.focus()
-    if (held === 'upload') document.getElementById(id)?.querySelector<HTMLInputElement>('input[type=file]')?.click()
-    else if (held === 'select') setBrowsing(true)
-    else if (held === 'menu') setMenu(true)
+    markLive(document.getElementById(id))
+    const {act, focus} = takeHeld(heldKey(id))
+    if (focus) actControl(id, focus)?.focus()
+    if (act === 'upload') document.getElementById(id)?.querySelector<HTMLInputElement>('input[type=file]')?.click()
+    else if (act === 'select') setBrowsing(true)
+    else if (act === 'menu') setMenu(true)
   }, [id])
 
   return (

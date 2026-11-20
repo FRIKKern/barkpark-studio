@@ -4,7 +4,7 @@ import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import {EditPathContext, FieldView, type OpenRef} from './Fields'
 import {ImageBox} from './ImageBox'
 import {carriesFiles} from './FileBox'
-import {actControl, takeHeld, type Act} from '../lib/held-act'
+import {actControl, heldKey, markLive, takeHeld, type Act} from '../lib/held-act'
 import {toast} from './Toasts'
 import {RefPreview} from './Preview'
 import {Close as CloseIcon, Copy as CopyIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Trash, Undo, Upload} from './icons'
@@ -114,15 +114,16 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
     </div>
   )
   const act = (a: Act) => (a === 'upload' ? pick() : a === 'select' ? setBrowsing(true) : a === 'menu' ? setMenu((m) => !m) : setEditing(true))
-  // task-05dc: what was pressed on the box before this chunk was here, done now; the focus stays where it was.
+  // task-05dc: as this replaces the box drawn before the chunk, the focus goes to the same button,
+  // and a press held on it is done if the person was still on it (lib/held-act.ts).
   useEffect(() => {
-    const {act: held, focused} = takeHeld(id)
-    const back = focused ?? held
-    if (back) actControl(id, back)?.focus()
-    if (held === 'upload') file.current?.click()
-    else if (held === 'select') setBrowsing(true)
-    else if (held === 'menu') setMenu(true)
-    else if (held === 'edit') setEditing(true)
+    markLive(document.getElementById(id))
+    const {act, focus} = takeHeld(heldKey(id))
+    if (focus) actControl(id, focus)?.focus()
+    if (act === 'upload') file.current?.click()
+    else if (act === 'select') setBrowsing(true)
+    else if (act === 'menu') setMenu(true)
+    else if (act === 'edit') setEditing(true)
   }, [id])
 
   return (

@@ -1,5 +1,6 @@
 import {Suspense, use, useEffect, type ComponentProps, type ComponentType, type ReactNode} from 'react'
 import {holdReleaseUntil, releaseEarlyClicks} from '../lib/hydrated'
+import {isLive} from '../lib/held-act'
 import {FileBox} from './FileBox'
 import {toast} from './Toasts'
 import {t} from '../lib/i18n'
@@ -57,27 +58,28 @@ function holdClicks() {
 const HOLD_MS = 3_000
 
 /**
- * task-05dcdef359da08fc: a file dropped on an image or file input before the chunk lands (its
- * server HTML, or the box drawn meanwhile) has no handler to take it, and the browser opened
- * the file in the tab, the document gone. Until the inputs are live it is kept from the tab
- * and refused, said once. The live inputs take a drop first (it is then prevented already).
+ * task-05dcdef359da08fc: a file dropped on an image or file input before its real input is mounted
+ * (its server HTML, or the box drawn meanwhile) has no handler to take it, and the browser opened
+ * the file in the tab, the document gone. Until the box under the drop is live (lib/held-act.ts
+ * markLive, set as the real input mounts, which can be some frames after the chunk lands) it is
+ * kept from the tab and refused, said with a toast for each refused drop. A live box is left to
+ * its own handlers, read-only included.
  */
 let guarding = false
 function guardDrops() {
   if (guarding) return
   guarding = true
-  const onInput = (e: DragEvent) => !e.defaultPrevented && [...(e.dataTransfer?.types ?? [])].includes('Files') && !!(e.target as Element | null)?.closest?.('.file-input, .image-input')
-  const over = (e: DragEvent) => onInput(e) && e.preventDefault()
-  const drop = (e: DragEvent) => {
-    if (!onInput(e)) return
+  const held = (e: DragEvent) => {
+    if (e.defaultPrevented || ![...(e.dataTransfer?.types ?? [])].includes('Files')) return false
+    const box = (e.target as Element | null)?.closest?.('.file-input, .image-input')
+    return !!box && !isLive(box)
+  }
+  addEventListener('dragover', (e) => held(e) && e.preventDefault())
+  addEventListener('drop', (e) => {
+    if (!held(e)) return
     e.preventDefault()
     toast({tone: 'critical', title: t('The editor is still loading. Drop the file again in a moment.')})
-  }
-  addEventListener('dragover', over)
-  addEventListener('drop', drop)
-  void loadDocEditors()
-    .then(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
-    .then(() => (removeEventListener('dragover', over), removeEventListener('drop', drop)))
+  })
 }
 
 // A page that opens on a document (a /structure path with a doc in it, or Presentation)

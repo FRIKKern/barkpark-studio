@@ -1,11 +1,11 @@
-import {useContext, useState, type ReactNode} from 'react'
+import {useContext, useLayoutEffect, useState, type MouseEvent, type ReactNode} from 'react'
 import {EditPathContext, FieldView, ParentContext, type OpenRef} from './Fields'
 import type {DropHandlers} from './FileBox'
 import {Crop as CropIcon, Ellipsis, ErrorOutline, ImageIcon, Search as SearchIcon, Undo, Upload} from './icons'
 import {UnsupportedAssetCard} from './BrokenValues'
 import type {Field} from '../lib/data'
 import {useFileInfo} from '../lib/file-info'
-import {heldFocus, holdAct, type Act} from '../lib/held-act'
+import {focusIn, heldKey, holdAct, settleBox, type Act} from '../lib/held-act'
 import {useT} from '../lib/i18n'
 import {cropView, imageRef, imageSrc, sanityImageId, type ImageValue} from '../lib/image'
 
@@ -77,8 +77,11 @@ export function ImageBox({id, field, value, readOnly, live}: BoxProps) {
       : undefined
   // Sanity's options.hotspot; Barkpark's schemas also say it on the field itself ({hotspot: true}).
   const hotspot = !!((field.options as {hotspot?: boolean} | undefined)?.hotspot || (field as {hotspot?: boolean}).hotspot)
-  const press = (act: Act) => (live ? live.act(act) : holdAct(id, act))
-  const focusOf = (act: Act) => (live ? {} : heldFocus(id, act))
+  const press = (act: Act) => (e: MouseEvent<HTMLButtonElement>) => (live ? live.act(act) : holdAct(heldKey(id), act, e.currentTarget))
+  // Drawn before the chunk: as React takes this box away for the real one, what had the focus in it
+  // (and so whether a held press stands) is read, before the box leaves the page (lib/held-act.ts).
+  const before = !live
+  useLayoutEffect(() => (before ? () => settleBox(heldKey(id), focusIn(id)) : undefined), [before, id])
   // Before the chunk a dropped file is kept from the tab by DocEditors.tsx (guardDrops), server HTML or this.
   const target = live?.target ?? {}
   const over = live?.over || undefined
@@ -107,10 +110,10 @@ export function ImageBox({id, field, value, readOnly, live}: BoxProps) {
                 <Undo /> {t('Retry')}
               </button>
             )}
-            <button type="button" className="btn" data-act="upload" disabled={readOnly} onClick={() => press('upload')} {...focusOf('upload')}>
+            <button type="button" className="btn" data-act="upload" disabled={readOnly} onClick={press('upload')}>
               <Upload /> {t('Upload')}
             </button>
-            <button type="button" className="btn" data-act="select" disabled={readOnly} onPointerEnter={live?.onWarm} onFocus={live?.onWarm} onClick={() => press('select')} {...focusOf('select')}>
+            <button type="button" className="btn" data-act="select" disabled={readOnly} onPointerEnter={live?.onWarm} onFocus={live?.onWarm} onClick={press('select')}>
               <SearchIcon /> {t('Select')}
             </button>
           </span>
@@ -128,12 +131,12 @@ export function ImageBox({id, field, value, readOnly, live}: BoxProps) {
           )}
           <div className="image-actions">
             {hotspot && (
-              <button type="button" className="icon-btn" data-act="edit" aria-label={t('Open image edit dialog')} title={t('Edit hotspot and crop')} disabled={readOnly} onClick={() => press('edit')} {...focusOf('edit')}>
+              <button type="button" className="icon-btn" data-act="edit" aria-label={t('Open image edit dialog')} title={t('Edit hotspot and crop')} disabled={readOnly} onClick={press('edit')}>
                 <CropIcon />
               </button>
             )}
             <div className="menu-wrap" onBlur={(e) => live && !e.currentTarget.contains(e.relatedTarget) && live.onMenuBlur()}>
-              <button id={`${id}-menuButton`} type="button" className="icon-btn" data-act="menu" aria-label={t('Open image options menu')} aria-haspopup="menu" aria-expanded={!!live?.menu} onClick={() => press('menu')} {...focusOf('menu')}>
+              <button id={`${id}-menuButton`} type="button" className="icon-btn" data-act="menu" aria-label={t('Open image options menu')} aria-haspopup="menu" aria-expanded={!!live?.menu} onClick={press('menu')}>
                 <Ellipsis />
               </button>
               {live?.menu && live.menuItems}
