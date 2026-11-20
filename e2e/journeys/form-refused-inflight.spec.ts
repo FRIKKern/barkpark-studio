@@ -1,5 +1,4 @@
-import type {Request} from '@playwright/test'
-import {expect, test} from '../rig/test'
+import {expect, test, type Request} from '../rig/test'
 import {bpMutate, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // The form's twin of collab.spec's D11 (#373), its in-flight race: split from
@@ -68,16 +67,16 @@ test('a rewrite that lands while a refused write is in flight clashes, never sav
   // Saves flow again: theirs stands until the editor chooses.
   await page.unrouteAll({behavior: 'wait'})
   // A write that goes from here (none should: a clash waits for the editor) is waited out.
-  let writing = 0
+  const writing = new Set<Request>()
   const isWrite = (r: Request) => r.url().includes('/_serverFn/') && (r.postData() ?? '').includes('mutations')
-  page.on('request', (r) => void (isWrite(r) && writing++))
-  const done = (r: Request) => void (isWrite(r) && writing--)
+  page.on('request', (r) => void (isWrite(r) && writing.add(r)))
+  const done = (r: Request) => void writing.delete(r)
   page.on('requestfinished', done)
   page.on('requestfailed', done)
   // The studio's only retry clock after a refused write is 2 s from its answer (edits.ts): past
   // it, and past any write that went (none should), theirs still stands.
   await page.waitForTimeout(Math.max(0, refusedAt + 2_300 - Date.now()))
-  await expect.poll(() => writing, {intervals: [50], timeout: 10_000}).toBe(0)
+  await expect.poll(() => writing.size, {intervals: [50], timeout: 10_000}).toBe(0)
   expect((await bpDoc(ID))?.excerpt, 'never saved over theirs unseen').toBe(theirs)
   await card.getByRole('button', {name: 'Take theirs'}).click()
   await expect(excerpt).toHaveValue(theirs)
