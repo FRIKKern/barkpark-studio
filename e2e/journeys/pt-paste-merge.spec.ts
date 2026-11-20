@@ -25,11 +25,16 @@ async function open(page: Page, info: import('@playwright/test').TestInfo, end: 
   const editor = page.locator('[id="body"][contenteditable="true"]')
   await page.locator('.pt-input[data-ready]').filter({has: editor}).waitFor()
   await editor.getByText('Start text', {exact: true}).click()
-  await editor.evaluate((el, end) => {
+  // The click puts the caret mid-word; the paste goes where the editor has it, so wait for the
+  // editor to have it at the block's end (or start), not for the browser's selection alone.
+  const at = end ? 'Start text'.length : 0
+  await editor.evaluate((el, at) => {
+    ;(window as {__ptCarets?: unknown[]}).__ptCarets = []
     const node = [...el.querySelectorAll('*')].find((e) => e.childElementCount === 0 && e.textContent === 'Start text')!.firstChild!
-    getSelection()!.collapse(node, end ? 'Start text'.length : 0)
-  }, end)
-  await page.waitForTimeout(200)
+    getSelection()!.collapse(node, at)
+  }, at)
+  type Caret = {focus: {path: [{_key?: string}]; offset: number}}
+  await page.waitForFunction((at) => ((window as {__ptCarets?: Caret[]}).__ptCarets ?? []).some((s) => s?.focus.path[0]?._key === 'p1' && s.focus.offset === at), at)
   return editor
 }
 const paste = (editor: Locator, text: string) =>

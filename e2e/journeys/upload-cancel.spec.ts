@@ -41,15 +41,16 @@ test('J54: a cancelled upload leaves no asset on Barkpark', async ({page}, info)
   try {
     // The server's part over: this upload's handler has ended, whatever it did (cut the send
     // off, or awaited Barkpark's answer and deleted what it made), and no send to Barkpark is
-    // still open (one that went on regardless is waited out to its answer). Then long enough
-    // for Barkpark to have made an asset from what it got (it answers in 0.6-1.4 s).
+    // still open (one that went on regardless is waited out to its answer). That is all there
+    // is to wait for: Barkpark parses a whole body before its upload handler runs, and makes
+    // the asset before it answers, so a send cut off makes none, and one that went on has its
+    // asset, and the relay's delete of it, done by the time `sending` is back to 0 (lib/upload-relay.ts).
     // Without the hooks: 4 s from the cancel, as before.
     if (before) {
       await expect.poll(async () => {
         const now = await relays(page)
         return !!now && now.ended > before.ended && now.relaying === 0 && now.sending === 0
       }, {message: 'the upload has ended on the studio server and on its way to Barkpark', timeout: 15_000}).toBe(true)
-      await page.waitForTimeout(1500)
     } else await page.waitForTimeout(4000)
     expect(await named(name), 'no asset left on Barkpark').toEqual([])
   } finally {

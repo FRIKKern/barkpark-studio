@@ -541,6 +541,7 @@ function Saver({id, tables, stored, incoming, onChange, editPath, onInvalid, onR
     if (event.type === 'blurred') (focused.current = false), onBlur(), docId && reportSelection(docId, null)
     // D11: this editor's caret goes out with its presence, for the others' text.
     if (event.type === 'selection' && focused.current && docId) reportSelection(docId, caretOf(event.selection))
+    if (event.type === 'selection') (window as {__ptCarets?: unknown[]}).__ptCarets?.push(event.selection) // e2e probe: the caret as the editor has it
     if (event.type === 'invalid value') return onInvalid()
     // The editor's own reading of the stored value, before any edit: what an untouched block looks like.
     if (event.type === 'ready') (seen.current = (editor.getSnapshot().context.value ?? []) as PtBlock[]), onReady()
