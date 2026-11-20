@@ -1,5 +1,5 @@
 import {expect, test} from '../rig/test'
-import {target, closeAndSettle} from '../rig/targets'
+import {deleteAsset, target, closeAndSettle} from '../rig/targets'
 
 // task-71cb73cb5f89acef (scout 8): an uploaded SVG opened at the studio's /api/media/<id>
 // ran its script on the studio's origin, with the editor's session. The test uploads a
@@ -13,7 +13,7 @@ const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20" onlo
 let asset: {id: string; url: string} | undefined
 test.afterEach(async ({page}, info) => {
   await closeAndSettle(page)
-  if (target(info).name === 'studio' && asset) await fetch(`${media()}/${asset.id}`, {method: 'DELETE', headers: auth()})
+  if (target(info).name === 'studio' && asset) await deleteAsset(asset.id)
 })
 
 test('@local an uploaded SVG opened from the studio runs no script, and still shows as an image', async ({page}, info) => {

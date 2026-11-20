@@ -1,6 +1,6 @@
 import {randomBytes} from 'node:crypto'
 import {expect, test, type Page} from '../rig/test'
-import {signInIfAsked, target, closeAndSettle} from '../rig/targets'
+import {deleteAsset, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
 // A cancelled upload leaves no asset on Barkpark. The browser hands the studio server the
 // whole file in a moment; Cancel comes while the server sends it on (progress at 100%),
@@ -53,6 +53,6 @@ test('J54: a cancelled upload leaves no asset on Barkpark', async ({page}, info)
     } else await page.waitForTimeout(4000)
     expect(await named(name), 'no asset left on Barkpark').toEqual([])
   } finally {
-    for (const a of await named(name)) await fetch(`${base()}/v1/media/${process.env.BARKPARK_DATASET}/${a.id}`, {method: 'DELETE', headers: auth()})
+    for (const a of await named(name)) await deleteAsset(a.id)
   }
 })
