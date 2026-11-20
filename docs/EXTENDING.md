@@ -101,6 +101,12 @@ Sanity's `Rule.custom` (a field's or the whole document's, with `context.documen
 A Promise holds Publish ("Validating…", 10 s at most); a throw is an error. These run in the
 studio only, as Sanity's do: an API write or an import is checked by the schema's data rules alone.
 
+A rule that compares fields and needs no code belongs in the schema instead, as data both sides
+check: `cross_validations` `[{name, title, rule, level, fields}]`, `rule` a condition as in
+`visibleWhen` or `all` / `any` of them. Barkpark checks it on every write; the studio shows a
+broken one as you type, under each field in `fields` (`app/src/lib/cross-rules.ts`). A rule the
+server can't evaluate (an unknown operator or field) is skipped on both sides.
+
 ## Removing a type
 
 Delete its file in `fixtures/barkpark-schema/`, then

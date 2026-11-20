@@ -23,7 +23,7 @@ async function readContentModel(path: string) {
   return response
 }
 
-export type RawSchema = {name: string; title: string; icon?: unknown; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; fieldsets?: unknown; initialValues?: unknown; initial_values?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown; kind?: unknown}
+export type RawSchema = {name: string; title: string; icon?: unknown; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; fieldsets?: unknown; initialValues?: unknown; initial_values?: unknown; crossValidations?: unknown; cross_validations?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown; kind?: unknown}
 
 /**
  * The studio's own record types (lib/tasks.ts, lib/comments.ts; lib/translations.ts's
@@ -60,8 +60,8 @@ async function readAllSchemas(): Promise<RawSchema[]> {
  * PR that changed the fixtures, and so read them from the checkout, lost "lovelace" finding
  * Ada's posts (J08 on studio #824).
  */
-function asBarkparkServes({list_preview, initial_values, ...schema}: RawSchema): RawSchema {
-  return {...schema, ...(list_preview !== undefined && {listPreview: list_preview}), ...(initial_values !== undefined && {initialValues: initial_values})}
+function asBarkparkServes({list_preview, initial_values, cross_validations, ...schema}: RawSchema): RawSchema {
+  return {...schema, ...(list_preview !== undefined && {listPreview: list_preview}), ...(initial_values !== undefined && {initialValues: initial_values}), ...(cross_validations !== undefined && {crossValidations: cross_validations})}
 }
 
 // B12: the declared desk, when the workspace has one. Barkpark resolves a

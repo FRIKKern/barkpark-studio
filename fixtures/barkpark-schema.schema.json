@@ -45,6 +45,12 @@
     "initial_values": {
       "description": "initialValues, as Barkpark spells it."
     },
+    "crossValidations": {
+      "description": "Cross-field rules: [{name, title, rule, level, fields}]. The studio shows a broken one under each field it names; Barkpark checks them on write."
+    },
+    "cross_validations": {
+      "description": "crossValidations, as Barkpark spells it."
+    },
     "desk": {
       "description": "Desk settings: orderings, views; incoming: lists, in the form, of the documents that reference this one, with Add item (Sanity's incoming references input); preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark's desk while its URLs still open (barkpark#22789); translations: {languages: [{id, title}], languageField?} makes it a translated type (docs/EXTENDING.md).",
       "type": "object",
@@ -211,9 +217,6 @@
     },
     "desk_groups": {
       "description": "Desk groups."
-    },
-    "cross_validations": {
-      "description": "Cross-field rules: [{name, title, rule, level, fields}]."
     },
     "cors_origins": {
       "description": "Origins allowed to read it from a browser."

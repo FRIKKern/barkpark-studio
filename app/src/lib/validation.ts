@@ -3,6 +3,7 @@ import {itemPath, refId} from './refs.ts'
 import {isCodeField} from './code-input.ts'
 import {isTableField, tableBlank} from './table-input.ts'
 import {patternProblem, sanityRules} from './validation-rules.ts'
+import {crossProblems} from './cross-rules.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -115,6 +116,8 @@ function typeRule(type: string, value: unknown, t: T): string | undefined {
 export function validate(doc: Doc, schema: Schema, target?: RefTarget, t: T = english): Problem[] {
   const out: Problem[] = []
   for (const f of schema.fields) check(f, doc[f.name], f.name, [], f.group, out, target, t)
+  // The schema's cross-field rules (lib/cross-rules), as Barkpark checks them on write.
+  out.push(...crossProblems(doc, schema))
   return out
 }
 

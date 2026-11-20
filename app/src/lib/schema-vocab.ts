@@ -102,6 +102,8 @@ export const SCHEMA_KEYS = {
   fieldsets: 'Sanity\'s fieldsets for the document\'s own fields, as a composite\'s.',
   initialValues: 'A new document\'s starting values.',
   initial_values: 'initialValues, as Barkpark spells it.',
+  crossValidations: 'Cross-field rules: [{name, title, rule, level, fields}]. The studio shows a broken one under each field it names; Barkpark checks them on write.',
+  cross_validations: 'crossValidations, as Barkpark spells it.',
   desk: 'Desk settings: orderings, views; incoming: lists, in the form, of the documents that reference this one, with Add item (Sanity\'s incoming references input); preview, a URL template (:slug, :id) for Presentation; previewView: true or {title} adds a Preview tab; hidden: true keeps the type off Barkpark\'s desk while its URLs still open (barkpark#22789); translations: {languages: [{id, title}], languageField?} makes it a translated type (docs/EXTENDING.md).',
   singleton: 'One document, whose id is the type\'s name.',
   layout: 'The Expectation for PortableDoc types (decision 0004).',
@@ -113,7 +115,6 @@ export const BARKPARK_SCHEMA_KEYS = {
   actions: 'Barkpark document actions the type declares.',
   owner_scoped: 'Documents scoped to their owner.',
   desk_groups: 'Desk groups.',
-  cross_validations: 'Cross-field rules: [{name, title, rule, level, fields}].',
   cors_origins: 'Origins allowed to read it from a browser.',
   readerWrites: 'What a read seat may write on this type (barkpark#22790): {create, patchFields}; studioComment uses it so Viewers comment (J49).',
 }
