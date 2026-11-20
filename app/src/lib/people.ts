@@ -1,6 +1,7 @@
 import {queryOptions} from '@tanstack/react-query'
 import {createServerFn} from '@tanstack/react-start'
 import {bpFetch, serviceToken} from '../server/barkpark'
+import {rosterRetry} from './dashboard'
 import {workspaceRoster} from './members'
 
 /**
@@ -15,7 +16,8 @@ const fetchPeople = createServerFn({method: 'GET'}).handler(() =>
   }),
 )
 type Roster = {people: string[]; names: Record<string, string>}
-const roster = {queryKey: ['people'], staleTime: 5 * 60_000, queryFn: async () => (await fetchPeople()) as Roster}
+// A refusal (a studio token without a members seat) is final: the pickers go empty, no retries, no toast.
+const roster = {queryKey: ['people'], staleTime: 5 * 60_000, retry: rosterRetry, queryFn: async () => (await fetchPeople()) as Roster}
 export const peopleQuery = queryOptions({...roster, select: (r: Roster) => r.people})
 /** Each person's name as Barkpark gives it, by email (lib/person.ts names everyone through it). */
 export const peopleNamesQuery = queryOptions({...roster, select: (r: Roster) => r.names})
