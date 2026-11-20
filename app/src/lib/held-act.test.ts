@@ -26,6 +26,8 @@ test('P3: a Select held on one document does nothing on the next one', () => {
   assert.deepEqual(afterSwap({act: 'select', button: select, route: A}, {focused: null, route: B}, B, 5), {act: undefined, focus: undefined})
   // Even with the focus on B's own Select (a different button) at its swap.
   assert.deepEqual(afterSwap({act: 'select', button: select, route: A}, {focused: on('select', {}), route: B}, B, 5), {act: undefined, focus: 'select'})
+  // Even if React kept the box (and its button) as the pane went from A to B, and the button kept the focus.
+  assert.deepEqual(afterSwap({act: 'select', button: select, route: A}, {focused: on('select', select), route: B}, B, 5), {act: undefined, focus: 'select'})
   // And a swap read on A is not used by an input mounting on B.
   assert.deepEqual(afterSwap({act: 'select', button: select, route: A}, {focused: on('select', select), route: A}, B, 5), {})
 })
@@ -37,6 +39,8 @@ test('a held Select, then a click on an empty spot: the press is dropped', () =>
 test('Safari: a pressed button that never had the focus, or the focus on another button, drops the press', () => {
   assert.deepEqual(afterSwap({act: 'select', button: select, route: A}, {focused: null, route: A}, A, 5).act, undefined)
   assert.deepEqual(afterSwap({act: 'select', button: select, route: A}, {focused: on('upload', upload), route: A}, A, 5), {act: undefined, focus: 'upload'})
+  // Another node with the same act (not the button pressed) is not the press either.
+  assert.deepEqual(afterSwap({act: 'select', button: select, route: A}, {focused: on('select', {name: 'another Select'}), route: A}, A, 5), {act: undefined, focus: 'select'})
 })
 
 test('the focus goes over to the live box with no press held', () => {
