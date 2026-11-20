@@ -47,7 +47,7 @@ export function choiceById(schemas: Schema[], type: string, id: string, params?:
 export function startNew(qc: QueryClient, schemas: Schema[], choice: Choice, id: string, extra: Record<string, unknown> = {}): Promise<void> {
   const schema = schemaOf(schemas, choice.type)
   const zone = qc.getQueryData(localeQuery.queryKey)?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
-  const today = (values: Record<string, unknown>) => resolveToday(values, schema?.fields, new Date(), zone)
+  const today = (values: Record<string, unknown>) => resolveToday(values, new Date(), zone)
   if (editorMode(choice.type, schema) !== 'none') return createDoc(qc, choice.type, id, today({...(choice.id === choice.type ? {} : choice.value), ...extra}))
   draftNew(qc, choice.type, id, today({...choice.value, ...extra}))
   return Promise.resolve()

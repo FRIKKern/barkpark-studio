@@ -1,0 +1,140 @@
+{
+ "about": "Cases for Barkpark's \"$today\" token (api/lib/barkpark/content/today.ex). 'server' per case is Barkpark's answer for that value at 'now' in 'zone'. app/src/lib/today-server.test.ts checks the studio gives the same. Barkpark's api/test/barkpark/content/today_test.exs pins the same cases. Regenerate: elixir scripts/today-cases.exs <barkpark checkout>. G2 / S3 (task-a34b8c24295dd488, task-f78a513602faee55).",
+ "cases": [
+  {
+   "name": "23:30 UTC, Oslo is already tomorrow",
+   "now": "2026-11-20T23:30:00Z",
+   "server": "2026-11-21",
+   "value": "$today",
+   "zone": "Europe/Oslo"
+  },
+  {
+   "name": "23:30 UTC, no zone reads UTC",
+   "now": "2026-11-20T23:30:00Z",
+   "server": "2026-11-20",
+   "value": "$today",
+   "zone": "Etc/UTC"
+  },
+  {
+   "name": "an unknown zone reads UTC",
+   "now": "2026-11-20T23:30:00Z",
+   "server": "2026-11-20",
+   "value": "$today",
+   "zone": "Not/AZone"
+  },
+  {
+   "name": "the night summer time starts, before the change",
+   "now": "2026-03-28T23:30:00Z",
+   "server": "2026-03-29",
+   "value": "$today",
+   "zone": "Europe/Oslo"
+  },
+  {
+   "name": "summer time, 23:59:59 in Oslo",
+   "now": "2026-03-29T21:59:59Z",
+   "server": "2026-03-29",
+   "value": "$today",
+   "zone": "Europe/Oslo"
+  },
+  {
+   "name": "summer time, 00:00 in Oslo",
+   "now": "2026-03-29T22:00:00Z",
+   "server": "2026-03-30",
+   "value": "$today",
+   "zone": "Europe/Oslo"
+  },
+  {
+   "name": "the night summer time ends, 00:30 in Oslo",
+   "now": "2026-10-24T22:30:00Z",
+   "server": "2026-10-25",
+   "value": "$today",
+   "zone": "Europe/Oslo"
+  },
+  {
+   "name": "winter time again, 23:30 in Oslo",
+   "now": "2026-10-25T22:30:00Z",
+   "server": "2026-10-25",
+   "value": "$today",
+   "zone": "Europe/Oslo"
+  },
+  {
+   "name": "winter time again, 00:00 in Oslo",
+   "now": "2026-10-25T23:00:00Z",
+   "server": "2026-10-26",
+   "value": "$today",
+   "zone": "Europe/Oslo"
+  },
+  {
+   "name": "the year, New Year's Eve 23:30 UTC in Oslo",
+   "now": "2026-12-31T23:30:00Z",
+   "server": "2027",
+   "value": "$today.year",
+   "zone": "Europe/Oslo"
+  },
+  {
+   "name": "the year, the same instant in UTC",
+   "now": "2026-12-31T23:30:00Z",
+   "server": "2026",
+   "value": "$today.year",
+   "zone": "Etc/UTC"
+  },
+  {
+   "name": "nested and in a list",
+   "now": "2026-11-20T23:30:00Z",
+   "server": {
+    "a": {
+     "b": "2026-11-21"
+    },
+    "c": [
+     "2026-11-21",
+     1
+    ]
+   },
+   "value": {
+    "a": {
+     "b": "$today"
+    },
+    "c": [
+     "$today",
+     1
+    ]
+   },
+   "zone": "Europe/Oslo"
+  },
+  {
+   "name": "only the exact string is a token",
+   "now": "2026-11-20T23:30:00Z",
+   "server": [
+    "$todayx",
+    " $today",
+    "fra $today",
+    "$tomorrow",
+    "$TODAY",
+    "today"
+   ],
+   "value": [
+    "$todayx",
+    " $today",
+    "fra $today",
+    "$tomorrow",
+    "$TODAY",
+    "today"
+   ],
+   "zone": "Europe/Oslo"
+  },
+  {
+   "name": "a fixed initial value starts as written",
+   "now": "2026-11-20T23:30:00Z",
+   "server": {
+    "publisert": "2026-01-01",
+    "tittel": "Ny sak"
+   },
+   "value": {
+    "publisert": "2026-01-01",
+    "tittel": "Ny sak"
+   },
+   "zone": "Europe/Oslo"
+  }
+ ],
+ "server": "barkpark 307c9be84c"
+}

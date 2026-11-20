@@ -1,20 +1,18 @@
 // "$today" in initial values (G2, task-a34b8c24295dd488): Sanity's
 // `initialValue: () => new Date()`, as data. Barkpark serves the token as written
 // (barkpark docs/contracts/initial-values.md) and resolves it the same way on an API
-// create (api/lib/barkpark/content/today.ex): this file must give the same answer.
+// create (api/lib/barkpark/content/today.ex); fixtures/today-cases.json holds its
+// answers and today-server.test.ts checks this file gives the same.
 //
-// Only the exact string is a token. By the field's type: `date` gets today's date in the
-// zone, `datetime` the instant (ISO UTC), any other declared type keeps the text, and a
-// key the schema does not declare gets the date. "$today.year" is the year as a string.
-
-type TodayField = {name: string; type: string; fields?: TodayField[]}
+// Only the exact string is a token. "$today" is today's date (YYYY-MM-DD) on any field,
+// "$today.year" the year, both in the zone; a zone Intl does not know reads UTC.
 
 const TOKEN = '$today'
 const YEAR_TOKEN = '$today.year'
 
 const formats = new Map<string, Intl.DateTimeFormat>()
 
-/** Today's date in `zone` as YYYY-MM-DD; a zone Intl does not know reads UTC, as Barkpark does. */
+/** Today's date in `zone` as YYYY-MM-DD. */
 export function dateIn(now: Date, zone: string): string {
   let f = formats.get(zone)
   if (!f) {
@@ -29,32 +27,24 @@ export function dateIn(now: Date, zone: string): string {
   return `${p.year}-${p.month}-${p.day}`
 }
 
-/** True when `v` holds the exact token anywhere (no token: the values stay the same object). */
 function hasToken(v: unknown): boolean {
   if (v === TOKEN || v === YEAR_TOKEN) return true
   if (Array.isArray(v)) return v.some(hasToken)
   return !!v && typeof v === 'object' && Object.values(v).some(hasToken)
 }
 
-function resolve(v: unknown, field: TodayField | undefined, now: Date, zone: string): unknown {
-  if (v === TOKEN) {
-    if (!field || field.type === 'date') return dateIn(now, zone)
-    return field.type === 'datetime' ? now.toISOString() : v
-  }
-  if (v === YEAR_TOKEN) return dateIn(now, zone).slice(0, 4)
-  if (Array.isArray(v)) return v.map((x) => resolve(x, undefined, now, zone))
-  if (v && typeof v === 'object') return resolveMap(v as Record<string, unknown>, field?.fields, now, zone)
+function walk(v: unknown, now: Date, zone: string): unknown {
+  if (v === TOKEN) return dateIn(now, zone)
+  if (v === YEAR_TOKEN) return String(Number(dateIn(now, zone).slice(0, 4)))
+  if (Array.isArray(v)) return v.map((x) => walk(x, now, zone))
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x, now, zone)]))
   return v
 }
 
-function resolveMap(values: Record<string, unknown>, fields: TodayField[] | undefined, now: Date, zone: string): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(values).map(([k, v]) => [k, resolve(v, fields?.find((f) => f.name === k), now, zone)]))
-}
-
 /**
- * A new document's starting values with "$today" resolved for `fields` (the type's
- * schema fields), at `now` in `zone`: the workspace's zone, else the editor's own.
+ * `value` with "$today" resolved at `now` in `zone` (the workspace's zone, else the
+ * editor's own). No token: the same value, untouched.
  */
-export function resolveToday(values: Record<string, unknown>, fields: TodayField[] | undefined, now: Date, zone: string): Record<string, unknown> {
-  return hasToken(values) ? resolveMap(values, fields, now, zone) : values
+export function resolveToday<T>(value: T, now: Date, zone: string): T {
+  return hasToken(value) ? (walk(value, now, zone) as T) : value
 }
