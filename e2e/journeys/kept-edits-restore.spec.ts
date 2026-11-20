@@ -1,5 +1,6 @@
 import {writeFileSync} from 'node:fs'
-import {expect, test, type Route} from '../rig/test'
+import {expect, test, type Locator, type Request, type Route} from '../rig/test'
+import {saveReport, type Exchange} from '../rig/save-report'
 import {bpMutate, bpRemove, signInIfAsked, target, closeAndSettle, savesLanded} from '../rig/targets'
 
 // J32 widen (task-6612fd882f8b8b63): someone deletes the doc while you type. The save
@@ -34,23 +35,29 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
   await signInIfAsked(page)
   await t.settle(page)
   await expect(t.field(page, 'name')).toHaveValue('Kept Author', {timeout: 15_000})
-  // The page's saves and console from here, for a failure at Restore (task-a0122b1b04971f52:
-  // once in 56 CI runs no save came after Restore, and the failure said nothing more).
+  // When no save comes after Restore (task-a0122b1b04971f52: once in 56 CI runs, and the failure
+  // said nothing more), the test leaves the page's requests and the form: rig/save-report.ts,
+  // an allow list for a public log (no headers, no answer bodies, no console).
   const t0 = Date.now()
-  const log: string[] = []
-  // CI logs are public: no headers, no answer bodies, and a request body only for a save (a
-  // document mutation). Other server calls (sign-in, session, preview tokens) show method and status only.
-  const redact = (s: string) => s.replace(/Bearer\s+\S+|eyJ[\w-]+\.[\w-]+\.[\w-]*|\b(token|secret|password|cookie|session)\b(\W{0,3})\S+/gi, (m, k, sep) => (k ? `${k}${sep}[redacted]` : '[redacted]'))
-  const say = (s: string) => log.push(`${Date.now() - t0} ms ${redact(s)}`)
-  const body = (r: {postData: () => string | null}) => ((r.postData() ?? '').includes('mutations') ? ` ${(r.postData() ?? '').slice(0, 200)}` : '')
-  page.on('request', (r) => void (r.url().includes('/_serverFn/') && say(`-> ${r.method()}${body(r)}`)))
-  page.on('response', (r) => void (r.url().includes('/_serverFn/') && say(`<- ${r.status()} ${r.request().method()}`)))
-  page.on('requestfailed', (r) => void (r.url().includes('/_serverFn/') && say(`x ${r.failure()?.errorText}`)))
-  page.on('console', (m) => say(`console.${m.type()} ${m.text().slice(0, 300)}`))
+  const exchanges: Exchange[] = []
+  const studio = (r: Request) => r.url().includes('/_serverFn/')
+  page.on('request', (r) => void (studio(r) && exchanges.push({at: Date.now() - t0, method: r.method(), url: r.url(), postData: r.postData()})))
+  const answered = (r: Request, status: Exchange['status']) => {
+    const x = exchanges.findLast((e) => e.url === r.url() && e.method === r.method() && e.status === undefined)
+    if (x) x.status = status
+  }
+  page.on('response', (res) => void (studio(res.request()) && answered(res.request(), res.status())))
+  page.on('requestfailed', (r) => void (studio(r) && answered(r, 'failed')))
   const evidence = async (err: unknown) => {
-    const footer = await page.locator('.doc-footer').first().textContent().catch(() => null)
-    const aria = await page.locator('body').ariaSnapshot().catch((e: Error) => `(no snapshot: ${e.message})`)
-    const text = [`held: ${held.length}`, `footer: ${footer}`, ...log, '--- page', aria].join('\n')
+    const read = (l: Locator) => l.textContent({timeout: 1_000}).catch(() => null)
+    const text = saveReport({
+      exchanges,
+      console: [],
+      consolePrefixes: [],
+      docId: ID,
+      values: ['Kept Author typed', 'The Kept Author typed'],
+      form: {held: String(held.length), name: await t.field(page, 'name').inputValue({timeout: 1_000}).catch(() => null), footer: await read(page.locator('.doc-footer').first()), banner: await read(page.getByRole('alert').filter({hasText: 'This document has been deleted.'}))},
+    })
     const file = info.outputPath('restore-evidence.txt')
     writeFileSync(file, text)
     await info.attach('restore-evidence', {path: file, contentType: 'text/plain'})
