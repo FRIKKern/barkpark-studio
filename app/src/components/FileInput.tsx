@@ -1,4 +1,4 @@
-import {Fragment, useEffect, useState, type ClipboardEvent, type DragEvent} from 'react'
+import {useCallback, useRef, Fragment, useEffect, useState, type ClipboardEvent, type DragEvent} from 'react'
 import {useInfiniteQuery, useQuery} from '@tanstack/react-query'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import type {OpenRef} from './Fields'
@@ -15,7 +15,7 @@ import type {ImageMeta} from '../lib/image-meta'
 import {UploadProgress} from './UploadProgress'
 import {FileBox, carriesFiles} from './FileBox'
 import {useFileInfo} from '../lib/file-info'
-import {actControl, markLive, takeHeld, type Act} from '../lib/held-act'
+import {actControl, boxOf, markLive, takeHeld, type Act} from '../lib/held-act'
 
 // J54, after Sanity's file input: an empty box ("Drag or paste file here",
 // Upload, Select); a file shows its name and size with an options menu (Upload,
@@ -48,6 +48,8 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   const [menu, setMenu] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const [chooser, setChooser] = useState<HTMLInputElement | null>(null)
+  const own = useRef<HTMLInputElement | null>(null)
+  const chooserRef = useCallback((el: HTMLInputElement | null) => ((own.current = el), setChooser(el)), [])
   const title = field.title ?? field.name
   const use = (next: string) => onChange({...file, _type: 'file', asset: {_type: 'reference', _ref: next}})
 
@@ -106,10 +108,11 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   // task-05dc: as this replaces the box drawn before the chunk, the focus goes to the same button,
   // and a press held on it is done if the person was still on it (lib/held-act.ts).
   useEffect(() => {
-    markLive(document.getElementById(id))
-    const {act, focus} = takeHeld(id)
-    if (focus) actControl(id, focus)?.focus()
-    if (act === 'upload') document.getElementById(id)?.querySelector<HTMLInputElement>('input[type=file]')?.click()
+    const container = boxOf(own.current)
+    markLive(own.current?.closest('.file-input'))
+    const {act, focus} = container ? takeHeld(container) : {}
+    if (focus && container) actControl(container, focus)?.focus()
+    if (act === 'upload') own.current?.click()
     else if (act === 'select') setBrowsing(true)
     else if (act === 'menu') setMenu(true)
   }, [id])
@@ -123,7 +126,7 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
       live={{
         target,
         overlay,
-        chooser: <input ref={setChooser} type="file" accept={accept} hidden onChange={(e) => (take(filesOf(e.target.files)), (e.target.value = ''))} />,
+        chooser: <input ref={chooserRef} type="file" accept={accept} hidden onChange={(e) => (take(filesOf(e.target.files)), (e.target.value = ''))} />,
         uploading: uploading && <UploadProgress name={uploading.name} progress={uploading.progress} onCancel={() => uploading.stop.abort()} />,
         failed: !!failed,
         onRetry: () => failed && void upload(failed),

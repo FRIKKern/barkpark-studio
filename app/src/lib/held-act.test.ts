@@ -3,7 +3,7 @@
 // the same page. One decision (afterSwap); each test names the case it holds (review of #1337).
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {afterSwap, holdAct, settleBox, takeHeld, type Pressed} from './held-act.ts'
+import {afterSwap, holdAct, isLive, markLive, settleBox, takeHeld, type Pressed} from './held-act.ts'
 
 const A = '/structure/post;a'
 const B = '/structure/post;b'
@@ -48,9 +48,31 @@ test('a swap read long before the real input mounts is never used', () => {
 })
 
 test('the store: the last press per box, decided at the swap, read once', () => {
-  holdAct('photo', 'upload', upload, A)
-  holdAct('photo', 'select', select, A)
-  settleBox('photo', on('select', select), A, 0)
-  assert.deepEqual(takeHeld('photo', A, 10), {act: 'select', focus: 'select'})
-  assert.deepEqual(takeHeld('photo', A, 10), {})
+  const box = {}
+  holdAct(box, 'upload', upload, A)
+  holdAct(box, 'select', select, A)
+  settleBox(box, on('select', select), A, 0)
+  assert.deepEqual(takeHeld(box, A, 10), {act: 'select', focus: 'select'})
+  assert.deepEqual(takeHeld(box, A, 10), {})
+})
+
+test('P8: two panes showing the same field path never reach each other (a box is its own container, not an id)', () => {
+  const one = {pane: 1, field: 'mainImage'}
+  const two = {pane: 2, field: 'mainImage'}
+  const inTwo = {name: "pane 2's Select"}
+  // A press in pane 1; pane 2's box swaps first, with nothing of its own focused.
+  holdAct(one, 'select', select, A)
+  settleBox(two, null, A, 0)
+  assert.deepEqual(takeHeld(two, A, 5), {act: undefined, focus: undefined}, "pane 1's press fired in pane 2")
+  // Pane 1's own swap still finds its press.
+  settleBox(one, on('select', select), A, 1)
+  assert.deepEqual(takeHeld(one, A, 5), {act: 'select', focus: 'select'}, "pane 1's press was lost to pane 2")
+  // A focus in pane 2 goes to pane 2 only.
+  settleBox(two, on('select', inTwo), A, 0)
+  assert.deepEqual(takeHeld(one, A, 5), {})
+  assert.deepEqual(takeHeld(two, A, 5), {act: undefined, focus: 'select'})
+  // The drop guard: pane 2's real input going live leaves pane 1's box guarded.
+  markLive(two as unknown as Element)
+  assert.equal(isLive(one as unknown as Element), false, "pane 2 going live let a drop through in pane 1")
+  assert.equal(isLive(two as unknown as Element), true)
 })

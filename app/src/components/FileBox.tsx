@@ -1,9 +1,9 @@
-import {useLayoutEffect, type ClipboardEvent, type DragEvent, type MouseEvent, type ReactNode} from 'react'
+import {useLayoutEffect, useRef, type ClipboardEvent, type DragEvent, type MouseEvent, type ReactNode} from 'react'
 import {BinaryDocumentIcon, Ellipsis, ErrorOutline, Search as SearchIcon, Undo, Upload} from './icons'
 import type {Field} from '../lib/data'
 import {useFileInfo} from '../lib/file-info'
 import {formatBytes} from '../lib/files'
-import {focusIn, holdAct, settleBox, type Act} from '../lib/held-act'
+import {boxOf as box, boxOf, focusIn, holdAct, settleBox, type Act} from '../lib/held-act'
 import {useLocale, useT} from '../lib/i18n'
 
 // task-05dcdef359da08fc: the file input's box, one markup for both sides. The real input (FileInput,
@@ -47,18 +47,22 @@ export function FileBox({id, field, value, readOnly, live, children}: Props) {
   const title = field.title ?? field.name
   const name = info.data?.name
   // A press: the real input's, or kept for it by the button pressed (lib/held-act.ts).
-  const press = (act: Act) => (e: MouseEvent<HTMLButtonElement>) => (live ? live.act(act) : holdAct(id, act, e.currentTarget))
+  const press = (act: Act) => (e: MouseEvent<HTMLButtonElement>) => (live ? live.act(act) : void (box(e.currentTarget) && holdAct(box(e.currentTarget)!, act, e.currentTarget)))
   // Drawn before the chunk: as React takes this box away for the real one, what had the focus in it
   // (and so whether a held press stands) is read, before the box leaves the page (lib/held-act.ts).
   const before = !live
-  useLayoutEffect(() => (before ? () => settleBox(id, focusIn(id)) : undefined), [before, id])
+  const own = useRef<HTMLInputElement>(null)
+  useLayoutEffect(() => {
+    const container = before ? boxOf(own.current) : null
+    return container ? () => settleBox(container, focusIn(container)) : undefined
+  }, [before])
   // Before the chunk a dropped file is kept from the tab by DocEditors.tsx (guardDrops), server HTML or this.
   const target = live?.target ?? {}
   return (
     <div className="file-input" id={id}>
       {/* The chooser's accept is a hint the browser lets the editor override ("All files"): a file it
           doesn't accept is refused here as a drop is, not uploaded and stored (Sanity's refuses it). */}
-      {live ? live.chooser : <input type="file" accept={accept} hidden />}
+      {live ? live.chooser : <input ref={own} type="file" accept={accept} hidden />}
       {live?.uploading ? (
         live.uploading
       ) : !ref ? (
