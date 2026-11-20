@@ -76,7 +76,7 @@ test('J36: a document page preloads the editors chunk (production build)', async
 // however late, and a click or a drop on them meanwhile is held or kept from the browser. The
 // cap is passed on a fake clock, so no real second is spent near it.
 const LATE = {type: 'fieldTypes', id: 'field-types-01'} as const
-async function lateChunk(page: Page, docPath: string, drawn: 'photo' | 'mainImage.alt' = 'photo', quick = false) {
+async function lateChunk(page: Page, docPath: string, drawn: 'photo' | 'mainImage.alt' = 'photo', quick = false, beforeHydration?: () => Promise<boolean>) {
   await page.addInitScript(() => {
     type Slot = {parent: Element; others: number; name: string}
     const w = window as {__slots?: Slot[]; __emptied?: string[]; __chunkIn?: boolean}
@@ -116,12 +116,13 @@ async function lateChunk(page: Page, docPath: string, drawn: 'photo' | 'mainImag
   await expect(drawn === 'photo' ? select : page.locator(`[id="${drawn}"]`)).toBeVisible()
   // Past the hydration cap: the page hydrates without the chunk, and the form's first updates
   // run (the comments' answer, task-05dc: it changes a context above the chunk's boundaries).
+  const heldDrop = await beforeHydration?.()
   await page.clock.fastForward(1_600)
   if (quick) {
-    // Only until React has drawn the boxes in the server's place: the chunk can then land inside the
+    // Only until React has drawn the drop zone in the server's place: the chunk can then land inside the
     // hold React keeps on a fallback it just drew (some 300 ms).
-    const drawnBoxes = () => page.evaluate(() => ['.file-input .file-box', '[id="photo"] [data-act="select"]'].every((sel) => Object.keys(document.querySelector(sel) ?? {}).some((k) => k.startsWith('__reactProps'))))
-    await expect.poll(drawnBoxes, {message: 'React drew the boxes', timeout: 10_000, intervals: [5]}).toBe(true)
+    const drawnBox = () => page.evaluate(() => Object.keys(document.querySelector('.file-input .file-box') ?? {}).some((k) => k.startsWith('__reactProps')))
+    await expect.poll(drawnBox, {message: 'React drew the drop zone', timeout: 10_000, intervals: [5]}).toBe(true)
   } else {
     await expect(page.locator('html[data-hydrated]')).toBeAttached({timeout: 10_000})
     await expect(page.locator('[id="title"]')).toBeEditable()
@@ -137,7 +138,9 @@ async function lateChunk(page: Page, docPath: string, drawn: 'photo' | 'mainImag
     await page.clock.resume() // real time again: the chunk's frames, the form's saves
     return r
   }
-  return {select, landed, html: () => response!.text()}
+  /** As `landed`, with the landing marked in the page beforehand (no round trip before the chunk is let go). */
+  const letGo = async () => (release(), await page.clock.resume())
+  return {select, landed, letGo, heldDrop, html: () => response!.text()}
 }
 
 const reactProps = (button: import('@playwright/test').Locator) =>
@@ -177,42 +180,51 @@ function typingInBoundaries(html: string) {
 test('a field group keeps its inputs drawn while the editors chunk is late; no drop gets through before or as it lands; the focus stays on Select', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  const {landed, html} = await lateChunk(page, t.docPath(LATE.type, LATE.id), 'photo', true)
-  // One call, no round trip between: a drop on the drawn box, Select focused (not pressed), and a dragover
-  // on the drop zone each frame from now until 500 ms after the chunk is let go.
-  const held = await page.evaluate(() => {
-    const w = window as {__frames?: Promise<boolean[]>; __chunkIn?: boolean}
-    const over = (el: Element, type: string) => {
+  // A drop on the server-drawn box, once the page's guard is listening (before hydration).
+  const kept = (type: string) =>
+    page.evaluate((type) => {
       const dataTransfer = new DataTransfer()
       dataTransfer.items.add(new File(['x'], 'kept.txt', {type: 'text/plain'}))
       const e = new DragEvent(type, {bubbles: true, cancelable: true, dataTransfer})
+      document.querySelector('.file-input .file-box')?.dispatchEvent(e)
+      return e.defaultPrevented
+    }, type)
+  const {letGo, heldDrop, html} = await lateChunk(page, t.docPath(LATE.type, LATE.id), 'photo', true, async () => {
+    await expect.poll(() => kept('dragover'), {message: 'the guard is listening', timeout: 5_000, intervals: [10]}).toBe(true)
+    return kept('drop')
+  })
+  // One call, no round trip before the chunk is let go: Select focused (not pressed), the landing marked,
+  // and a dragover on the drop zone each frame from now until 500 ms on.
+  const {slots, emptied} = await page.evaluate(() => {
+    const w = window as {__frames?: Promise<boolean[]>; __chunkIn?: boolean; __slots?: {name: string}[]; __emptied?: string[]}
+    document.querySelector<HTMLElement>('[id="photo"] [data-act="select"]')?.focus()
+    const over = (el: Element) => {
+      const dataTransfer = new DataTransfer()
+      dataTransfer.items.add(new File(['x'], 'kept.txt', {type: 'text/plain'}))
+      const e = new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer})
       el.dispatchEvent(e)
       return e.defaultPrevented
     }
-    const box = document.querySelector('.file-input .file-box')!
-    const held = {dragover: over(box, 'dragover'), drop: over(box, 'drop')}
-    document.querySelector<HTMLElement>('[id="photo"] [data-act="select"]')?.focus()
+    const end = performance.now() + 500
     w.__frames = new Promise((done) => {
       const seen: boolean[] = []
-      let end = performance.now() + 5_000
-      let landedAt = 0
       const tick = () => {
-        if (w.__chunkIn && !landedAt) end = Math.min(end, (landedAt = performance.now()) + 500)
         const zone = document.querySelector('.file-input .file-box')
-        if (zone) seen.push(over(zone, 'dragover'))
+        if (zone) seen.push(over(zone))
         if (performance.now() > end) done(seen)
         else requestAnimationFrame(tick)
       }
-      requestAnimationFrame(tick)
+      tick()
     })
-    return held
+    w.__chunkIn = true
+    return {slots: (w.__slots ?? []).map((s) => s.name).sort(), emptied: w.__emptied ?? []}
   })
-  const {slots, emptied} = await landed()
+  await letGo()
   const frames = await page.evaluate(() => (window as {__frames?: Promise<boolean[]>}).__frames!)
-  console.log(`late chunk: server boundaries ${JSON.stringify(slots)}; emptied before it landed ${JSON.stringify(emptied)}; drop ${JSON.stringify(held)}; frames ${frames.length}, let through ${frames.filter((x) => !x).length}`)
+  console.log(`late chunk: server boundaries ${JSON.stringify(slots)}; emptied before it landed ${JSON.stringify(emptied)}; drop kept ${heldDrop}; frames ${frames.length}, let through ${frames.filter((x) => !x).length}`)
   expect.soft(slots, "the server drew the chunk's inputs").toEqual(['file-input', 'photo'])
   expect.soft(emptied, 'no input went missing before the chunk landed').toEqual([])
-  expect.soft(held, 'a drop while the chunk is late is kept from the browser').toEqual({dragover: true, drop: true})
+  expect.soft(heldDrop, 'a drop while the chunk is late is kept from the browser').toBe(true)
   expect.soft(frames.length, 'frames probed as the chunk lands').toBeGreaterThan(10)
   expect.soft(frames.filter((x) => !x).length, 'frames as the chunk lands where a drop would have opened the file').toBe(0)
   await expect.soft(page.locator('[id="photo"] [data-act="select"]'), 'the live Select has the focus').toBeFocused()
