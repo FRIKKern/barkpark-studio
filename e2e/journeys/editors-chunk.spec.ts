@@ -189,6 +189,7 @@ test('a field group keeps its inputs drawn while the editors chunk is late; no d
   expect(dropZone, 'the server drew the drop zone').not.toBeNull()
   const at = {x: dropZone!.x + dropZone!.width / 2, y: dropZone!.y + dropZone!.height / 2}
   const held = await probe(page, at, true)
+  await page.clock.fastForward(2_000) // past the page's own click hold (DocEditors.tsx HOLD_MS): the press reaches the box
   await reactDrawn(select)
   const pressed = await select.click({timeout: 2_000}).then(() => true, () => false)
   const {slots, emptied} = await landed()
