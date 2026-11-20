@@ -129,6 +129,7 @@ async function lateChunk(page: Page, docPath: string) {
       return {slots: (w.__slots ?? []).map((s) => s.name).sort(), emptied: w.__emptied ?? []}
     })
     release()
+    await page.clock.resume() // real time again: the chunk's frames, the form's saves
     return r
   }
   return {select, dropZone, landed}
@@ -150,6 +151,8 @@ test('a click on Select while the editors chunk is late opens it once the chunk 
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
   const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
+  // Past the page's own click hold (DocEditors.tsx HOLD_MS, 3 s): the box keeps the press itself.
+  await page.clock.fastForward(2_000)
   await select.click({timeout: 2_000})
   await landed()
   await expect(page.getByRole('dialog')).toBeVisible({timeout: 5_000})
@@ -180,6 +183,26 @@ test('a file dropped on the file input while the editors chunk is late is kept f
   await expect.poll(async () => (await drop(false)).dragover, {message: 'the live drop zone answers the probe', timeout: 5_000}).toBe(true)
   console.log(`late chunk drop: ${JSON.stringify(held)}`)
   expect(held, 'a drop while the chunk is late is kept from the browser').toMatchObject({dragover: true, drop: true})
+})
+
+// The image's own fields (alt) sit outside the chunk's boundary (ImageBox.tsx, ImageFrame): typing in
+// one goes on while the chunk is late and as it lands, never swapped away mid-word.
+const ALT_ID = `post-late-alt-${Date.now().toString(36)}`
+test.afterEach(async ({}, info) => target(info).name === 'studio' && (await target(info).deleteDoc(ALT_ID, 'post')))
+
+test("typing in an image's Alt while the editors chunk is late keeps every letter and the focus as it lands", async ({page}, info) => {
+  const t = target(info)
+  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
+  await t.draftOnly(ALT_ID, 'post', {title: 'Late chunk Alt probe', slug: {_type: 'slug', current: ALT_ID}})
+  const {landed} = await lateChunk(page, t.docPath('post', ALT_ID))
+  const alt = page.locator('[id="mainImage.alt"]')
+  await alt.click()
+  await page.keyboard.type('Held ')
+  await landed()
+  await page.keyboard.type('and landed', {delay: 15})
+  await expect(alt, 'every letter, across the chunk landing').toHaveValue('Held and landed')
+  await expect(alt, 'the focus stayed in Alt').toBeFocused()
+  await expect.poll(async () => ((await t.docValue(ALT_ID, 'mainImage')) as {alt?: string} | undefined)?.alt, {message: 'saved', timeout: 10_000}).toBe('Held and landed')
 })
 
 // Guard (task-05dc): the chunk's boundaries on the server hold no control that takes typing.

@@ -67,6 +67,7 @@ export default {
   'Uploading': 'Laster opp',
   'Read only': 'Skrivebeskyttet',
   'Drag or paste file here': 'Dra eller lim inn fil her',
+  'The editor is still loading. Drop the file again in a moment.': 'Redigeringsverktøyet lastes fortsatt. Slipp filen igjen om et øyeblikk.',
   '{title}: drop or paste a file to replace it': '{title}: slipp eller lim inn en fil for å erstatte den',
   'File unavailable': 'Filen er utilgjengelig',
   'Open file options menu': 'Åpne filinnstillingsmeny',

@@ -1,5 +1,9 @@
-import {Suspense, use, useEffect, type ComponentProps, type ComponentType} from 'react'
+import {Suspense, use, useEffect, type ComponentProps, type ComponentType, type ReactNode} from 'react'
 import {holdReleaseUntil, releaseEarlyClicks} from '../lib/hydrated'
+import {FileBox} from './FileBox'
+import {toast} from './Toasts'
+import {t} from '../lib/i18n'
+import {ImageBox, ImageFrame} from './ImageBox'
 
 // Cold-load scout (2026-10-09, task-5242fdab0458e203): the image and file inputs, the
 // Freeform canvas host and Review changes are only for a document pane, yet sat in every
@@ -52,6 +56,30 @@ function holdClicks() {
 }
 const HOLD_MS = 3_000
 
+/**
+ * task-05dcdef359da08fc: a file dropped on an image or file input before the chunk lands (its
+ * server HTML, or the box drawn meanwhile) has no handler to take it, and the browser opened
+ * the file in the tab, the document gone. Until the inputs are live it is kept from the tab
+ * and refused, said once. The live inputs take a drop first (it is then prevented already).
+ */
+let guarding = false
+function guardDrops() {
+  if (guarding) return
+  guarding = true
+  const onInput = (e: DragEvent) => !e.defaultPrevented && [...(e.dataTransfer?.types ?? [])].includes('Files') && !!(e.target as Element | null)?.closest?.('.file-input, .image-input')
+  const over = (e: DragEvent) => onInput(e) && e.preventDefault()
+  const drop = (e: DragEvent) => {
+    if (!onInput(e)) return
+    e.preventDefault()
+    toast({tone: 'critical', title: t('The editor is still loading. Drop the file again in a moment.')})
+  }
+  addEventListener('dragover', over)
+  addEventListener('drop', drop)
+  void loadDocEditors()
+    .then(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
+    .then(() => (removeEventListener('dragover', over), removeEventListener('drop', drop)))
+}
+
 // A page that opens on a document (a /structure path with a doc in it, or Presentation)
 // draws these inputs in its first frame: fetch the chunk as this module loads, alongside
 // the rest of the page's code, not once hydration reaches them (task-63978ba572421248).
@@ -59,7 +87,7 @@ const HOLD_MS = 3_000
 // server-drawn inputs after the page marks itself interactive, so holding only once they
 // render let a held click go to the inert server button (see holdClicks).
 export const onDocPage = () => /^(?:\/w\/[^/]+\/p\/[^/]+(?:\/d\/[^/]+)?)?\/(?:structure\/[^?#]*;|presentation)/.test(location.pathname)
-if (!import.meta.env.SSR && onDocPage()) holdClicks()
+if (!import.meta.env.SSR && onDocPage()) (holdClicks(), guardDrops())
 
 /** Fetch the chunk when the browser is idle (the desk calls this once it has rendered). */
 export function usePrefetchDocEditors() {
@@ -70,24 +98,36 @@ export function usePrefetchDocEditors() {
   }, [])
 }
 
-// Loaded: renders at once. Not yet: suspends until it is (fallback: nothing); use() on
+// Loaded: renders at once. Not yet: suspends until it is (fallback: lazyOf's); use() on
 // every render, never only on the first (React refuses a use() that comes and goes). The same
 // Suspense boundary on the server and the client, so hydration keeps the server's HTML
 // while the chunk is still on its way instead of failing over a different tree.
 function From<K extends keyof Mod>({name, props}: {name: K; props: object}) {
-  if (!mod && typeof window !== 'undefined') holdClicks()
+  if (!mod && typeof window !== 'undefined') (holdClicks(), guardDrops())
   const C = use(loadDocEditors())[name] as ComponentType<object>
   return <C {...props} />
 }
+// task-05dcdef359da08fc: what the boundary draws while the chunk is still missing. React may put
+// it in place of the server's HTML before the chunk lands (an update reaching the boundary, a
+// context the form passes down); with nothing, the image and file inputs vanished from the form.
+// They draw their own box instead (FileBox, ImageBox): the same markup the real input draws through
+// it, so nothing moves, and what a person does to it meanwhile is kept (lib/held-act.ts).
 const lazyOf =
-  <K extends keyof Mod>(name: K) =>
+  <K extends keyof Mod>(name: K, fallback: ReactNode | ((props: ComponentProps<Mod[K]>) => ReactNode) = null) =>
   (props: ComponentProps<Mod[K]>) => (
-    <Suspense fallback={null}>
+    <Suspense fallback={typeof fallback === 'function' ? fallback(props) : fallback}>
       <From name={name} props={props} />
     </Suspense>
   )
 
-export const ImageInput = lazyOf('ImageInput')
-export const FileInput = lazyOf('FileInput')
+// The image's frame and its own fields (alt) sit outside the boundary: typing in them never waits on
+// the chunk, and they are never swapped when it lands (ImageBox.tsx).
+const ImageLive = lazyOf('ImageInput', (p) => <ImageBox id={p.id} field={p.field} value={p.value} readOnly={p.readOnly} />)
+export const ImageInput = (props: ComponentProps<Mod['ImageInput']>) => (
+  <ImageFrame {...props}>
+    <ImageLive {...props} />
+  </ImageFrame>
+)
+export const FileInput = lazyOf('FileInput', (p) => <FileBox id={p.id} field={p.field} value={p.value} readOnly={p.readOnly} />)
 export const PortableDocEditor = lazyOf('PortableDocEditor')
 export const ReviewChanges = lazyOf('ReviewChanges')

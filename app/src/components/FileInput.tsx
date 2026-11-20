@@ -1,4 +1,4 @@
-import {Fragment, useState, type ClipboardEvent, type DragEvent} from 'react'
+import {Fragment, useEffect, useState, type ClipboardEvent, type DragEvent} from 'react'
 import {useInfiniteQuery, useQuery} from '@tanstack/react-query'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
 import type {OpenRef} from './Fields'
@@ -13,6 +13,9 @@ import {accepts, ago, formatBytes, humanBytes, mayAccept, mimeTitle, type FileAs
 import {uploadFile, uploadReason, UploadError} from '../lib/upload'
 import type {ImageMeta} from '../lib/image-meta'
 import {UploadProgress} from './UploadProgress'
+import {FileBox, carriesFiles} from './FileBox'
+import {useFileInfo} from '../lib/file-info'
+import {actControl, takeHeld, type Act} from '../lib/held-act'
 
 // J54, after Sanity's file input: an empty box ("Drag or paste file here",
 // Upload, Select); a file shows its name and size with an options menu (Upload,
@@ -29,18 +32,8 @@ const filesOf = (list: FileList | DataTransferItemList | undefined | null): File
     const f = item instanceof File ? item : item.kind === 'file' ? item.getAsFile() : null
     return f ? [f] : []
   })
-const carriesFiles = (e: DragEvent<HTMLElement>) => [...e.dataTransfer.types].includes('Files')
 
-/** An asset's name, size and type; for an image also its pixel size and blur placeholder (lib/image-meta.ts). */
-export const useFileInfo = (ref: string | undefined) =>
-  useQuery({
-    queryKey: ['media-info', ref],
-    enabled: !!ref,
-    staleTime: Infinity,
-    // A 404 is an answer (an image field shows a Sanity image id Barkpark has no file for as unknown): no retries.
-    retry: (count, err) => !err.message.endsWith(' 404') && count < 3,
-    queryFn: () => fetch(`/api/media/${encodeURIComponent(ref!.replace(/^asset-/, ''))}/info`).then((r) => (r.ok ? (r.json() as Promise<FileAsset & ImageMeta>) : Promise.reject(new Error(`file → ${r.status}`)))),
-  })
+export {useFileInfo} from '../lib/file-info'
 
 export function FileInput({id, field, value, onChange, readOnly, openRef}: Props) {
   const locale = useLocale()
@@ -109,91 +102,63 @@ export function FileInput({id, field, value, onChange, readOnly, openRef}: Props
   const url = ref ? assetUrl(ref) : undefined
   const name = info.data?.name
 
+  const act = (a: Act) => (a === 'upload' ? pick() : a === 'select' ? setBrowsing(true) : a === 'menu' ? setMenu((m) => !m) : undefined)
+  // task-05dc: what was pressed on the box before this chunk was here, done now; the focus stays where it was.
+  useEffect(() => {
+    const {act: held, focused} = takeHeld(id)
+    const back = focused ?? held
+    if (back) actControl(id, back)?.focus()
+    if (held === 'upload') document.getElementById(id)?.querySelector<HTMLInputElement>('input[type=file]')?.click()
+    else if (held === 'select') setBrowsing(true)
+    else if (held === 'menu') setMenu(true)
+  }, [id])
+
   return (
-    <div className="file-input" id={id}>
-      {/* The chooser's accept is a hint the browser lets the editor override ("All files"): a file it
-          doesn't accept is refused here as a drop is, not uploaded and stored (Sanity's refuses it). */}
-      <input ref={setChooser} type="file" accept={accept} hidden onChange={(e) => (take(filesOf(e.target.files)), (e.target.value = ''))} />
-      {uploading ? (
-        <UploadProgress name={uploading.name} progress={uploading.progress} onCancel={() => uploading.stop.abort()} />
-      ) : !ref ? (
-        // Focusable so a paste has somewhere to land.
-        <div className="file-box empty" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop, paste or upload a file', {title})} {...target}>
-          {overlay}
-          {failed ? (
-            <span className="hint failed" role="alert">
-              <ErrorOutline /> {t('Upload failed')}
-            </span>
-          ) : (
-            <span className="hint">
-              <BinaryDocumentIcon /> {readOnly ? t('Read only') : t('Drag or paste file here')}
-            </span>
-          )}
-          <span className="file-actions">
-            {failed && (
-              <button type="button" className="btn ghost" onClick={() => upload(failed)}>
-                <Undo /> {t('Retry')}
-              </button>
-            )}
-            <button type="button" className="btn ghost" disabled={readOnly} onClick={pick}>
+    <FileBox
+      id={id}
+      field={field}
+      value={value}
+      readOnly={readOnly}
+      live={{
+        target,
+        overlay,
+        chooser: <input ref={setChooser} type="file" accept={accept} hidden onChange={(e) => (take(filesOf(e.target.files)), (e.target.value = ''))} />,
+        uploading: uploading && <UploadProgress name={uploading.name} progress={uploading.progress} onCancel={() => uploading.stop.abort()} />,
+        failed: !!failed,
+        onRetry: () => failed && void upload(failed),
+        act,
+        menu,
+        onMenuBlur: () => setMenu(false),
+        menuItems: (
+          <MenuPopover className="popover menu image-menu file-menu" onClose={() => setMenu(false)} aria-labelledby={`${id}-menuButton`}>
+            <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), pick())}>
               <Upload /> {t('Upload')}
             </button>
-            <button type="button" className="btn ghost" disabled={readOnly} onClick={() => setBrowsing(true)}>
+            <hr />
+            <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), setBrowsing(true))}>
               <SearchIcon /> {t('Select')}
             </button>
-          </span>
-        </div>
-      ) : (
-        <div className="file-box" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste a file to replace it', {title})} {...target}>
-          {overlay}
-          <span className="file-icon">
-            <BinaryDocumentIcon />
-          </span>
-          <span className="file-text">
-            {info.isError ? (
-              <span className="file-name">{t('File unavailable')}</span>
-            ) : (
-              <>
-                <span className="file-name">{name ?? '…'}</span>
-                {info.data && <span className="file-size">{formatBytes(info.data.size, locale)}</span>}
-              </>
-            )}
-          </span>
-          <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(false)}>
-            <button id={`${id}-menuButton`} type="button" className="icon-btn" aria-label={t('Open file options menu')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
-              <Ellipsis />
+            <a role="menuitem" className="menu-item" href={url} download={name ?? true} onClick={() => setMenu(false)}>
+              <Download /> {t('Download')}
+            </a>
+            <button
+              type="button"
+              role="menuitem"
+              className="menu-item"
+              onClick={() => (setMenu(false), navigator.clipboard.writeText(new URL(url!, location.href).href).then(() => toast({title: t('The URL is copied to the clipboard')})))}
+            >
+              <Copy /> {t('Copy URL')}
             </button>
-            {menu && (
-              <MenuPopover className="popover menu image-menu file-menu" onClose={() => setMenu(false)} aria-labelledby={`${id}-menuButton`}>
-                <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), pick())}>
-                  <Upload /> {t('Upload')}
-                </button>
-                <hr />
-                <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), setBrowsing(true))}>
-                  <SearchIcon /> {t('Select')}
-                </button>
-                <a role="menuitem" className="menu-item" href={url} download={name ?? true} onClick={() => setMenu(false)}>
-                  <Download /> {t('Download')}
-                </a>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="menu-item"
-                  onClick={() => (setMenu(false), navigator.clipboard.writeText(new URL(url!, location.href).href).then(() => toast({title: t('The URL is copied to the clipboard')})))}
-                >
-                  <Copy /> {t('Copy URL')}
-                </button>
-                <hr />
-                <button type="button" role="menuitem" className="menu-item danger" disabled={readOnly} onClick={() => (setMenu(false), onChange(undefined))}>
-                  <Reset /> {t('Clear field')}
-                </button>
-              </MenuPopover>
-            )}
-          </div>
-        </div>
-      )}
+            <hr />
+            <button type="button" role="menuitem" className="menu-item danger" disabled={readOnly} onClick={() => (setMenu(false), onChange(undefined))}>
+              <Reset /> {t('Clear field')}
+            </button>
+          </MenuPopover>
+        ),
+      }}
+    >
       {browsing && <FilePicker title={title} path={id} accept={accept} current={ref} openRef={openRef} onPick={(next) => (setBrowsing(false), use(next))} onClose={() => setBrowsing(false)} />}
-    </div>
+    </FileBox>
   )
 }
 
