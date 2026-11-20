@@ -103,7 +103,9 @@ studio only, as Sanity's do: an API write or an import is checked by the schema'
 
 A rule that compares fields and needs no code belongs in the schema instead, as data both sides
 check: `cross_validations` `[{name, title, rule, level, fields}]`, `rule` a condition as in
-`visibleWhen` or `all` / `any` of them. Barkpark checks it on every write; the studio shows a
+`visibleWhen` or `all` / `any` / `one` (exactly one holds) of them. `gt`, `gte`, `lt`, `lte` with
+`valueField` compare two fields (`{field: 'end', operator: 'gte', valueField: 'start'}`); a
+missing or empty side holds. Barkpark checks it on every write; the studio shows a
 broken one as you type, under each field in `fields` (`app/src/lib/cross-rules.ts`). A rule the
 server can't evaluate (an unknown operator or field) is skipped on both sides.
 

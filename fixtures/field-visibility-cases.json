@@ -1,92 +1,92 @@
 {
- "about": "Cases for Barkpark's condition rules (api/lib/barkpark/content/field_visibility.ex apply_op/walk_path, cross_validator.ex partition). 'server' per case is Barkpark's answer for a cross rule {name: r, rule, fields: [a]} on a schema with fields a n tags links obj ref d: ok, violated, or skip (unevaluable). app/src/lib/conditions-server.test.ts checks the studio gives the same. Regenerate: elixir scripts/field-visibility-cases.exs <barkpark checkout>. Cases from the PR #1336 review.",
- "server": "barkpark 0bb8b0ebf9",
+ "about": "Cases for Barkpark's condition rules (api/lib/barkpark/content/field_visibility.ex apply_op/walk_path, cross_validator.ex partition). 'server' per case is Barkpark's answer for a cross rule {name: r, rule, fields: [a]} on a schema with fields a n tags links obj ref d: ok, violated, or skip (unevaluable). app/src/lib/conditions-server.test.ts checks the studio gives the same. Regenerate: elixir scripts/field-visibility-cases.exs <barkpark checkout>. Cases from the PR #1336 review, then S1 (gt/gte/lt/lte, valueField, one; task-606283a5dedc2403).",
  "cases": [
   {
+   "doc": {
+    "a": "x"
+   },
    "name": "eq x, a=x",
    "rule": {
     "field": "a",
     "operator": "eq",
     "value": "x"
    },
-   "doc": {
-    "a": "x"
-   },
    "server": "ok"
   },
   {
+   "doc": {},
    "name": "eq x, a missing",
    "rule": {
     "field": "a",
     "operator": "eq",
     "value": "x"
    },
-   "doc": {},
    "server": "violated"
   },
   {
+   "doc": {},
    "name": "eq null, a missing",
    "rule": {
     "field": "a",
     "operator": "eq",
     "value": null
    },
-   "doc": {},
    "server": "ok"
   },
   {
+   "doc": {
+    "a": null
+   },
    "name": "eq null, a=null",
    "rule": {
     "field": "a",
     "operator": "eq",
     "value": null
    },
-   "doc": {
-    "a": null
-   },
    "server": "ok"
   },
   {
+   "doc": {},
    "name": "eq no value, a missing",
    "rule": {
     "field": "a",
     "operator": "eq"
    },
-   "doc": {},
    "server": "ok"
   },
   {
+   "doc": {
+    "a": null
+   },
    "name": "eq no value, a=null",
    "rule": {
     "field": "a",
     "operator": "eq"
    },
-   "doc": {
-    "a": null
-   },
    "server": "ok"
   },
   {
+   "doc": {},
    "name": "neq null, a missing",
    "rule": {
     "field": "a",
     "operator": "neq",
     "value": null
    },
-   "doc": {},
    "server": "violated"
   },
   {
+   "doc": {},
    "name": "neq x, a missing",
    "rule": {
     "field": "a",
     "operator": "neq",
     "value": "x"
    },
-   "doc": {},
    "server": "ok"
   },
   {
+   "doc": {},
    "name": "in [x,null], a missing",
    "rule": {
     "field": "a",
@@ -96,10 +96,12 @@
      null
     ]
    },
-   "doc": {},
    "server": "ok"
   },
   {
+   "doc": {
+    "n": 1.0
+   },
    "name": "in [1], n=1.0",
    "rule": {
     "field": "n",
@@ -108,273 +110,264 @@
      1
     ]
    },
-   "doc": {
-    "n": 1.0
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "n": 1.0
+   },
    "name": "eq 1, n=1.0",
    "rule": {
     "field": "n",
     "operator": "eq",
     "value": 1
    },
-   "doc": {
-    "n": 1.0
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "n": "3"
+   },
    "name": "eq 3, n='3'",
    "rule": {
     "field": "n",
     "operator": "eq",
     "value": 3
    },
-   "doc": {
-    "n": "3"
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "a": "x"
+   },
    "name": "in not list",
    "rule": {
     "field": "a",
     "operator": "in",
     "value": "x"
    },
-   "doc": {
-    "a": "x"
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "a": ""
+   },
    "name": "empty, a=''",
    "rule": {
     "field": "a",
     "operator": "empty"
    },
-   "doc": {
-    "a": ""
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "a": " "
+   },
    "name": "empty, a=' '",
    "rule": {
     "field": "a",
     "operator": "empty"
    },
-   "doc": {
-    "a": " "
-   },
    "server": "violated"
   },
   {
+   "doc": {},
    "name": "empty, a missing",
    "rule": {
     "field": "a",
     "operator": "empty"
    },
-   "doc": {},
    "server": "ok"
   },
   {
+   "doc": {
+    "a": 0
+   },
    "name": "empty, a=0",
    "rule": {
     "field": "a",
     "operator": "empty"
    },
-   "doc": {
-    "a": 0
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "a": false
+   },
    "name": "empty, a=false",
    "rule": {
     "field": "a",
     "operator": "empty"
    },
-   "doc": {
-    "a": false
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "obj": {}
+   },
    "name": "empty, obj={}",
    "rule": {
     "field": "obj",
     "operator": "empty"
    },
-   "doc": {
-    "obj": {}
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "tags": []
+   },
    "name": "non_empty, tags=[]",
    "rule": {
     "field": "tags",
     "operator": "non_empty"
    },
-   "doc": {
-    "tags": []
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "a": "abc"
+   },
    "name": "count_eq 0, a='abc'",
    "rule": {
     "field": "a",
     "operator": "count_eq",
     "value": 0
    },
-   "doc": {
-    "a": "abc"
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "a": "abc"
+   },
    "name": "count_lt 1, a='abc'",
    "rule": {
     "field": "a",
     "operator": "count_lt",
     "value": 1
    },
-   "doc": {
-    "a": "abc"
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "a": "abc"
+   },
    "name": "count_gt 0, a='abc'",
    "rule": {
     "field": "a",
     "operator": "count_gt",
     "value": 0
    },
-   "doc": {
-    "a": "abc"
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "n": 5
+   },
    "name": "count_eq 0, n=5",
    "rule": {
     "field": "n",
     "operator": "count_eq",
     "value": 0
    },
-   "doc": {
-    "n": 5
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "tags": [
+     1
+    ]
+   },
    "name": "count_gt '1', tags=[1]",
    "rule": {
     "field": "tags",
     "operator": "count_gt",
     "value": "1"
    },
+   "server": "ok"
+  },
+  {
    "doc": {
     "tags": [
      1
     ]
    },
-   "server": "ok"
-  },
-  {
    "name": "count_eq '1', tags=[1]",
    "rule": {
     "field": "tags",
     "operator": "count_eq",
     "value": "1"
    },
+   "server": "ok"
+  },
+  {
    "doc": {
     "tags": [
      1
     ]
    },
-   "server": "ok"
-  },
-  {
    "name": "count_gt 1.5, tags=[1]",
    "rule": {
     "field": "tags",
     "operator": "count_gt",
     "value": 1.5
    },
-   "doc": {
-    "tags": [
-     1
-    ]
-   },
    "server": "ok"
   },
   {
-   "name": "count_eq 2, obj 2 keys",
-   "rule": {
-    "field": "obj",
-    "operator": "count_eq",
-    "value": 2
-   },
    "doc": {
     "obj": {
      "x": 1,
      "y": 2
     }
    },
+   "name": "count_eq 2, obj 2 keys",
+   "rule": {
+    "field": "obj",
+    "operator": "count_eq",
+    "value": 2
+   },
    "server": "ok"
   },
   {
+   "doc": {
+    "links": [
+     {}
+    ]
+   },
    "name": "links.url empty, links=[{}]",
    "rule": {
     "field": "links",
     "operator": "empty"
    },
+   "server": "violated"
+  },
+  {
    "doc": {
     "links": [
      {}
     ]
    },
-   "server": "violated"
-  },
-  {
    "name": "links.url empty, [{}]",
    "rule": {
     "field": "links.url",
     "operator": "empty"
    },
+   "server": "ok"
+  },
+  {
    "doc": {
     "links": [
      {}
     ]
    },
-   "server": "ok"
-  },
-  {
    "name": "links.url non_empty, [{}]",
    "rule": {
     "field": "links.url",
     "operator": "non_empty"
    },
-   "doc": {
-    "links": [
-     {}
-    ]
-   },
    "server": "violated"
   },
   {
-   "name": "links.url count_eq 1, [{url:a},{}]",
-   "rule": {
-    "field": "links.url",
-    "operator": "count_eq",
-    "value": 1
-   },
    "doc": {
     "links": [
      {
@@ -383,15 +376,15 @@
      {}
     ]
    },
-   "server": "ok"
-  },
-  {
-   "name": "links.url count_eq 1, [{url:a},{url:null}]",
+   "name": "links.url count_eq 1, [{url:a},{}]",
    "rule": {
     "field": "links.url",
     "operator": "count_eq",
     "value": 1
    },
+   "server": "ok"
+  },
+  {
    "doc": {
     "links": [
      {
@@ -402,15 +395,15 @@
      }
     ]
    },
+   "name": "links.url count_eq 1, [{url:a},{url:null}]",
+   "rule": {
+    "field": "links.url",
+    "operator": "count_eq",
+    "value": 1
+   },
    "server": "ok"
   },
   {
-   "name": "links.url eq a, [{url:a}]",
-   "rule": {
-    "field": "links.url",
-    "operator": "eq",
-    "value": "a"
-   },
    "doc": {
     "links": [
      {
@@ -418,86 +411,97 @@
      }
     ]
    },
+   "name": "links.url eq a, [{url:a}]",
+   "rule": {
+    "field": "links.url",
+    "operator": "eq",
+    "value": "a"
+   },
    "server": "violated"
   },
   {
-   "name": "tags.x empty, tags=['s']",
-   "rule": {
-    "field": "tags.x",
-    "operator": "empty"
-   },
    "doc": {
     "tags": [
      "s"
     ]
    },
+   "name": "tags.x empty, tags=['s']",
+   "rule": {
+    "field": "tags.x",
+    "operator": "empty"
+   },
    "server": "ok"
   },
   {
+   "doc": {
+    "obj": {
+     "x": 1
+    }
+   },
    "name": "obj.x eq 1",
    "rule": {
     "field": "obj.x",
     "operator": "eq",
     "value": 1
    },
-   "doc": {
-    "obj": {
-     "x": 1
-    }
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "obj": "str"
+   },
    "name": "obj.x eq 1, obj='str'",
    "rule": {
     "field": "obj.x",
     "operator": "empty"
    },
-   "doc": {
-    "obj": "str"
-   },
    "server": "ok"
   },
   {
-   "name": "ref._ref eq id",
-   "rule": {
-    "field": "ref._ref",
-    "operator": "eq",
-    "value": "id"
-   },
    "doc": {
     "ref": {
      "_ref": "id",
      "_type": "reference"
     }
    },
+   "name": "ref._ref eq id",
+   "rule": {
+    "field": "ref._ref",
+    "operator": "eq",
+    "value": "id"
+   },
    "server": "ok"
   },
   {
+   "doc": {
+    "d": "2026-11-20"
+   },
    "name": "d starts_with 2026",
    "rule": {
     "field": "d",
     "operator": "starts_with",
     "value": "2026"
    },
-   "doc": {
-    "d": "2026-11-20"
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "n": 12
+   },
    "name": "starts_with on number",
    "rule": {
     "field": "n",
     "operator": "starts_with",
     "value": "1"
    },
-   "doc": {
-    "n": 12
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "tags": [
+     "a"
+    ]
+   },
    "name": "eq [a], tags=[a]",
    "rule": {
     "field": "tags",
@@ -506,14 +510,14 @@
      "a"
     ]
    },
-   "doc": {
-    "tags": [
-     "a"
-    ]
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "obj": {
+     "x": 1
+    }
+   },
    "name": "eq {x:1}, obj={x:1}",
    "rule": {
     "field": "obj",
@@ -522,14 +526,14 @@
      "x": 1
     }
    },
-   "doc": {
-    "obj": {
-     "x": 1
-    }
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "tags": [
+     "a"
+    ]
+   },
    "name": "neq [a], tags=[a]",
    "rule": {
     "field": "tags",
@@ -538,37 +542,36 @@
      "a"
     ]
    },
-   "doc": {
-    "tags": [
-     "a"
-    ]
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "a": true
+   },
    "name": "eq true, a=true",
    "rule": {
     "field": "a",
     "operator": "eq",
     "value": true
    },
-   "doc": {
-    "a": true
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "title": "T"
+   },
    "name": "title non_empty (title only on row)",
    "rule": {
     "field": "title",
     "operator": "non_empty"
    },
-   "doc": {
-    "title": "T"
-   },
    "server": "ok"
   },
   {
+   "doc": {
+    "a": "x",
+    "n": 2
+   },
    "name": "any [] nested in all",
    "rule": {
     "all": [
@@ -587,13 +590,12 @@
      }
     ]
    },
-   "doc": {
-    "a": "x",
-    "n": 2
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "a": "x"
+   },
    "name": "all false,any list",
    "rule": {
     "all": false,
@@ -605,44 +607,44 @@
      }
     ]
    },
-   "doc": {
-    "a": "x"
-   },
    "server": "violated"
   },
   {
+   "doc": {
+    "a": "x"
+   },
    "name": "scope parent leaf",
    "rule": {
     "field": "a",
     "operator": "eq",
-    "value": "x",
-    "scope": "parent"
-   },
-   "doc": {
-    "a": "x"
+    "scope": "parent",
+    "value": "x"
    },
    "server": "ok"
   },
   {
+   "doc": {
+    "a": "x"
+   },
    "name": "leaf + all keys",
    "rule": {
-    "field": "a",
-    "operator": "eq",
-    "value": "nope",
     "all": [
      {
       "field": "a",
       "operator": "eq",
       "value": "x"
      }
-    ]
-   },
-   "doc": {
-    "a": "x"
+    ],
+    "field": "a",
+    "operator": "eq",
+    "value": "nope"
    },
    "server": "ok"
   },
   {
+   "doc": {
+    "a": "x"
+   },
    "name": "nested leaf all/any 3 deep",
    "rule": {
     "any": [
@@ -661,10 +663,621 @@
      }
     ]
    },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "2026-11-19",
+    "d": "2026-11-20"
+   },
+   "name": "gte valueField d, a before d",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "d"
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": "2026-11-20",
+    "d": "2026-11-20"
+   },
+   "name": "gte valueField d, a equals d",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "d"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "2026-11-21",
+    "d": "2026-11-20"
+   },
+   "name": "gte valueField d, a after d",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "d"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "d": "2026-11-20"
+   },
+   "name": "gte valueField d, a missing",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "d"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": null,
+    "d": "2026-11-20"
+   },
+   "name": "gte valueField d, a null",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "d"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "",
+    "d": "2026-11-20"
+   },
+   "name": "gte valueField d, a empty string",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "d"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "2026-11-19"
+   },
+   "name": "gte valueField d, d missing",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "d"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "2026-11-19",
+    "d": null
+   },
+   "name": "gte valueField d, d null",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "d"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "2026-11-19",
+    "d": ""
+   },
+   "name": "gte valueField d, d empty string",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "d"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": 10,
+    "n": 9
+   },
+   "name": "gt valueField n, 10 > 9",
+   "rule": {
+    "field": "a",
+    "operator": "gt",
+    "valueField": "n"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": 9,
+    "n": 9
+   },
+   "name": "gt valueField n, 9 > 9",
+   "rule": {
+    "field": "a",
+    "operator": "gt",
+    "valueField": "n"
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": 9,
+    "n": 9
+   },
+   "name": "lt valueField n, 9 < 9",
+   "rule": {
+    "field": "a",
+    "operator": "lt",
+    "valueField": "n"
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": 10,
+    "n": 9
+   },
+   "name": "lte valueField n, 10 <= 9",
+   "rule": {
+    "field": "a",
+    "operator": "lte",
+    "valueField": "n"
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": 1,
+    "n": 1.5
+   },
+   "name": "lt valueField n, 1 < 1.5",
+   "rule": {
+    "field": "a",
+    "operator": "lt",
+    "valueField": "n"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": 1,
+    "n": 1.0
+   },
+   "name": "lt valueField n, 1 < 1.0",
+   "rule": {
+    "field": "a",
+    "operator": "lt",
+    "valueField": "n"
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": "9",
+    "n": 10
+   },
+   "name": "gt valueField n, string vs number",
+   "rule": {
+    "field": "a",
+    "operator": "gt",
+    "valueField": "n"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": [
+     1
+    ],
+    "n": 0
+   },
+   "name": "lt valueField n, list vs number",
+   "rule": {
+    "field": "a",
+    "operator": "lt",
+    "valueField": "n"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": false,
+    "n": true
+   },
+   "name": "gt valueField n, true vs false",
+   "rule": {
+    "field": "a",
+    "operator": "gt",
+    "valueField": "n"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "😀",
+    "d": "￿"
+   },
+   "name": "gt valueField d, astral vs U+FFFF",
+   "rule": {
+    "field": "a",
+    "operator": "gt",
+    "valueField": "d"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": 3
+   },
+   "name": "lt value 3, a=3",
+   "rule": {
+    "field": "a",
+    "operator": "lt",
+    "value": 3
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": 2
+   },
+   "name": "lt value 3, a=2",
+   "rule": {
+    "field": "a",
+    "operator": "lt",
+    "value": 3
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": 1,
+    "obj": {
+     "x": 2
+    }
+   },
+   "name": "gte valueField obj.x",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "obj.x"
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": 5,
+    "links": [
+     {
+      "x": 6
+     }
+    ]
+   },
+   "name": "gte valueField over list rows",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "links.x"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "x",
+    "n": "x"
+   },
+   "name": "eq valueField n, same value",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "valueField": "n"
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "x",
+    "n": "y"
+   },
+   "name": "eq valueField n, different value",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "valueField": "n"
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": "x",
+    "n": "y"
+   },
+   "name": "valueField wins over value",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "value": "x",
+    "valueField": "n"
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": 1,
+    "zz": 2
+   },
+   "name": "valueField undeclared field",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": "zz"
+   },
+   "server": "skip"
+  },
+  {
+   "doc": {
+    "a": 1
+   },
+   "name": "valueField empty string",
+   "rule": {
+    "field": "a",
+    "operator": "gte",
+    "valueField": ""
+   },
+   "server": "skip"
+  },
+  {
+   "doc": {
+    "a": 2
+   },
+   "name": "valueField not a string",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "value": 1,
+    "valueField": 3
+   },
+   "server": "skip"
+  },
+  {
+   "doc": {
+    "a": 2
+   },
+   "name": "valueField null reads value",
+   "rule": {
+    "field": "a",
+    "operator": "eq",
+    "value": 1,
+    "valueField": null
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": "x",
+    "n": 1
+   },
+   "name": "one, both hold",
+   "rule": {
+    "one": [
+     {
+      "field": "a",
+      "operator": "non_empty"
+     },
+     {
+      "field": "n",
+      "operator": "non_empty"
+     }
+    ]
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {},
+   "name": "one, none holds",
+   "rule": {
+    "one": [
+     {
+      "field": "a",
+      "operator": "non_empty"
+     },
+     {
+      "field": "n",
+      "operator": "non_empty"
+     }
+    ]
+   },
+   "server": "violated"
+  },
+  {
    "doc": {
     "a": "x"
    },
+   "name": "one, first holds",
+   "rule": {
+    "one": [
+     {
+      "field": "a",
+      "operator": "non_empty"
+     },
+     {
+      "field": "n",
+      "operator": "non_empty"
+     }
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "n": 1
+   },
+   "name": "one, second holds",
+   "rule": {
+    "one": [
+     {
+      "field": "a",
+      "operator": "non_empty"
+     },
+     {
+      "field": "n",
+      "operator": "non_empty"
+     }
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "x"
+   },
+   "name": "one, empty list",
+   "rule": {
+    "one": []
+   },
+   "server": "skip"
+  },
+  {
+   "doc": {
+    "a": "x"
+   },
+   "name": "one, not a list",
+   "rule": {
+    "one": "a"
+   },
+   "server": "skip"
+  },
+  {
+   "doc": {
+    "a": "x",
+    "d": "y",
+    "n": 1
+   },
+   "name": "one inside all",
+   "rule": {
+    "all": [
+     {
+      "field": "d",
+      "operator": "non_empty"
+     },
+     {
+      "one": [
+       {
+        "field": "a",
+        "operator": "non_empty"
+       },
+       {
+        "field": "n",
+        "operator": "non_empty"
+       }
+      ]
+     }
+    ]
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": "x",
+    "d": "y"
+   },
+   "name": "one inside one",
+   "rule": {
+    "one": [
+     {
+      "one": [
+       {
+        "field": "a",
+        "operator": "non_empty"
+       },
+       {
+        "field": "n",
+        "operator": "non_empty"
+       }
+      ]
+     },
+     {
+      "field": "d",
+      "operator": "non_empty"
+     }
+    ]
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": "x",
+    "n": 1
+   },
+   "name": "all false falls through to one",
+   "rule": {
+    "all": false,
+    "one": [
+     {
+      "field": "a",
+      "operator": "non_empty"
+     },
+     {
+      "field": "n",
+      "operator": "non_empty"
+     }
+    ]
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": "x",
+    "n": 1
+   },
+   "name": "all list wins over one",
+   "rule": {
+    "all": [
+     {
+      "field": "d",
+      "operator": "empty"
+     }
+    ],
+    "one": [
+     {
+      "field": "a",
+      "operator": "non_empty"
+     },
+     {
+      "field": "n",
+      "operator": "non_empty"
+     }
+    ]
+   },
+   "server": "ok"
+  },
+  {
+   "doc": {
+    "a": "x"
+   },
+   "name": "one with a parent-scope leaf",
+   "rule": {
+    "one": [
+     {
+      "field": "a",
+      "operator": "non_empty",
+      "scope": "parent"
+     },
+     {
+      "field": "n",
+      "operator": "non_empty"
+     }
+    ]
+   },
    "server": "ok"
   }
- ]
+ ],
+ "server": "barkpark 89e2884cee"
 }
