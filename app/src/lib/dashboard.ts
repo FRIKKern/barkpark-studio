@@ -290,3 +290,6 @@ export function memberRows(people: string[], names: Record<string, string>, onli
 
 /** The members read was refused for this token (a read-only studio token cannot list members): the pickers' empty state, not an error. */
 export const membersRefused = (error: unknown) => /\((401|403)\)/.test(error instanceof Error ? error.message : String(error ?? ''))
+
+/** The roster's retries (lib/people.ts): React Query's three, but a refusal is final, so it never shows "Trying to connect…". */
+export const rosterRetry = (failures: number, error: unknown) => !membersRefused(error) && failures < 3

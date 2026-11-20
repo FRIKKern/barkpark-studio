@@ -1,9 +1,10 @@
 import {useEffect, useState, useSyncExternalStore} from 'react'
-import {useQueryClient, type Query} from '@tanstack/react-query'
+import {useQueryClient} from '@tanstack/react-query'
 import {stickyToast} from '../components/Toasts'
 import {t as translate} from './i18n'
 import {useBoundElsewhere, useStudioTokenRefused} from './session'
 import {useFooterOffline} from './footer-offline'
+import {struggling} from './struggling'
 
 // J50: what the studio does when Barkpark (or this server) can't be reached, by
 // Sanity's numbers (structure/panes/documentList/useDocumentList.ts): a failed read
@@ -53,9 +54,6 @@ export function useLivePausedToast() {
     return () => stickyToast('live-paused', null)
   }, [reason])
 }
-
-/** A read that has failed and is being tried again (or waits for the network). */
-const struggling = (q: Query) => q.state.fetchFailureCount > 0 && q.state.fetchStatus !== 'idle'
 
 /** "Trying to connect…" while the live stream is down or a read keeps failing, after 2 s of it. */
 export function useReconnectingToast() {
