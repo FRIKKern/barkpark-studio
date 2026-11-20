@@ -5,9 +5,10 @@ import {bpMutate, bpRemove, closeAndSettle, target} from '../rig/targets'
 // after the desk renders. Offline before it lands, the pane went to "Could not render the
 // document editor" and stayed there until a reload (2026-10-11 sign-off pack). Now the
 // rest of the form types on, and the inputs come once the chunk can be fetched.
-// task-b2c0f7c946f9ea5f: an image's Alt typed before the chunk lands (and before hydration) is
-// saved as the draft once it does. On its own post (early-typing.spec's door: a fixed id, replaced
-// at the start, removed and checked gone after). The 1.5 s hydration cap and the chunk's 1 s retry
+// task-b2c0f7c946f9ea5f: an image's Alt typed while the chunk is still not here (the page hydrated
+// without it) is saved as the draft once it lands. Before #1337 Alt sat inside the chunk's boundary and
+// was gone by then. (Keys typed before hydration are early-typing.spec's.) On its own post
+// (early-typing.spec's door: a fixed id, replaced at the start, removed and checked gone after). The 1.5 s hydration cap and the chunk's 1 s retry
 // (DocEditors.tsx RETRY_MS) are passed on a fake clock, so no real second is spent on either.
 const TYPED = {id: 'post-typed-landing', alt: 'Typed before it landed'} as const
 test('J20: the editors chunk failing to load waits, and lands once it can', async ({page}, info) => {
@@ -19,15 +20,15 @@ test('J20: the editors chunk failing to load waits, and lands once it can', asyn
     await page.route(/doc-editors/, (route) => (blocked ? route.abort('internetdisconnected') : route.continue()))
     await page.clock.install()
     await page.goto(t.docPath('post', TYPED.id))
-    const alt = t.field(page, 'mainImage.alt')
-    await alt.click()
-    await page.keyboard.type(TYPED.alt, {delay: 20})
-    expect.soft(await page.locator('html[data-hydrated]').count(), 'Alt was typed before hydration').toBe(0)
     await page.clock.fastForward(1_600) // past the hydration cap: the page hydrates without the chunk
     await t.settle(page)
     const image = page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')})
     await expect(t.field(page, 'title')).toBeEditable()
     await expect(page.getByText('Could not render the document editor')).toHaveCount(0)
+    const alt = t.field(page, 'mainImage.alt')
+    await expect.soft(alt, 'Alt is there to type into while the chunk is not').toBeEditable({timeout: 2_000})
+    // Bounded: an Alt that is gone (or goes) as the click lands is a red row by name, not a timeout.
+    if (await alt.click({timeout: 2_000}).then(() => true, () => false)) await page.keyboard.type(TYPED.alt, {delay: 20})
     blocked = false
     await page.clock.fastForward(1_000) // the chunk's next try (RETRY_MS)
     await expect(image.getByRole('button', {name: 'Upload'})).toBeVisible({timeout: 5_000})
