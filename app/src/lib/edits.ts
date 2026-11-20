@@ -22,7 +22,7 @@ import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, s
 import {spanAnswer, spanRoot, type Typed} from './pt-span'
 import {clientGone} from '../server/client-gone'
 import {gated, putBackKept, writeAllowed} from './doc-lock'
-import {combine, dropPending, judge, keepPlan, ownedElsewhere, pendingKey, putPending, readDocPending, restoreBlock, restoreValue, TAB, type Pending} from './pending-edits'
+import {combine, dropPending, judge, keepPlan, keptOnly, ownedElsewhere, pendingKey, putPending, readDocPending, restoreBlock, restoreValue, TAB, type Pending} from './pending-edits'
 import {WRITE_BURST, WRITE_GAP_MS, writeBudget} from './write-budget'
 import {noteEdit} from './pane-clock'
 import {paceMs, paced} from './write-pace'
@@ -1136,7 +1136,12 @@ export async function discardDraft(qc: QueryClient, doc: Doc) {
   await qc.invalidateQueries({queryKey: ['doc', id]})
 }
 
-export type Recovered = {pending: Pending; fields: [string, unknown][]; gone?: string[]; keys: string[]}
+/**
+ * `untold`: fields a Restore could not put back, the text they touched having changed since
+ * (lib/kept-stands.ts): still kept, shown to copy. `alsoKept`: the other fields kept in the same
+ * entry (refused: read-only for this person), not on the card: its Discard leaves them kept.
+ */
+export type Recovered = {pending: Pending; fields: [string, unknown][]; gone?: string[]; keys: string[]; untold?: string[]; alsoKept?: string[]}
 /**
  * B11 widen: on open, edits this browser kept for `doc` that never reached Barkpark (a
  * reload or crash). Same server rev → sent again now, quietly (`replayed`); a newer rev →
@@ -1189,11 +1194,13 @@ export function restorePending(qc: QueryClient, doc: Doc, {pending, fields, keys
     edit(qc, now, at, value)
   })
   const kept = keepRefused(doc._publishedId, keys, pending, [...refused, ...untold])
-  const left = untold.length && kept ? {pending, fields: fields.filter(([f]) => untold.includes(f)), gone, keys: [kept]} : null
+  const left = untold.length && kept ? {pending, fields: fields.filter(([f]) => untold.includes(f)), gone, keys: [kept], untold, ...(refused.length && {alsoKept: refused})} : null
   return {refused, left}
 }
 
-export function discardPending({keys}: Recovered) {
+export function discardPending({keys, pending, alsoKept}: Recovered) {
+  // The card's fields go; fields kept with them that it does not show (refused) stay kept, offered again.
+  if (alsoKept?.length) return keys.forEach((k) => void putPending(k, keptOnly(pending, alsoKept)))
   keys.forEach((k) => void dropPending(k))
 }
 

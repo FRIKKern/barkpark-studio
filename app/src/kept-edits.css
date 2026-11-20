@@ -1,0 +1,2 @@
+/* The Restore card's kept text, when it could not be put back (task-28470f0d0ace566c): shown whole, to select and copy. */
+.pane-banner .kept-text { display: block; margin-top: 6px; padding: 6px 8px; border-radius: 3px; background: var(--bg-soft); color: var(--fg, inherit); white-space: pre-wrap; user-select: text; max-height: 12em; overflow: auto; }

@@ -14,6 +14,7 @@ import {QueryClient} from '@tanstack/react-query'
 register('./save-flow.hooks.mjs', import.meta.url)
 const {freshItems} = await import('./pt-value.ts')
 const {mergeBlock} = await import('./pt-keep.ts')
+const {keptText} = await import('./kept-text.ts')
 const {applyPaths, getPath, setPath} = await import('./paths.ts')
 const {applyPatches, makePatches, parsePatch} = await import('@sanity/diff-match-patch')
 
@@ -633,7 +634,60 @@ for (const [name, base, mine, now, old] of [
     await tick(20)
     assert.deepEqual(server.doc.ptBody, now, 'their blocks byte-equal')
     assert.deepEqual(done?.left?.fields.map(([f]) => f), ['ptBody[_key=="b"]'], 'the card stays up for it')
+    // task-28470f0d0ace566c: the card says it could not be put back, and shows the text to copy.
+    assert.deepEqual(done?.left?.untold, ['ptBody[_key=="b"]'], 'marked: could not be put back')
+    assert.equal(keptText(done!.left!.fields[0]![1]), mine, 'the kept text, as typed')
     const stored = [...idb.values()].some((p) => (p as {fields?: [string, unknown][]}).fields?.some(([f, v]) => f === 'ptBody[_key=="b"]' && J(v) === J(line)))
     assert.ok(stored, 'the kept edit is still in the store')
     server.gone.add(`?page=untold${name.split(' ')[0]}2`)
   })
+
+// #1320 review: a cannot-tell block and a refused (read-only) field kept in one entry. The card
+// shows the block only, so its Discard drops the block only: the title's kept edit stays stored
+// and is offered again on the next load (the lead's ruling).
+test('a cannot-tell card kept with a refused field: Discard drops only what the card shows, the refused edit stays kept', async () => {
+  idb.clear()
+  server = new Server({title: 'Save flow', ptBody: [blk('a', 'Above'), blk('b', 'the cat sat'), blk('c', 'Below')]})
+  const page = await open('mixDiscard')
+  page.E.setKeepScope('s')
+  const drawn = (page.held().ptBody as Block[])[1]!
+  server.faults.push('500', '500', '500')
+  page.E.edit(page.qc, page.held() as never, 'title', 'My title')
+  const line = blk('b', 'the sat')
+  page.E.edit(page.qc, page.held() as never, 'ptBody[_key=="b"]', (v: unknown) => mergeBlock(drawn, line, v) ?? line)
+  await tick(250) // kept in this browser (KEEP_GAP_MS)
+  server.theirs('ptBody', (now) => (now as Block[]).map((b) => (b._key === 'b' ? blk('b', 'A dog') : b)))
+  server.gone.add('?page=mixDiscard')
+  await tick(20)
+  const next = await open('mixDiscard2')
+  next.E.setKeepScope('s')
+  // The title is read-only for this person now (a field rule), as a pane would say.
+  const DL: typeof import('./doc-lock.ts') = await import(`./doc-lock.ts?page=${'mixDiscard2'}`)
+  const holder = {}
+  DL.showDoc(ID, holder, false, {readOnly: (p: string) => p === 'title', canvas: false, refused: () => {}})
+  const kept = () => [...idb.values()].flatMap((p) => ((p as {fields?: [string, unknown][]}).fields ?? []).map(([f]) => f)).sort()
+  try {
+    const got = await next.E.recoverPending(next.qc, next.held() as never)
+    assert.ok(got && 'ask' in got, 'offered')
+    const done = next.E.restorePending(next.qc, next.held() as never, got.ask)
+    await next.drain()
+    await tick(20)
+    assert.deepEqual(done?.refused, ['title'])
+    assert.deepEqual(done?.left?.fields.map(([f]) => f), ['ptBody[_key=="b"]'], 'the card shows the block only')
+    assert.deepEqual(kept(), ['ptBody[_key=="b"]', 'title'])
+    next.E.discardPending(done!.left!)
+    await tick(20)
+    assert.deepEqual(kept(), ['title'], 'the refused title stays kept')
+  } finally {
+    DL.hideDoc(ID, holder)
+    server.gone.add('?page=mixDiscard2')
+  }
+  const again = await open('mixDiscard3')
+  again.E.setKeepScope('s')
+  const offered = await again.E.recoverPending(again.qc, again.held() as never)
+  assert.ok(offered && 'ask' in offered, 'offered again on the next load')
+  assert.deepEqual(offered.ask.fields.map(([f]) => f), ['title'])
+  assert.equal(server.doc.title, 'Save flow', 'nothing written')
+  assert.deepEqual(texts(server.doc.ptBody), ['Above', 'A dog', 'Below'])
+  server.gone.add('?page=mixDiscard3')
+})
