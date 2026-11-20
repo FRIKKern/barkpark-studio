@@ -44,8 +44,14 @@ function hear(qc: QueryClient) {
     if (readAgain) (readAgain = false), void qc.invalidateQueries()
   })
   if (typeof window === 'undefined') return
-  // e2e probe: read everything again, as a reconnect that lost its place does. Done when every read has its answer in the cache.
-  ;(window as {__readAll?: () => Promise<void>}).__readAll = () => qc.invalidateQueries()
+  // e2e probe: read everything again, as a reconnect that lost its place does. Done when the
+  // shown documents' reads have their answers in the cache; not every read, since one that keeps
+  // failing waits out its retries first (on CI the people roster, and the list's prefetched docs
+  // if they are read too: 7 s each way, task-c1df532bed870536).
+  ;(window as {__readAll?: () => Promise<void>}).__readAll = async () => {
+    void qc.invalidateQueries()
+    await qc.refetchQueries({queryKey: ['doc'], type: 'active'}, {cancelRefetch: false})
+  }
   // e2e probe: what reaches the cache stays off the screen until released, as on a busy machine.
   ;(window as {__holdRenders?: (on: boolean) => void}).__holdRenders = (on) => {
     notifyManager.setScheduler(on ? (cb) => void undrawn.push(cb) : (cb) => setTimeout(cb, 0))

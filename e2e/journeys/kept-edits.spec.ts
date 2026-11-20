@@ -246,7 +246,7 @@ test('a re-read while typing is unsent keeps the typing', async ({page}, info) =
     await page.keyboard.type(' xy')
     await inFlight // the save of ' xy' is on its way (held): 'z' waits unsent behind it
     await page.keyboard.type('z')
-    // The re-read has landed: every read answered and in the cache, and two frames drawn since.
+    // The re-read has landed: the doc's reads answered and in the cache, and two frames drawn since.
     await page.evaluate(async () => {
       await (window as unknown as {__readAll: () => Promise<void>}).__readAll()
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
