@@ -114,15 +114,17 @@ export const ITEM_CAP = 50
 /**
  * An item rule's problems: on each broken item, under each field the rule names (the item
  * itself when it names none), titled as the form titles that item's field. Past ITEM_CAP
- * items, one problem at the list's path says how many more, as Barkpark's finding does.
+ * items, one problem on the outer field (`meny`, also for `meny.under`) says how many more, as
+ * Barkpark's finding does: its path ("/meny/under") is a label, not a pointer (lib/findings keyedAt).
  */
 function itemProblems(r: CrossRule, doc: Doc, schema: Schema, fields: string[], message: string, level: Level): Problem[] {
   const body = itemScoped(r.rule)
   const segs = (r.each as string).split('.')
-  const group = schema.fields.find((f) => f.name === segs[0])?.group
+  const outer = schema.fields.find((f) => f.name === segs[0])
+  const group = outer?.group
   const broken = items(doc, segs, '', schema.fields, []).filter(({item}) => !((r.type !== undefined && r.type !== null && item._type !== r.type) || holds(body, doc as Record<string, unknown>, item)))
   const more = broken.length - ITEM_CAP
-  const summary: Problem[] = more > 0 ? [{path: segs.join('.'), title: broken[0]!.lists.at(-1)?.title ?? segs.at(-1)!, ...(group ? {group} : {}), message: `${message} (${more} more ${more === 1 ? 'item' : 'items'})`, level}] : []
+  const summary: Problem[] = more > 0 ? [{path: segs[0]!, title: outer?.title ?? segs[0]!, ...(group ? {group} : {}), message: `${message} (${more} more ${more === 1 ? 'item' : 'items'})`, level}] : []
   return broken.slice(0, ITEM_CAP).flatMap(({path, lists}) => {
     const parents = lists.map((f) => f.title ?? f.name)
     const at = {...(group ? {group} : {}), message, level}

@@ -107,9 +107,19 @@ export function formPathIn(path: string, doc: unknown): string {
   return out
 }
 
-/** A cross rule's findings on list items, named as the form keys those items in the document they were found in (lib/cross-rules). */
+/**
+ * A cross rule's findings on list items, named as the form keys those items in the document they
+ * were found in (lib/cross-rules). Past the cap, Barkpark's one finding is at the rule's `each`
+ * ("/meny/under"): a label, not a pointer, so it lands on the outer field (`meny`), never resolved.
+ * A plain rule's finding is one step ("/side"), so it is neither.
+ */
 export const keyedAt = (findings: Finding[], saved: unknown): Finding[] =>
-  findings.map((f) => (f.code === 'cross_validation' && /\/\d+(\/|$)/.test(f.path) ? {...f, at: formPathIn(f.path, saved)} : f))
+  findings.map((f) => {
+    if (f.code !== 'cross_validation') return f
+    if (/\/\d+(\/|$)/.test(f.path)) return {...f, at: formPathIn(f.path, saved)}
+    const [outer, ...rest] = f.path.replace(/^\/+/, '').split('/')
+    return rest.length ? {...f, at: outer!} : f
+  })
 
 /**
  * Barkpark's advisory findings (#22406) for the rules
