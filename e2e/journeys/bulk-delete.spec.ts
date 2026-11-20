@@ -23,7 +23,9 @@ test.afterEach(async ({page}) => {
 test('B03: delete ticked rows; a row others refer to is named and left alone', async ({page}, info) => {
   test.skip(info.project.name !== 'studio', 'ours: Sanity and the LiveView desk have no bulk delete')
   const t = target(info)
-  await cleanup()
+  // No cleanup first: whatever an earlier run left on these four ids (a draft, a published
+  // version, both), the seed replaces each and publishes it, and a publish deletes the draft.
+  // The afterEach removes them.
   await bpMutate([
     ...AUTHORS.map((id, i) => ({createOrReplace: {_id: id, _type: 'author', name: NAMES[i]}})),
     {createOrReplace: {_id: POST, _type: 'post', title: 'B03 delete referrer', slug: {_type: 'slug', current: 'b03-delete-referrer'}, author: {_type: 'reference', _ref: AUTHORS[1]}}},
