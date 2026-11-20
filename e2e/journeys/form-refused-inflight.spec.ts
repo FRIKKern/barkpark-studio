@@ -1,3 +1,4 @@
+import type {Request} from '@playwright/test'
 import {expect, test} from '../rig/test'
 import {bpMutate, signInIfAsked, target, closeAndSettle} from '../rig/targets'
 
@@ -35,34 +36,48 @@ test('a rewrite that lands while a refused write is in flight clashes, never sav
   const card = page.getByTestId('field-clash')
   const footer = page.locator('.doc-footer').first()
   const theirs = 'Rewritten while ours was in flight.'
-  // Every save is refused. The retry carries all the typing (nothing left unsent): that one
-  // is held while the rewrite lands and its live frame reaches this page, then refused.
+  // Every save is refused. The first carries all the typing (one insert: nothing left
+  // unsent, the field is in flight only). It is held while the rewrite lands and its live
+  // frame reaches this page (the page has the frame, not a fixed time), then refused.
   let saves = 0
   let held: Promise<void> | undefined
+  let refusedAt = 0
   await page.route('**/_serverFn/**', async (route) => {
     const req = route.request()
     if (!(req.postData() ?? '').includes('mutations')) return route.continue()
-    if (++saves === 2)
+    if (++saves === 1)
       await (held = (async () => {
+        await page.evaluate(() => ((window as {__liveFrames?: string[]}).__liveFrames = []))
         await bpMutate([{patch: {id: ID, type: 'post', set: {excerpt: theirs}}}])
-        await new Promise((r) => setTimeout(r, 600))
+        await page.waitForFunction((id) => ((window as {__liveFrames?: string[]}).__liveFrames ?? []).some((f) => f.endsWith(id)), ID, {timeout: 10_000})
       })())
     const res = await route.fetch({postData: (req.postData() ?? '').replace('{"t":1,"s":"post"}', '{"t":1,"s":"no-such-type"}')})
     await route.fulfill({response: res, body: (await res.text()).replace('mutate 404', 'mutate 500').replace('not_found', 'internal')})
+    refusedAt = Date.now()
   })
   // Inside a word theirs replaces: mine cannot be placed in theirs (a merge would be a guess).
   await excerpt.click()
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowUp' : 'Control+Home')
   for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight')
-  await page.keyboard.type('mine ')
+  await page.keyboard.insertText('mine ')
   await expect(footer).toContainText(/Not saved/i, {timeout: 15_000})
-  await expect.poll(() => saves, {intervals: [50], timeout: 10_000}).toBeGreaterThanOrEqual(2)
+  await expect.poll(() => saves, {intervals: [50], timeout: 10_000}).toBeGreaterThanOrEqual(1)
   await held
   await expect(card).toBeVisible({timeout: 10_000})
   await expect(card.locator('[data-version="theirs"]')).toHaveText(theirs)
   // Saves flow again: theirs stands until the editor chooses.
   await page.unrouteAll({behavior: 'wait'})
-  await page.waitForTimeout(2200) // past the 2 s retry a failed save waits
+  // A write that goes from here (none should: a clash waits for the editor) is waited out.
+  let writing = 0
+  const isWrite = (r: Request) => r.url().includes('/_serverFn/') && (r.postData() ?? '').includes('mutations')
+  page.on('request', (r) => void (isWrite(r) && writing++))
+  const done = (r: Request) => void (isWrite(r) && writing--)
+  page.on('requestfinished', done)
+  page.on('requestfailed', done)
+  // The studio's only retry clock after a refused write is 2 s from its answer (edits.ts): past
+  // it, and past any write that went (none should), theirs still stands.
+  await page.waitForTimeout(Math.max(0, refusedAt + 2_300 - Date.now()))
+  await expect.poll(() => writing, {intervals: [50], timeout: 10_000}).toBe(0)
   expect((await bpDoc(ID))?.excerpt, 'never saved over theirs unseen').toBe(theirs)
   await card.getByRole('button', {name: 'Take theirs'}).click()
   await expect(excerpt).toHaveValue(theirs)
