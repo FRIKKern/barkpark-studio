@@ -20,7 +20,10 @@ test.afterEach(async ({page}, info) => {
 // after Restore, the kept edits were sent again made against the edited value itself, not
 // the restored one (their base came from the screen, which already showed them). A change
 // from Barkpark meanwhile then read as "the editor changed nothing here" and took theirs: the
-// typing was lost. Here the re-sent save meets a newer rev (412) on purpose.
+// typing was lost. Here the re-sent save meets a newer rev (412) on purpose: the newer version
+// changes the start of the same field. Since #765 the save is fenced on the fields it sets
+// (Barkpark compares their values at its rev with now), so a newer version of another field
+// lets it through, and the 412 this test was made for never came (task-96fbb6f55ee1dc0c).
 test('kept edits put back by Restore survive a newer version meanwhile', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours only')
@@ -41,16 +44,17 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
   for (const r of held.splice(0)) await r.continue()
   const banner = page.getByRole('alert').filter({hasText: 'This document has been deleted.'})
   await expect(banner).toContainText('Your unsaved edits from', {timeout: 15_000})
-  // Restore; the kept edits' save is held while Barkpark gets a newer version (same text).
+  // Restore; the kept edits' save is held while Barkpark gets a newer version of the name.
   await banner.getByRole('button', {name: 'Restore most recent revision'}).click()
   await expect.poll(() => held.length, {intervals: [50], timeout: 15_000}).toBeGreaterThan(0)
   // The restore has landed on Barkpark (the kept edits' save is still held).
   await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author')
-  await bpMutate([{patch: {id: ID, type: 'author', set: {title: 'Kept Author, touched'}}}])
-  await page.waitForTimeout(800) // its live frame arrives
+  // Landed (bpMutate has its answer): the held save meets the 412 whether its frame came yet or not.
+  await bpMutate([{patch: {id: ID, type: 'author', set: {name: 'The Kept Author'}}}])
   for (const r of held.splice(0)) await r.continue()
   await page.unrouteAll({behavior: 'wait'})
   await savesLanded(page)
-  await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('Kept Author typed')
-  await expect(t.field(page, 'name')).toHaveValue('Kept Author typed')
+  // Both: theirs at the start, the typing at the end.
+  await expect.poll(() => t.docValue(ID, 'name', 'author'), {timeout: 15_000}).toBe('The Kept Author typed')
+  await expect(t.field(page, 'name')).toHaveValue('The Kept Author typed')
 })
