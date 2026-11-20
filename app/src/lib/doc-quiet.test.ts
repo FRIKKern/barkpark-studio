@@ -26,6 +26,7 @@ globalThis.setInterval = ((...a: Parameters<typeof interval>) => interval(...a).
 const {DocumentPane} = await import('../components/DocumentPane.tsx')
 const {LoadedAtContext} = await import('./pane-clock.ts')
 const {docQuery, schemasQuery} = await import('./data.ts')
+const {edit} = await import('./edits.ts')
 
 const T = Date.parse('2026-11-20T12:00:00Z')
 const LATER = T + 20_000
@@ -174,22 +175,38 @@ test('a just-made doc saved again after the load, opened on the cached load a mi
   assert.deepEqual(marks(await server(5_000, T + 60_000, {id: 'p-saved', saved: 10_000})), {mark: true, invalid: true})
 })
 
-test('a just-made doc edited in this page, left and opened again on the cached load: marked at once, its save not landed', async () => {
-  const page = await server(5_000, T, {id: 'p-back'})
-  const first = await hydrate(page, 5_000, {id: 'p-back'})
-  assert.deepEqual(marks(first.box.innerHTML), {mark: false, invalid: false}, 'quiet on its first open')
-  await act(async () => {
-    first.box.querySelector('[id="title"]')!.dispatchEvent(new win!.Event('input', {bubbles: true}))
-    await new Promise((r) => setTimeout(r, 0))
-  })
-  await first.unmount()
-  // Back to it: a new mount on the same cached load (at T) and the same copy of the doc.
+/** Back to a doc: a new mount on the same cached load (at T) and the same copy of the doc, its marks. */
+async function reopen(id: string) {
   const {createRoot} = await import('react-dom/client')
   const box = win!.document.createElement('div')
   win!.document.body.appendChild(box)
   const root = createRoot(box as unknown as Element)
-  const app = await pane(T + 60_000, 5_000, {id: 'p-back'})
+  const app = await pane(T + 60_000, 5_000, {id})
   await act(async () => root.render(app))
-  assert.deepEqual(marks(box.innerHTML), {mark: true, invalid: true}, 'marked again, without another edit')
+  const seen = marks(box.innerHTML)
   await act(async () => root.unmount())
+  return seen
+}
+
+test('a just-made doc edited in this page, left and opened again on the cached load: marked at once, its save not landed', async () => {
+  const page = await server(5_000, T, {id: 'p-back'})
+  const first = await hydrate(page, 5_000, {id: 'p-back'})
+  assert.deepEqual(marks(first.box.innerHTML), {mark: false, invalid: false}, 'quiet on its first open')
+  // Typed: the value changed as a keystroke changes it (React's own input tracker misses a bare setter).
+  const input = first.box.querySelector('[id="title"]') as unknown as HTMLInputElement
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(win!.HTMLInputElement.prototype, 'value')!.set!.call(input, 'Pasted!')
+    input.dispatchEvent(new win!.Event('input', {bubbles: true}) as unknown as Event)
+    await new Promise((r) => setTimeout(r, 0))
+  })
+  await first.unmount()
+  assert.deepEqual(await reopen('p-back'), {mark: true, invalid: true}, 'marked again, without another edit')
+})
+
+// R7 (a830): a write with no input event (an array's Add or move, an undo, a click-made value) goes
+// through the same door (lib/edits.ts edit(), edit-door.test.ts), so it ends the quiet as a keystroke does.
+test('a just-made doc written with no input event, left and opened again on the cached load: marked at once', async () => {
+  Date.now = () => LATER
+  assert.notEqual(edit(new QueryClient(), post(5_000, {id: 'p-click'}) as never, 'title', 'Clicked'), false, 'the write was taken')
+  assert.deepEqual(await reopen('p-click'), {mark: true, invalid: true})
 })

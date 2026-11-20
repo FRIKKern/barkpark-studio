@@ -43,7 +43,7 @@ import {InspectDialog, storedValue} from './InspectDialog'
 import {CompareVersions, useCompareVersions} from './CompareVersions'
 import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {useNow, useZone} from '../lib/now'
-import {LoadedAtContext, madeJustBefore, noteEdit, unedited} from '../lib/pane-clock'
+import {LoadedAtContext, madeJustBefore, unedited} from '../lib/pane-clock'
 import {CommentsContext, CommentsPanel} from './Comments'
 import {commentsQuery, threadsOf} from '../lib/comments'
 import {historyQuery, revisionQuery} from '../lib/history'
@@ -186,7 +186,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   if (justMade && made?.id !== pane.id) setMade({id: pane.id, acted: false})
   const quiet = made?.id === pane.id && !made.acted
   // After the keystroke lands: re-rendering the form inside its input event drops it.
-  const acted = () => quiet && (noteEdit(pane.id), setTimeout(() => setMade((m) => (m?.id === pane.id ? {...m, acted: true} : m))))
+  const acted = () => quiet && setTimeout(() => setMade((m) => (m?.id === pane.id ? {...m, acted: true} : m)))
   const checked = doc && schemaForPane && !viewingPublished && !gone && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
   // J28: a slug another document of this type has (a duplicate's copied slug) is taken, as Sanity says.
   const slugTaken = useSlugInUse(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !gone && !pristine, t)
