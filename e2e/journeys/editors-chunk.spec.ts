@@ -155,7 +155,7 @@ const reactProps = (button: import('@playwright/test').Locator) =>
     return key ? {drawn: true, live: typeof (el as unknown as Record<string, {onPointerEnter?: unknown}>)[key].onPointerEnter === 'function'} : {drawn: false, live: false}
   })
 /** The press reaches the box React drew in place of the server's (not the server's inert button). */
-const reactDrawn = (button: import('@playwright/test').Locator) => expect.poll(async () => (await reactProps(button)).drawn, {message: "React's box, not the server's", timeout: 3_000}).toBe(true)
+const reactDrawn = (button: import('@playwright/test').Locator) => expect.soft.poll(async () => (await reactProps(button)).drawn, {message: "React's box, not the server's", timeout: 3_000}).toBe(true)
 
 /** Guard (task-05dc): the chunk's boundaries in a page's server HTML hold no control that takes typing: typing there
  *  before the chunk lands would have nowhere to go once the real input replaces it. Read from the row's own page. */
