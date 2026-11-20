@@ -1,10 +1,10 @@
-import {useContext, useEffect, useRef} from 'react'
+import {useEffect, useRef} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {docQuery, itemPath, refId, refOpenType, refTypesOf, type Doc, type Field} from '../lib/data'
 import {refTarget} from '../lib/refs'
 import {refFilterOf} from '../lib/ref-filter'
 import {copyItem, signature} from '../lib/clipboard'
-import {ProblemMark, ProblemsContext, type OpenRef} from './Fields'
+import {ProblemMark, useProblems, type OpenRef} from './Fields'
 import {DocPreview} from './Preview'
 import {RefInput, Unavailable} from './RefInput'
 import {RefStrength} from './RefStrength'
@@ -35,7 +35,7 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
   useEffect(() => {
     focusKey.current = undefined
   })
-  const problems = useContext(ProblemsContext)
+  const problems = useProblems()
   const qc = useQueryClient()
   return (
     <SortableRows
