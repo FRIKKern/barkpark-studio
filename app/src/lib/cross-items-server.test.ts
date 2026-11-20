@@ -1,0 +1,52 @@
+// The studio puts an item rule's problem on the item Barkpark's finding names (task-17f1c7ca018e794c):
+// the cases and Barkpark's own finding paths are in fixtures/cross-item-cases.json, made by
+// running Barkpark's cross_validator.ex (scripts/field-visibility-cases.exs).
+import assert from 'node:assert/strict'
+import {readFileSync} from 'node:fs'
+import {test} from 'node:test'
+import type {Doc, Field, Schema} from './data.ts'
+import {crossProblems} from './cross-rules.ts'
+import {advisoryProblems, formPathIn, type Finding} from './findings.ts'
+
+type Case = {name: string; rule: unknown; doc: Record<string, unknown>; server: string[] | 'skip'}
+const {cases} = JSON.parse(readFileSync(new URL('../../../fixtures/cross-item-cases.json', import.meta.url), 'utf8')) as {cases: Case[]}
+const item = (...names: string[]): Field => ({name: 'item', type: 'composite', fields: names.map((name) => ({name, title: name.toUpperCase(), type: 'string'}))}) as Field
+const fields = [
+  {name: 'meny', title: 'Meny', type: 'arrayOf', of: {...item('side', 'omrade', 'tittel', 'start', 'slutt'), fields: [...item('side', 'omrade', 'tittel', 'start', 'slutt').fields!, {name: 'under', title: 'Under', type: 'arrayOf', of: item('side', 'omrade')}]}},
+  {name: 'innhold', title: 'Innhold', type: 'arrayOf', of: item('emneknagg', 'pilot')},
+  {name: 'tittel', title: 'Tittel', type: 'string'},
+  {name: 'innstillinger', title: 'Innstillinger', type: 'composite', fields: [{name: 'meny', title: 'Meny', type: 'arrayOf', of: item('side', 'omrade')}]},
+] as Field[]
+const schemaOf = (rule: unknown) => ({name: 't', title: 'T', fields, crossValidations: [rule]}) as unknown as Schema
+const docOf = (c: Case) => ({_id: 'x', _type: 't', ...c.doc}) as unknown as Doc
+
+test('the studio shows each item rule on the item Barkpark names (fixtures/cross-item-cases.json)', () => {
+  assert.equal(cases.length, 31)
+  const wrong = cases.flatMap((c) => {
+    const studio = crossProblems(docOf(c), schemaOf(c.rule)).map((p) => p.path)
+    const want = c.server === 'skip' ? [] : c.server.map((p) => formPathIn(p, c.doc)) // a rule Barkpark cannot evaluate is no finding
+    return JSON.stringify(studio) === JSON.stringify(want) ? [] : [`${c.name}: studio ${JSON.stringify(studio)}, Barkpark ${JSON.stringify(want)}`]
+  })
+  assert.deepEqual(wrong, [])
+})
+
+test("an each-item rule's message shows on that item, not on the list", () => {
+  const c = cases.find((x) => x.name === 'meny: second item has neither')!
+  const [p, ...rest] = crossProblems(docOf(c), schemaOf(c.rule))
+  assert.deepEqual(rest, [])
+  assert.deepEqual(p, {path: 'meny[_key=="b"].side', title: 'SIDE', parents: ['Meny'], message: 'Velg en side eller et område', level: 'error'})
+  // A sub-item's: under both lists; a rule naming no field: on the item itself.
+  const under = cases.find((x) => x.name === 'meny.under: sub-items one by one')!
+  assert.deepEqual(crossProblems(docOf(under), schemaOf(under.rule)).map((x) => [x.path, x.parents]), [['meny[_key=="a"].under[_key=="u2"].side', ['Meny', 'Under']], ['meny[_key=="b"].under[_key=="u3"].side', ['Meny', 'Under']]])
+  const knagg = cases.find((x) => x.name === 'sakerFraKnagg: only that type, no fields names the item')!
+  assert.deepEqual(crossProblems(docOf(knagg), schemaOf(knagg.rule)).map((x) => [x.path, x.title]), [['innhold[_key=="k2"]', 'Innhold']])
+})
+
+test("after a save, Barkpark's item finding is the problem the studio already shows", () => {
+  const c = cases.find((x) => x.name === 'meny: second item has neither')!
+  const own = crossProblems(docOf(c), schemaOf(c.rule))
+  const finding: Finding = {path: '/meny/1/side', message: 'Velg en side eller et område', code: 'cross_validation'}
+  assert.deepEqual(advisoryProblems([finding], schemaOf(c.rule), own, (s) => s, c.doc), [])
+  assert.equal(formPathIn('/meny/0/under/1/side', {meny: [{_key: 'a', under: [{}, {}]}]}), 'meny[_key=="a"].under[1].side')
+  assert.equal(formPathIn('/seo/metaTitle', {}), 'seo.metaTitle')
+})

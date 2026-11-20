@@ -7,6 +7,7 @@
 
 import type {Field, Schema} from './data'
 import type {Level, Problem} from './validation'
+import {itemPath} from './refs.ts'
 
 export type Finding = {path: string; message: string; code: string; params?: Record<string, unknown>}
 type Translate = (en: string, vars?: Record<string, string | number>) => string
@@ -85,15 +86,37 @@ export function advisoryFindings(body: unknown): Finding[] {
 export const formPath = (path: string) => path.replace(/^[$/.]+/, '').replace(/\//g, '.')
 
 /**
+ * A finding's path as the form names it in this document: a list index the way the form keys
+ * that item ("/meny/1/side" → `meny[_key=="b"].side`, by index when it has no _key), so an
+ * item rule's finding after a save is the problem the studio already shows.
+ */
+export function formPathIn(path: string, doc: unknown): string {
+  let node = doc
+  let out = ''
+  for (const seg of formPath(path).split('.')) {
+    if (Array.isArray(node) && /^\d+$/.test(seg)) {
+      const i = Number(seg)
+      out = itemPath(out, node[i], i)
+      node = node[i]
+    } else {
+      out = out ? `${out}.${seg}` : seg
+      node = node && typeof node === 'object' && !Array.isArray(node) ? (node as Record<string, unknown>)[seg] : undefined
+    }
+  }
+  return out
+}
+
+/**
  * Barkpark's advisory findings (#22406) for the rules
  * (array lengths, patterns, allowed values, shapes) that lib/validation.ts does not
  * check itself: one problem each, in the studio's words, at its field's level. A path
  * the studio already flags is left to it.
  */
-export function advisoryProblems(findings: Finding[], schema: Schema, known: Problem[], t: Translate): Problem[] {
+export function advisoryProblems(findings: Finding[], schema: Schema, known: Problem[], t: Translate, doc?: unknown): Problem[] {
   const flagged = new Set(known.map((p) => p.path))
   return findings.flatMap((f) => {
-    const path = formPath(f.path)
+    // A cross rule's finding on a list item is named as the form keys that item (lib/cross-rules).
+    const path = f.code === 'cross_validation' && doc ? formPathIn(f.path, doc) : formPath(f.path)
     if (flagged.has(path)) return []
     const parents: string[] = []
     let fields: Field[] | undefined = schema.fields

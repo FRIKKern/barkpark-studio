@@ -1,0 +1,956 @@
+{
+ "about": "Cases for Barkpark's item rules (cross_validator.ex `each` / `type`, task-5bb338ffd4621865). 'server' per case is the paths of the findings Barkpark gives for the one rule on a schema with fields meny innhold tittel innstillinger, or skip (unevaluable). app/src/lib/cross-items-server.test.ts checks the studio puts its problems at the same items. Regenerate: elixir scripts/field-visibility-cases.exs <barkpark checkout>.",
+ "server": "barkpark cf10acf5f3",
+ "cases": [
+  {
+   "name": "meny: second item has neither",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {
+      "_key": "a",
+      "side": "s"
+     },
+     {
+      "_key": "b"
+     },
+     {
+      "_key": "c",
+      "omrade": "o"
+     }
+    ]
+   },
+   "server": [
+    "/meny/1/side"
+   ]
+  },
+  {
+   "name": "meny: both and none, by index without _key",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {
+      "side": "s",
+      "omrade": "o"
+     },
+     {
+      "side": "s"
+     },
+     {}
+    ]
+   },
+   "server": [
+    "/meny/0/side",
+    "/meny/2/side"
+   ]
+  },
+  {
+   "name": "meny: every item has exactly one",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {
+      "_key": "a",
+      "side": "s"
+     },
+     {
+      "_key": "b",
+      "omrade": "o"
+     }
+    ]
+   },
+   "server": []
+  },
+  {
+   "name": "meny.under: sub-items one by one",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny.under",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {
+      "_key": "a",
+      "side": "s",
+      "under": [
+       {
+        "_key": "u1",
+        "side": "s"
+       },
+       {
+        "_key": "u2"
+       }
+      ]
+     },
+     {
+      "_key": "b",
+      "omrade": "o",
+      "under": [
+       {
+        "_key": "u3",
+        "side": "s",
+        "omrade": "o"
+       }
+      ]
+     },
+     {
+      "_key": "c"
+     }
+    ]
+   },
+   "server": [
+    "/meny/0/under/1/side",
+    "/meny/1/under/0/side"
+   ]
+  },
+  {
+   "name": "innstillinger.meny through an object",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "innstillinger.meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "innstillinger": {
+     "meny": [
+      {
+       "_key": "a",
+       "side": "s"
+      },
+      {
+       "_key": "b"
+      }
+     ]
+    }
+   },
+   "server": [
+    "/innstillinger/meny/1/side"
+   ]
+  },
+  {
+   "name": "sakerFraKnagg: only that type, no fields names the item",
+   "rule": {
+    "name": "k",
+    "title": "Velg en emneknagg eller en pilot",
+    "each": "innhold",
+    "type": "sakerFraKnagg",
+    "rule": {
+     "any": [
+      {
+       "field": "emneknagg",
+       "operator": "non_empty"
+      },
+      {
+       "field": "pilot",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "innhold": [
+     {
+      "_key": "t",
+      "_type": "tekst"
+     },
+     {
+      "_key": "k1",
+      "_type": "sakerFraKnagg",
+      "emneknagg": {
+       "_ref": "x"
+      }
+     },
+     {
+      "_key": "k2",
+      "_type": "sakerFraKnagg"
+     },
+     {
+      "_key": "k3",
+      "_type": "sakerFraKnagg",
+      "pilot": {
+       "_ref": "p"
+      }
+     },
+     {
+      "_key": "n"
+     }
+    ]
+   },
+   "server": [
+    "/innhold/2"
+   ]
+  },
+  {
+   "name": "type that matches nothing",
+   "rule": {
+    "name": "k",
+    "title": "Velg en emneknagg eller en pilot",
+    "each": "innhold",
+    "type": "ingenting",
+    "rule": {
+     "any": [
+      {
+       "field": "emneknagg",
+       "operator": "non_empty"
+      },
+      {
+       "field": "pilot",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "innhold": [
+     {
+      "_key": "k2",
+      "_type": "sakerFraKnagg"
+     }
+    ]
+   },
+   "server": []
+  },
+  {
+   "name": "odd: list missing",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {},
+   "server": []
+  },
+  {
+   "name": "odd: list null",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": null
+   },
+   "server": []
+  },
+  {
+   "name": "odd: not a list",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": "tekst"
+   },
+   "server": []
+  },
+  {
+   "name": "odd: an object, not a list",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": {
+     "side": null
+    }
+   },
+   "server": []
+  },
+  {
+   "name": "odd: scalar items",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     "a",
+     1,
+     null,
+     true
+    ]
+   },
+   "server": []
+  },
+  {
+   "name": "odd: a list of lists",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     [
+      {}
+     ],
+     []
+    ]
+   },
+   "server": []
+  },
+  {
+   "name": "odd: an empty list",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": []
+   },
+   "server": []
+  },
+  {
+   "name": "leaf reads the item, scope document the root",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [],
+    "rule": {
+     "all": [
+      {
+       "field": "tittel",
+       "operator": "eq",
+       "value": "Element"
+      },
+      {
+       "field": "tittel",
+       "operator": "eq",
+       "value": "Rot",
+       "scope": "document"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "tittel": "Rot",
+    "meny": [
+     {
+      "_key": "a",
+      "tittel": "Element"
+     },
+     {
+      "_key": "b",
+      "tittel": "Rot"
+     }
+    ]
+   },
+   "server": [
+    "/meny/1"
+   ]
+  },
+  {
+   "name": "scope parent is the item",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "tittel"
+    ],
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty",
+     "scope": "parent"
+    }
+   },
+   "doc": {
+    "tittel": "Rot",
+    "meny": [
+     {
+      "_key": "a"
+     }
+    ]
+   },
+   "server": [
+    "/meny/0/tittel"
+   ]
+  },
+  {
+   "name": "item leaf with a top-level name still reads the item",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "tittel"
+    ],
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "Rot",
+    "meny": [
+     {
+      "_key": "a"
+     },
+     {
+      "_key": "b",
+      "tittel": "x"
+     }
+    ]
+   },
+   "server": [
+    "/meny/0/tittel"
+   ]
+  },
+  {
+   "name": "valueField reads the item too",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "slutt"
+    ],
+    "rule": {
+     "field": "slutt",
+     "operator": "gte",
+     "valueField": "start"
+    }
+   },
+   "doc": {
+    "meny": [
+     {
+      "_key": "a",
+      "start": "2026-11-20",
+      "slutt": "2026-11-19"
+     },
+     {
+      "_key": "b",
+      "start": "2026-11-20"
+     }
+    ]
+   },
+   "server": [
+    "/meny/0/slutt"
+   ]
+  },
+  {
+   "name": "warning level is a finding too",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    },
+    "level": "warning"
+   },
+   "doc": {
+    "meny": [
+     {
+      "_key": "a"
+     }
+    ]
+   },
+   "server": [
+    "/meny/0/side"
+   ]
+  },
+  {
+   "name": "plain rule beside: document path",
+   "rule": {
+    "name": "p",
+    "fields": [
+     "tittel"
+    ],
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {},
+   "server": [
+    "/tittel"
+   ]
+  },
+  {
+   "name": "plain rule naming no field",
+   "rule": {
+    "name": "p",
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {},
+   "server": [
+    "/_document"
+   ]
+  },
+  {
+   "name": "skip: each names an undeclared field",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "nope",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "nope": [
+     {}
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: each empty",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: each not a string",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": 3,
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: type empty",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    },
+    "type": ""
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: type not a string",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": [
+      {
+       "field": "side",
+       "operator": "non_empty"
+      },
+      {
+       "field": "omrade",
+       "operator": "non_empty"
+      }
+     ]
+    },
+    "type": 7
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: type without each",
+   "rule": {
+    "name": "k",
+    "title": "Velg en emneknagg eller en pilot",
+    "type": "sakerFraKnagg",
+    "rule": {
+     "any": [
+      {
+       "field": "emneknagg",
+       "operator": "non_empty"
+      },
+      {
+       "field": "pilot",
+       "operator": "non_empty"
+      }
+     ]
+    }
+   },
+   "doc": {
+    "innhold": [
+     {
+      "_type": "sakerFraKnagg"
+     }
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: unknown operator in an item leaf",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "field": "side",
+     "operator": "nope"
+    }
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: document leaf naming an undeclared field",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "field": "nope",
+     "operator": "empty",
+     "scope": "document"
+    }
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "skip: one not a list",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "one": "side"
+    }
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "name": "each null is a plain rule",
+   "rule": {
+    "name": "r",
+    "title": "Velg en side eller et område",
+    "each": null,
+    "fields": [
+     "tittel"
+    ],
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "meny": [
+     {}
+    ]
+   },
+   "server": [
+    "/tittel"
+   ]
+  }
+ ]
+}

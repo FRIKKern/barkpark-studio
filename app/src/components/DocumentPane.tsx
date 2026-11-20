@@ -200,7 +200,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const own = slugTaken.length || custom.problems.length || parsed.length ? [...checked, ...slugTaken, ...custom.problems, ...parsed] : checked
   // Barkpark's check on the last save adds the rules ours doesn't run (#22406).
   const advisories = useAdvisories(pane.id)
-  const extra = advisories.length && schemaForPane && !viewingPublished && !gone ? advisoryProblems(advisories, schemaForPane, own, t) : []
+  const extra = advisories.length && schemaForPane && !viewingPublished && !gone ? advisoryProblems(advisories, schemaForPane, own, t, doc) : []
   // In the form's order, as Sanity lists them (a field's own problems stay in theirs), the
   // studio config's rules among them: SEO / Meta title before SEO / Meta description.
   const problems = extra.length || custom.problems.length ? [...own, ...extra].map((p, i) => [p, i] as const).sort(([a, i], [b, j]) => formOrder(schemaForPane, a.path, b.path) || i - j).map(([p]) => p) : own
