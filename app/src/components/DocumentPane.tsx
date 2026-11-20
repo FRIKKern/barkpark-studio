@@ -45,6 +45,7 @@ import {InspectDialog, storedValue} from './InspectDialog'
 import {CompareVersions, useCompareVersions} from './CompareVersions'
 import {ago, HistoryPanel, RevisionFooter} from './HistoryPanel'
 import {useNow, useZone} from '../lib/now'
+import {LoadedAtContext, madeJustBefore, unedited} from '../lib/pane-clock'
 import {CommentsContext, CommentsPanel} from './Comments'
 import {commentsQuery, threadsOf} from '../lib/comments'
 import {historyQuery, revisionQuery} from '../lib/history'
@@ -177,9 +178,13 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // D04: on a doc made here, fields stay quiet until someone types (its initial values or an
   // Expectation's prefill are the studio's writes, not an edit): no red Title on a doc you
   // just made. Publishing still checks everything (the errors below are unchanged).
-  // Made here: not saved yet, or created a moment ago (an Expectation's prefill saves at once).
+  // Made here: not saved yet, or created a moment ago (an Expectation's prefill saves at once),
+  // judged against the page's load time, never the clock: the server's page and the browser's
+  // first paint decide alike (task-96c28256661a6179, lib/pane-clock.ts). And not edited yet, by
+  // the doc as held now and this page's edits: a cached route's load time is as old as its first open.
   const [made, setMade] = useState<{id: string; acted: boolean}>()
-  const justMade = !!doc && (pristine || (doc._hasPublished === false && Date.now() - Date.parse(String(doc._createdAt ?? '')) < 15_000))
+  const loadedAt = useContext(LoadedAtContext)
+  const justMade = !!doc && (pristine || (madeJustBefore(doc, loadedAt) && unedited(doc, pane.id)))
   if (justMade && made?.id !== pane.id) setMade({id: pane.id, acted: false})
   const quiet = made?.id === pane.id && !made.acted
   // After the keystroke lands: re-rendering the form inside its input event drops it.
