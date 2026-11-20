@@ -12,7 +12,7 @@ export type CrossRule = {name?: string; title?: string; rule?: unknown; level?: 
 
 // The server's operators (cross_validator.ex @operators). A rule using any other is
 // unevaluable there and never a finding, so it is skipped here too, quietly.
-const OPERATORS = new Set(['eq', 'neq', 'in', 'empty', 'non_empty', 'starts_with', 'count_eq', 'count_neq', 'count_gt', 'count_lt'])
+const OPERATORS = new Set(['eq', 'neq', 'in', 'empty', 'non_empty', 'starts_with', 'count_eq', 'count_neq', 'count_gt', 'count_lt', 'gt', 'gte', 'lt', 'lte'])
 
 type Body = Record<string, unknown>
 
@@ -21,15 +21,16 @@ export const crossRulesOf = (rules: unknown): {crossValidations?: CrossRule[]} =
   Array.isArray(rules) && rules.length ? {crossValidations: rules as CrossRule[]} : {}
 const isMap = (v: unknown): v is Body => !!v && typeof v === 'object' && !Array.isArray(v)
 
-/** Whether the server can evaluate this body (cross_validator.ex `partition`): known operators on declared fields. */
+/** Whether the server can evaluate this body (cross_validator.ex `partition`): known operators on declared fields, a `valueField` naming one too. */
 function evaluable(body: unknown, names: Set<string>): boolean {
   if (!isMap(body) || !Object.keys(body).length) return false
-  // Elixir's `all || any`: false and null fall through.
+  // Elixir's `all || any || one`: false and null fall through.
   const truthy = (v: unknown) => (v === false || v === null || v === undefined ? undefined : v)
-  const preds = truthy(body.all) ?? truthy(body.any)
+  const preds = truthy(body.all) ?? truthy(body.any) ?? truthy(body.one)
   if (preds !== undefined) return Array.isArray(preds) && preds.length > 0 && preds.every((p) => evaluable(p, names))
-  const {field, operator} = body
-  return typeof field === 'string' && field !== '' && typeof operator === 'string' && OPERATORS.has(operator) && names.has(field.split('.')[0]!)
+  const {field, operator, valueField} = body
+  const other = valueField === undefined || valueField === null || (typeof valueField === 'string' && valueField !== '' && names.has(valueField.split('.')[0]!))
+  return typeof field === 'string' && field !== '' && typeof operator === 'string' && OPERATORS.has(operator) && names.has(field.split('.')[0]!) && other
 }
 
 // Barkpark's: only "warning" and "info" are warnings; any other level (a "warn" too) is an error.

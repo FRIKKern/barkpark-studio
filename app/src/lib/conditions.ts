@@ -22,7 +22,7 @@ import {segments} from './paths.ts'
  * `scope` (barkpark#22554, Sanity's `({parent}) => …`): "document" (the default) reads
  * `field` from the document root; "parent" from the object or array item the field sits in.
  */
-export type Condition = {field: string; operator: string; value?: unknown; scope?: 'document' | 'parent'}
+export type Condition = {field: string; operator: string; value?: unknown; valueField?: string; scope?: 'document' | 'parent'}
 
 // Each rule below is Barkpark's own (api/lib/barkpark/content/field_visibility.ex, walk_path and
 // apply_op), so a field shows, locks or breaks a cross rule here exactly when Barkpark says so.
@@ -61,11 +61,25 @@ function same(a: unknown, b: unknown): boolean {
 // A list counts its rows, an object its keys, anything else 0.
 const count = (v: unknown) => (Array.isArray(v) ? v.length : isMap(v) ? Object.keys(v).length : 0)
 const isEmpty = (v: unknown) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0) || (isMap(v) && Object.keys(v).length === 0)
+// gt / gte / lt / lte: both numbers, or both non-empty strings (ISO dates compare as text).
+// Anything else (a missing or empty side, mixed kinds) is not comparable, and the compare holds.
+const comparable = (a: unknown, b: unknown) => (typeof a === 'number' && typeof b === 'number') || (typeof a === 'string' && typeof b === 'string' && a !== '' && b !== '')
+/** Elixir's order: numbers by value, strings by code point (as UTF-8 bytes sort), not by UTF-16 unit. */
+function order(a: unknown, b: unknown): number {
+  if (typeof a === 'number') return a - (b as number)
+  const x = [...(a as string)], y = [...(b as string)]
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    const d = x[i]!.codePointAt(0)! - y[i]!.codePointAt(0)!
+    if (d) return d
+  }
+  return x.length - y.length
+}
 
 export function matches(c: Condition, doc: Record<string, unknown>): boolean {
   if (typeof c.field !== 'string' || typeof c.operator !== 'string') return true // not a leaf: holds, as Barkpark's
   const v = lookup(doc, c.field.split('.'))
-  const n = c.value
+  // `valueField`: the other side is another field of the same root (Barkpark's `expected`).
+  const n = typeof c.valueField === 'string' ? lookup(doc, c.valueField.split('.')) : c.value
   // count_*: only with a whole number; any other value holds (Barkpark's unknown-shape rule).
   const counted = typeof n === 'number' && Number.isInteger(n)
   switch (c.operator) {
@@ -89,16 +103,26 @@ export function matches(c: Condition, doc: Record<string, unknown>): boolean {
       return !counted || count(v) > n
     case 'count_lt':
       return !counted || count(v) < n
+    case 'gt':
+      return !comparable(v, n) || order(v, n) > 0
+    case 'gte':
+      return !comparable(v, n) || order(v, n) >= 0
+    case 'lt':
+      return !comparable(v, n) || order(v, n) < 0
+    case 'lte':
+      return !comparable(v, n) || order(v, n) <= 0
     default:
       return true // an operator we don't know never hides a field
   }
 }
 
-/** A condition with `all` / `any` (Barkpark's holds?): each leaf reads its own scope. An empty `any` holds, as there. */
+/** A condition with `all` / `any` / `one` (Barkpark's holds?): each leaf reads its own scope. An empty `any` or `one` holds, as there. */
 export function holds(c: unknown, doc: Record<string, unknown>, parent?: Record<string, unknown>): boolean {
   if (!isMap(c)) return true
   if (Array.isArray(c.all)) return c.all.every((x) => holds(x, doc, parent))
   if (Array.isArray(c.any) && c.any.length) return c.any.some((x) => holds(x, doc, parent))
+  // Exactly one of them holds.
+  if (Array.isArray(c.one) && c.one.length) return c.one.filter((x) => holds(x, doc, parent)).length === 1
   return matches(c as Condition, base(c as Condition, doc, parent))
 }
 
