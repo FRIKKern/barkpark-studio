@@ -56,7 +56,7 @@ test('kept edits put back by Restore survive a newer version meanwhile', async (
       consolePrefixes: [],
       docId: ID,
       values: ['Kept Author typed', 'The Kept Author typed'],
-      form: {held: String(held.length), name: await t.field(page, 'name').inputValue({timeout: 1_000}).catch(() => null), footer: await read(page.locator('.doc-footer').first()), banner: await read(page.getByRole('alert').filter({hasText: 'This document has been deleted.'}))},
+      form: {held: String(held.length), name: await t.field(page, 'name').inputValue({timeout: 1_000}).catch(() => null), footer: await read(page.locator('.doc-footer').first()), banner: await read(page.getByRole('alert').filter({hasText: 'This document has been deleted.'}).first())},
     })
     const file = info.outputPath('restore-evidence.txt')
     writeFileSync(file, text)

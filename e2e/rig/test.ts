@@ -27,7 +27,9 @@ const watchScreen = (binding: string) => {
     const el = !told && document.querySelector('[data-testid="studio-error"]')
     if (!el) return
     told = true
-    void (window as unknown as Record<string, (t: string) => void>)[binding]?.((el.textContent ?? '').slice(0, 300))
+    // Once the rig has it: the self-test (error-listener.spec) waits for this, not a fixed time.
+    const told_ = (window as unknown as Record<string, (t: string) => Promise<void>>)[binding]?.((el.textContent ?? '').slice(0, 300))
+    void told_?.then(() => ((window as {__e2eStudioErrorTold?: boolean}).__e2eStudioErrorTold = true))
   }
   new MutationObserver(look).observe(document, {childList: true, subtree: true})
   look()
@@ -72,12 +74,14 @@ export const test = base.extend<{errorWatch: void}>({
         await c.exposeBinding(SCREEN, ({page}, text: string) => void problems.push(`the studio's error screen in ${page.url()}: ${text}`))
         await c.addInitScript(watchScreen, SCREEN)
       }
+      const watched = [context]
       await watch(context)
       // A context the test opens itself (two editors, two browsers) is watched too.
       const newContext = browser.newContext.bind(browser)
       browser.newContext = async (...args) => {
         const c = await newContext(...args)
         await watch(c)
+        watched.push(c)
         return c
       }
       try {
@@ -85,6 +89,11 @@ export const test = base.extend<{errorWatch: void}>({
       } finally {
         browser.newContext = newContext
       }
+      // An error from a task the page had queued as the test ended (a click's setTimeout) may not
+      // have been thrown yet: each open page answers from a timer of its own first. Timers of the
+      // same delay run in order and the page's events come before the answer, so that error is
+      // counted. At most 1 s (a page held by a dialog does not answer). task-0529370e1626e4ae.
+      await Promise.all(watched.flatMap((c) => c.pages()).filter((pg) => !pg.isClosed()).map((pg) => Promise.race([pg.evaluate(() => new Promise((r) => setTimeout(r, 0))).catch(() => 0), new Promise((r) => setTimeout(r, 1_000))])))
       const allowed = info.annotations.filter((a) => a.type === 'allow-error').map((a) => new RegExp(a.description ?? ''))
       const left = problems.filter((p) => !allowed.some((re) => re.test(p)))
       if (!left.length) return
