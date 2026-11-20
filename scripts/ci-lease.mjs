@@ -20,9 +20,10 @@ import {isTransient} from './lib/retry.mjs'
 // One run at a time for now: two at once (ten shards against one Barkpark) slowed every
 // spec enough to push shards past CI's 60 s budget (2026-10-12, three PRs red at 16:09).
 // The second pool is seeded and ready; CI_LEASE_POOL=wide turns it on once the shards
-// have room (more shards, or a token of its own).
-const FIRST = ['ci', 'ci-2', 'ci-3', 'ci-4', 'ci-5', 'ci-6', 'ci-7']
-const SECOND = ['ci-b-1', 'ci-b-2', 'ci-b-3', 'ci-b-4', 'ci-b-5']
+// have room (more shards, or a token of its own). ci-b-1 left it for the eighth shard
+// (task-9eb0a99b45949a19), so `wide` has four.
+const FIRST = ['ci', 'ci-2', 'ci-3', 'ci-4', 'ci-5', 'ci-6', 'ci-7', 'ci-b-1']
+const SECOND = ['ci-b-2', 'ci-b-3', 'ci-b-4', 'ci-b-5']
 export const POOL = process.env.CI_LEASE_POOL === 'wide' ? [...FIRST, ...SECOND] : FIRST
 const LOCKS = 'ci-locks'
 const TTL_MS = 15 * 60_000 // a shard's whole job, waiting aside, is well under this
