@@ -71,59 +71,67 @@ test('J36: a document page preloads the editors chunk (production build)', async
 })
 
 // task-05dcdef359da08fc: the page hydrates without the editors chunk once it is 1.5 s late
-// (client.tsx). The server-drawn inputs in the chunk's boundaries (image, file, body canvas)
-// stay drawn from the first paint until it lands, however late. The cap is passed on a fake
+// (client.tsx). Every server-drawn boundary of the chunk in the form (image and file inputs)
+// stays drawn from the first paint until the chunk lands, however late. The body canvas is
+// drawn static on the server (J10's wake), outside the chunk. The cap is passed on a fake
 // clock, so no real second is spent near it.
-test('a field group keeps its inputs drawn while the editors chunk is late', async ({page}, info) => {
-  const t = target(info)
-  test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  await page.addInitScript(() => {
-    type Slot = {parent: Element; others: number; name: string}
-    const w = window as {__slots?: Slot[]; __emptied?: string[]; __chunkIn?: boolean}
-    w.__emptied = []
-    // Each server-drawn Suspense boundary in the form (React marks it <!--$--> … <!--/$-->):
-    // its parent's elements outside it, so "empty" is the parent holding only those.
-    const find = () => {
-      const form = document.querySelector('.doc-form')
-      if (!form || w.__slots) return
-      const slots: Slot[] = []
-      const walk = document.createTreeWalker(form, NodeFilter.SHOW_COMMENT)
-      for (let c = walk.nextNode(); c; c = walk.nextNode()) {
-        if ((c as Comment).data !== '$' || !c.parentElement || slots.some((s) => s.parent.contains(c!.parentElement))) continue
-        let inside = 0
-        for (let n = c.nextSibling; n && !(n.nodeType === 8 && (n as Comment).data === '/$'); n = n.nextSibling) if (n.nodeType === 1) inside++
-        if (!inside) continue
-        const name = c.parentElement.closest('fieldset, [id]')?.querySelector('[id]')?.id ?? c.parentElement.closest('[id]')?.id ?? '?'
-        slots.push({parent: c.parentElement, others: c.parentElement.childElementCount - inside, name})
+for (const [type, id, inputs] of [['post', 'post-17', ['mainImage']], ['fieldTypes', 'field-types-01', ['file-input', 'photo']]] as const)
+  test(`a field group keeps its inputs drawn while the editors chunk is late (${type})`, async ({page}, info) => {
+    const t = target(info)
+    test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
+    await page.addInitScript(() => {
+      type Slot = {parent: Element; others: number; name: string}
+      const w = window as {__slots?: Slot[]; __emptied?: string[]; __chunkIn?: boolean}
+      w.__emptied = []
+      // Each server-drawn Suspense boundary in the form (React marks it <!--$--> … <!--/$-->),
+      // named by its field (the file input sits in no fieldset: by its class), with its parent's elements outside it: "empty" is the parent holding only those.
+      const find = () => {
+        const form = document.querySelector('.doc-form')
+        if (!form || w.__slots) return
+        const slots: Slot[] = []
+        const walk = document.createTreeWalker(form, NodeFilter.SHOW_COMMENT)
+        for (let c = walk.nextNode(); c; c = walk.nextNode()) {
+          if ((c as Comment).data !== '$' || !c.parentElement) continue
+          let inside = 0
+          for (let n = c.nextSibling; n && !(n.nodeType === 8 && (n as Comment).data === '/$'); n = n.nextSibling) if (n.nodeType === 1) inside++
+          if (!inside) continue
+          const box = c.parentElement.closest('fieldset.field')
+          let first = c.nextSibling
+          while (first && first.nodeType !== 1) first = first.nextSibling
+          const el = first as Element
+          const name = box?.querySelector('[id]:not([id^="_"])')?.id ?? String(el.className).split(' ')[0]
+          slots.push({parent: c.parentElement, others: c.parentElement.childElementCount - inside, name})
+        }
+        w.__slots = slots
       }
-      w.__slots = slots
-    }
-    const check = () => {
-      find()
-      if (w.__chunkIn) return
-      for (const s of w.__slots ?? []) if (!s.parent.isConnected || s.parent.childElementCount <= s.others) w.__emptied!.includes(s.name) || w.__emptied!.push(s.name)
-    }
-    new MutationObserver(check).observe(document, {subtree: true, childList: true})
+      const check = () => {
+        find()
+        if (w.__chunkIn) return
+        for (const s of w.__slots ?? []) if ((!s.parent.isConnected || s.parent.childElementCount <= s.others) && !w.__emptied!.includes(s.name)) w.__emptied!.push(s.name)
+      }
+      new MutationObserver(check).observe(document, {subtree: true, childList: true})
+    })
+    let release!: () => void
+    const late = new Promise<void>((r) => (release = r))
+    await page.route(/doc-editors/, async (route) => (await late, route.continue()))
+    await page.clock.install()
+    await page.goto(t.docPath(type, id), {waitUntil: 'commit'})
+    const select = page.locator('fieldset.field').filter({has: page.locator(`[id="${inputs.at(-1)}"]`)}).getByRole('button', {name: 'Select'})
+    await expect(select).toBeVisible()
+    // Past the hydration cap: the page hydrates without the chunk, and the form's first updates run.
+    await page.clock.fastForward(1_600)
+    await expect(page.locator('html[data-hydrated]')).toBeAttached({timeout: 10_000})
+    await expect(t.field(page, 'title')).toBeEditable()
+    await page.waitForTimeout(300) // a few real frames for the form's first updates
+    const {slots, emptied} = await page.evaluate(() => {
+      const w = window as {__slots?: {name: string}[]; __emptied?: string[]; __chunkIn?: boolean}
+      w.__chunkIn = true
+      return {slots: (w.__slots ?? []).map((s) => s.name).sort(), emptied: w.__emptied ?? []}
+    })
+    release()
+    console.log(`late chunk (${type}): server boundaries ${JSON.stringify(slots)}; emptied before it landed ${JSON.stringify(emptied)}`)
+    expect(slots, 'the server drew the chunk\'s inputs').toEqual([...inputs])
+    expect(emptied, 'no input went missing before the chunk landed').toEqual([])
+    await select.click()
+    await expect(page.getByRole('dialog')).toBeVisible({timeout: 5_000})
   })
-  let release!: () => void
-  const late = new Promise<void>((r) => (release = r))
-  await page.route(/doc-editors/, async (route) => (await late, route.continue()))
-  await page.clock.install()
-  await page.goto(t.docPath('post', 'post-17'), {waitUntil: 'commit'})
-  const select = page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')}).getByRole('button', {name: 'Select'})
-  await expect(select).toBeVisible()
-  const slots = await page.evaluate(() => ((window as {__slots?: {name: string}[]}).__slots ?? []).map((s) => s.name))
-  // Past the hydration cap: the page hydrates without the chunk, and the form's first updates run.
-  await page.clock.fastForward(1_600)
-  await expect(page.locator('html[data-hydrated]')).toBeAttached({timeout: 10_000})
-  await expect(t.field(page, 'title')).toBeEditable()
-  await page.waitForTimeout(300) // a few real frames for the form's first updates
-  const emptied = await page.evaluate(() => (window as {__emptied?: string[]}).__emptied ?? [])
-  await page.evaluate(() => void ((window as {__chunkIn?: boolean}).__chunkIn = true))
-  release()
-  console.log(`late chunk: server boundaries ${JSON.stringify(slots)}; emptied before it landed ${JSON.stringify(emptied)}`)
-  expect(slots.length, 'the server drew the chunk boundaries').toBeGreaterThan(0)
-  expect(emptied, 'no boundary went empty before the chunk landed').toEqual([])
-  await select.click()
-  await expect(page.getByRole('dialog')).toBeVisible({timeout: 5_000})
-})
