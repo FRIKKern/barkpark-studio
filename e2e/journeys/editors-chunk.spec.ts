@@ -192,14 +192,16 @@ test('a field group keeps its inputs drawn while the editors chunk is late; no d
   await page.clock.fastForward(2_000) // past the page's own click hold (DocEditors.tsx HOLD_MS): the press reaches the box
   await reactDrawn(select)
   const pressed = await select.click({timeout: 2_000}).then(() => true, () => false)
-  // A dragover each frame, started before the chunk is let go and kept until the press opens the dialog
-  // (the real input is live by then): the frames as it lands are the ones the guard once left open.
+  // A dragover each frame, started before the chunk is let go and kept for 300 ms after: the frames as it
+  // lands, before the real input is live, are the ones the guard once left open (the live box answers itself).
   await page.evaluate((at) => {
     const w = window as {__frames?: Promise<{landed: boolean; kept: boolean}[]>; __chunkIn?: boolean}
     w.__frames = new Promise((done) => {
       const seen: {landed: boolean; kept: boolean}[] = []
-      const end = performance.now() + 3_000
+      let end = performance.now() + 3_000
+      let landedAt = 0
       const tick = () => {
+        if (w.__chunkIn && !landedAt) end = Math.min(end, (landedAt = performance.now()) + 300)
         const zone = document.elementFromPoint(at.x, at.y)
         if (zone?.closest('.file-input')) {
           const dataTransfer = new DataTransfer()
@@ -208,7 +210,7 @@ test('a field group keeps its inputs drawn while the editors chunk is late; no d
           zone.dispatchEvent(over)
           seen.push({landed: !!w.__chunkIn, kept: over.defaultPrevented})
         }
-        if (document.querySelector('[role="dialog"]') || performance.now() > end) done(seen)
+        if (performance.now() > end) done(seen)
         else requestAnimationFrame(tick)
       }
       tick()
