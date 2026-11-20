@@ -76,7 +76,7 @@ test('J36: a document page preloads the editors chunk (production build)', async
 // however late, and a click or a drop on them meanwhile is held or kept from the browser. The
 // cap is passed on a fake clock, so no real second is spent near it.
 const LATE = {type: 'fieldTypes', id: 'field-types-01'} as const
-async function lateChunk(page: Page, docPath: string) {
+async function lateChunk(page: Page, docPath: string, drawn: 'photo' | 'mainImage.alt' = 'photo') {
   await page.addInitScript(() => {
     type Slot = {parent: Element; others: number; name: string}
     const w = window as {__slots?: Slot[]; __emptied?: string[]; __chunkIn?: boolean}
@@ -113,9 +113,10 @@ async function lateChunk(page: Page, docPath: string) {
   await page.clock.install()
   await page.goto(docPath, {waitUntil: 'commit'})
   const select = page.locator('fieldset.field').filter({has: page.locator('[id="photo"]')}).getByRole('button', {name: 'Select'})
-  await expect(select).toBeVisible()
-  await page.locator('.file-input').scrollIntoViewIfNeeded()
-  const dropZone = await page.locator('.file-input').boundingBox()
+  await expect(drawn === 'photo' ? select : page.locator(`[id="${drawn}"]`)).toBeVisible()
+  // The drop zone where the server drew it (field-types-01 only), in view for the drop row's probe.
+  const zone = page.locator('.file-input')
+  const dropZone = drawn === 'photo' ? (await zone.scrollIntoViewIfNeeded(), await zone.boundingBox()) : null
   // Past the hydration cap: the page hydrates without the chunk, and the form's first updates
   // run (the comments' answer, task-05dc: it changes a context above the chunk's boundaries).
   await page.clock.fastForward(1_600)
@@ -138,13 +139,11 @@ async function lateChunk(page: Page, docPath: string) {
 test('a field group keeps its inputs drawn while the editors chunk is late', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
-  const {select, landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
+  const {landed} = await lateChunk(page, t.docPath(LATE.type, LATE.id))
   const {slots, emptied} = await landed()
   console.log(`late chunk: server boundaries ${JSON.stringify(slots)}; emptied before it landed ${JSON.stringify(emptied)}`)
   expect(slots, "the server drew the chunk's inputs").toEqual(['file-input', 'photo'])
   expect(emptied, 'no input went missing before the chunk landed').toEqual([])
-  await select.click()
-  await expect(page.getByRole('dialog')).toBeVisible({timeout: 5_000})
 })
 
 test('a click on Select while the editors chunk is late opens it once the chunk lands', async ({page}, info) => {
@@ -194,7 +193,7 @@ test("typing in an image's Alt while the editors chunk is late keeps every lette
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
   await t.draftOnly(ALT_ID, 'post', {title: 'Late chunk Alt probe', slug: {_type: 'slug', current: ALT_ID}})
-  const {landed} = await lateChunk(page, t.docPath('post', ALT_ID))
+  const {landed} = await lateChunk(page, t.docPath('post', ALT_ID), 'mainImage.alt')
   const alt = page.locator('[id="mainImage.alt"]')
   await alt.click()
   await page.keyboard.type('Held ')
