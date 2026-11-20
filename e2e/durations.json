@@ -38,7 +38,7 @@
   "doc-actions.spec.ts": 0,
   "early-typing.spec.ts": 4.4,
   "editor-mode.spec.ts": 0,
-  "editors-chunk.spec.ts": 12.1,
+  "editors-chunk.spec.ts": 11,
   "error-listener.spec.ts": 0.2,
   "field-clipboard.spec.ts": 0,
   "field-types.spec.ts": 5.6,
