@@ -1,0 +1,75 @@
+{
+ "about": "options.slugify \"nb\" (app/src/lib/slugify.ts) against HSO's norskSlug, at maxLength 96. Answers: node scripts/slugify-nb-cases.mjs <hovinbyen-ny checkout>.",
+ "answeredBy": "hovinbyen-ny 6c158f4 src/sanity/norskSlug.ts",
+ "maxLength": 96,
+ "cases": [
+  {
+   "in": "Bærekraft på Økern",
+   "out": "baerekraft-pa-okern"
+  },
+  {
+   "in": "Steen & Strøm",
+   "out": "steen-strom"
+  },
+  {
+   "in": "NF&TA",
+   "out": "nf-ta"
+  },
+  {
+   "in": "Grünerløkka",
+   "out": "grunerlokka"
+  },
+  {
+   "in": "Straße",
+   "out": "stra-e"
+  },
+  {
+   "in": "£100 i måneden",
+   "out": "100-i-maneden"
+  },
+  {
+   "in": "Café Ü-ß £5",
+   "out": "cafe-u-5"
+  },
+  {
+   "in": "Ærlig & åpent",
+   "out": "aerlig-apent"
+  },
+  {
+   "in": "Hovinbyen – sirkulære Oslo",
+   "out": "hovinbyen-sirkulaere-oslo"
+  },
+  {
+   "in": "Ensjø/Økern 2030",
+   "out": "ensjo-okern-2030"
+  },
+  {
+   "in": "  «Tøyen» – nå!  ",
+   "out": "toyen-na"
+  },
+  {
+   "in": "C++ / C#",
+   "out": "c-c"
+  },
+  {
+   "in": "---",
+   "out": ""
+  },
+  {
+   "in": "Å",
+   "out": "a"
+  },
+  {
+   "in": "Sirkulær ombruk av byggematerialer i Hovinbyen: erfaringer fra Ensjø, Økern og Hasle etter tre år",
+   "out": "sirkulaer-ombruk-av-byggematerialer-i-hovinbyen-erfaringer-fra-ensjo-okern-og-hasle-etter-tre-ar"
+  },
+  {
+   "in": "Sirkulær ombruk av byggematerialer i Hovinbyen: erfaringer fra Ensjø, Økern og Hasle i år og neste",
+   "out": "sirkulaer-ombruk-av-byggematerialer-i-hovinbyen-erfaringer-fra-ensjo-okern-og-hasle-i-ar-og-nest"
+  },
+  {
+   "in": "Sirkulær ombruk av byggematerialer i Hovinbyen: erfaringer fra Ensjø, Økern og Hasle i fjor og i år",
+   "out": "sirkulaer-ombruk-av-byggematerialer-i-hovinbyen-erfaringer-fra-ensjo-okern-og-hasle-i-fjor-og-i"
+  }
+ ]
+}
