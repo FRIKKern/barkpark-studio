@@ -86,6 +86,7 @@ export const test = base.extend<{errorWatch: void; testStart: number}>({
         watched.push(c)
         return c
       }
+      await new Promise((r) => setTimeout(r, 1_500)) // PLANT 2 (never merged): setup held back 1.5 s
       try {
         await use()
       } finally {
