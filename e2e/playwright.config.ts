@@ -49,7 +49,7 @@ export default defineConfig({
   // neither gates: only `pnpm baseline` / `pnpm evidence` run them. @local specs
   // (journeys outside QUALITY.md rule 5) run in `pnpm test`, not in CI's budget.
   grepInvert: process.env.BASELINE || process.env.EVIDENCE ? undefined : process.env.CI ? /@baseline|@evidence|@local/ : /@baseline|@evidence/,
-  use: {channel: 'chrome', viewport: {width: 1440, height: 900}},
+  use: {channel: 'chrome', viewport: {width: 1440, height: 900}, trace: process.env.CI ? 'retain-on-failure' : 'off'}, // SCRATCH: what a trace costs
   projects: DESK
     ? // F10 on the desk: with DESK_F10=1 compared with OUR approved stills, never ones of its
       // own; without it not compared, so a run shows what a journey does past its first still.
