@@ -147,8 +147,6 @@ type DocEdits = Spots & {
   pendingCreate?: Record<string, unknown>
   /** Create even without fields; untouched lazy drafts still cost no write. */
   createRequested?: boolean
-  /** Barkpark refused this create for good (a fixed set of documents): createDoc rejects with it. */
-  createRefused?: string
   /** The server rev our unsent edits are made against (sent as ifRevisionID). */
   rev?: string
   /** J16: these edits make the draft of a published document (see send). */
@@ -613,15 +611,6 @@ export function fieldTitle(fields: Field[], path: string): string | undefined {
   return titles.length ? titles.join(' › ') : undefined
 }
 
-/** Barkpark's error code in a thrown "mutate 409: {error: {code}}", if it reads. */
-function reasonCode(msg: string): string | undefined {
-  try {
-    return (JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {code?: string}}).error?.code
-  } catch {
-    return /"code":"(\w+)"/.exec(msg)?.[1]
-  }
-}
-
 /** Barkpark's own reason, from a thrown "mutate 403: {error: {message}}" (cut at 600 characters). */
 export function reasonOf(msg: string): string | undefined {
   try {
@@ -900,22 +889,15 @@ async function send(qc: QueryClient, id: string) {
       e.inflight = null
       return waitForNetwork(qc, id, e)
     }
-    // A type with a fixed set of documents refused this new one (a schema read before the
-    // list was set: lib/fixed-documents.ts). It goes no better again: keep every value (here
-    // and in this browser's store), say why in Barkpark's words, stop, and settle createDoc.
-    if (/^mutate 409\b/.test(msg) && reasonCode(msg) === 'fixed_document') {
-      unsent(e)
-      e.inflight = null
-      keepUnsaved(id, e)
-      const why = reasonOf(msg) ?? t('{type} has a fixed set of documents. A new one cannot be created.', {type: e.type})
-      if (creating) e.createRefused = why
-      return setState(e, 'refused', why)
-    }
     // The create may have committed before its response was lost. Recover that
     // same generated id; keep later typing queued instead of creating a duplicate.
+    // Read and not there: the 409 was a refusal (a fixed set of documents, an id another
+    // type holds), final below.
+    let notThere = false
     if (creating && /^mutate 409\b|already been taken/.test(msg)) {
       try {
         const saved = await readServerDoc(e.type, id)
+        notThere = !saved
         if (saved) {
           e.pendingCreate = undefined
           e.createRequested = false
@@ -948,6 +930,20 @@ async function send(qc: QueryClient, id: string) {
       } catch {
         // fall through: a plain failure, retried below
       }
+    }
+    // One rule for what is sent again (task-8eefa46ccbe23d49): only what can go better later
+    // (no network, a 5xx, 408 and 429, a conflict the queue replays: a stale rev, a create
+    // whose fate the read could not tell). Any other refusal (4xx) is final, as the ones
+    // above: keep every value (here and in this browser's store), say why in Barkpark's
+    // words, stop, and a createDoc rejects (createNow). It was "Not saved — retrying" every
+    // 2 s, forever (a 400, a 422 without findings, a 409 fixed_document).
+    const status = Number(/^mutate (\d{3})\b/.exec(msg)?.[1] ?? 0)
+    const replayed = status === 408 || status === 412 || status === 429 || (status === 409 && !notThere)
+    if (status >= 400 && status < 500 && !replayed) {
+      unsent(e)
+      e.inflight = null
+      keepUnsaved(id, e)
+      return setState(e, 'refused', reasonOf(msg) ?? t('Barkpark refused the change ({status})', {status}))
     }
     // Keep every value: put the failed batch back under anything typed since, retry. A
     // failure with no clear refusal may still have saved it.
@@ -994,10 +990,10 @@ async function createNow(qc: QueryClient, type: string, id: string, fields: Reco
   setState(e, 'saving')
   // Reuse the edit queue's offline, refusal and retry handling. Callers that set
   // a parent reference wait for actual creation, including after a reconnect.
-  e.createRefused = undefined
   await new Promise<void>((resolve, reject) => {
     const check = () => {
-      if (e.createRefused) return (listeners.delete(check), reject(new Error(e.createRefused)))
+      // Refused for good (the save says why; a sign-out is not that: it goes on after sign-in).
+      if (e.pendingCreate && e.snap.state === 'refused') return (listeners.delete(check), reject(new Error(e.snap.error ?? t('Barkpark refused the change'))))
       if (e.pendingCreate) return
       listeners.delete(check)
       resolve()
