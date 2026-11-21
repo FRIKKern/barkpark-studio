@@ -56,7 +56,9 @@ async function deskSignIn(browser: Browser, baseURL: string | undefined) {
   return deskSession
 }
 
-export const test = base.extend<{errorWatch: void}>({
+export const test = base.extend<{errorWatch: void; testStart: number}>({
+  // When this test's timeout began counting (fixtures included): set up first, it only reads the clock.
+  testStart: [async ({}, use) => use(Date.now()), {auto: true}],
   errorWatch: [
     async ({context, browser}, use, info) => {
       const problems: string[] = []
