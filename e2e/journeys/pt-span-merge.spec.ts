@@ -21,6 +21,15 @@ test.afterEach(async () => void (await bpMutate([{delete: {id: ID, type: 'post',
 /** The page, its caret in "Start text" at `at`. */
 async function open(page: Page, info: import('@playwright/test').TestInfo, at: number): Promise<Locator> {
   const t = target(info)
+  // PLANT (never merged): the editor hears each selection change 400 ms late, as on a slow page.
+  await page.addInitScript(() => {
+    let pass = false
+    document.addEventListener('selectionchange', (e) => {
+      if (pass) return
+      e.stopImmediatePropagation()
+      setTimeout(() => ((pass = true), document.dispatchEvent(new Event('selectionchange')), (pass = false)), 400)
+    }, true)
+  })
   await page.goto(t.docPath('post', ID))
   await t.settle(page)
   await page.getByRole('tab', {name: 'All fields'}).click()
