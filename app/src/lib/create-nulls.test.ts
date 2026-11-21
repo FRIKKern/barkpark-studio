@@ -24,17 +24,37 @@ const {createBody, withCopyNulls} = await import('./create-nulls.ts')
 const E = await import('./edits.ts')
 after(() => E.forgetEdits())
 
-test('the create body: a plain path an edit left empty goes as null; a value, a list item and the title as the edit has them', () => {
-  const start = {publisert: '2026-11-21', kind: 'nyhet', title: 'Sak', meta: {dato: '2026-11-21', sak: 's'}}
-  const edits: [string, unknown][] = [['publisert', undefined], ['meta.dato', ''], ['title', ''], ['notat', 'hei'], ['links[_key=="a"].url', undefined]]
-  // As sent (JSON): a list item path with no list there changes nothing.
-  assert.deepEqual(JSON.parse(JSON.stringify(createBody(start, edits))), {publisert: null, kind: 'nyhet', title: '', meta: {dato: null, sak: 's'}, notat: 'hei'})
+const iv = {publisert: '$today', kind: 'nyhet', title: 'Ny', meta: {dato: '$today', sak: 'x'}}
+/** As sent (JSON): undefined is left out. */
+const sentAs = (body: unknown) => JSON.parse(JSON.stringify(body))
+
+test('the create body: a null only where an initial value would land; a value, a list item and the title as the edit has them', () => {
+  const start = {publisert: '2026-11-21', kind: 'nyhet', title: 'Ny', meta: {dato: '2026-11-21', sak: 'x'}}
+  const edits: [string, unknown][] = [['publisert', undefined], ['meta.dato', ''], ['title', ''], ['notat', ''], ['merknad', undefined], ['links[_key=="a"].url', undefined]]
+  // notat and merknad have no initial value: "" and left out, as main sends them.
+  assert.deepEqual(sentAs(createBody(start, edits, iv)), {publisert: null, kind: 'nyhet', title: '', meta: {dato: null, sak: 'x'}, notat: ''})
   // Left out stays out: Barkpark's to fill.
-  assert.deepEqual(createBody({kind: 'nyhet'}, [['notat', 'x']]), {kind: 'nyhet', notat: 'x'})
+  assert.deepEqual(createBody({kind: 'nyhet'}, [['notat', 'x']], iv), {kind: 'nyhet', notat: 'x'})
+})
+
+test('a type with no initial values: the create body is main\'s, byte for byte (a typed-then-emptied field goes as "", never null)', () => {
+  const start = {title: 'T'}
+  const edits: [string, unknown][] = [['notat', ''], ['merknad', undefined], ['meta', {sak: ''}], ['title', '']]
+  const mains = JSON.stringify({title: '', notat: '', meta: {sak: ''}})
+  for (const initial of [undefined, {}]) assert.equal(JSON.stringify(createBody(start, edits, initial)), mains)
+})
+
+test('an object cleared and then one child set: the initial-value children the start showed stay cleared', () => {
+  const start = {meta: {dato: '2026-11-21', sak: 'x'}}
+  assert.deepEqual(sentAs(createBody(start, [['meta', {sak: 'y'}]], iv)), {meta: {sak: 'y', dato: null}})
+  // A child the start did not show (an unresolved "$today", lib/today-start) stays Barkpark's.
+  assert.deepEqual(sentAs(createBody({meta: {sak: 'x'}}, [['meta', {sak: 'y'}]], iv)), {meta: {sak: 'y'}})
 })
 
 test("Duplicate: a null at each initial-value path the copy holds nothing at, the shallowest; the copy's values kept", () => {
   const iv = {publisert: '$today', kind: 'nyhet', meta: {dato: '$today'}, tags: ['a']}
+  // A value the copy holds is kept, whatever its shape (a string where the schema now has an object).
+  assert.deepEqual(withCopyNulls(iv, {meta: 'legacy', publisert: 'x', kind: 'k', tags: ['b']}), {meta: 'legacy', publisert: 'x', kind: 'k', tags: ['b']})
   assert.deepEqual(withCopyNulls(iv, {title: 'T', meta: {sak: 's'}, tags: []}), {title: 'T', publisert: null, kind: null, meta: {sak: 's', dato: null}, tags: []}, 'an empty list is the copy\'s value')
   assert.deepEqual(withCopyNulls(iv, {title: 'T'}), {title: 'T', publisert: null, kind: null, meta: null, tags: null})
   const full = {publisert: '2026-01-02', kind: 'notis', meta: {dato: '2026-01-02'}, tags: ['b']}
@@ -44,13 +64,13 @@ test("Duplicate: a null at each initial-value path the copy holds nothing at, th
 
 test("a new document's first edit clears a prefilled date: the create sends null; an edit to another field leaves it to Barkpark", async () => {
   const qc = new QueryClient()
-  const open = async (id: string) => {
-    E.draftNew(qc, 'sak', id, {schema: {kind: 'nyhet', publisert: '2026-11-21'}})
+  const open = async (id: string, schema: Record<string, unknown> = {kind: 'nyhet', publisert: '2026-11-21'}) => {
+    E.draftNew(qc, 'sak', id, {schema})
     for (let i = 0; i < 100 && !qc.getQueryData(['doc', id]); i++) await new Promise((go) => setTimeout(go, 5))
     return qc.getQueryData<Record<string, unknown>>(['doc', id])!
   }
-  const write = async (id: string, field: string, value: unknown) => {
-    E.edit(qc, (await open(id)) as never, field, value)
+  const write = async (id: string, field: string, value: unknown, schema?: Record<string, unknown>) => {
+    E.edit(qc, (await open(id, schema)) as never, field, value)
     E.flush(qc, id)
     await E.whenSaved(id)
   }
@@ -60,6 +80,9 @@ test("a new document's first edit clears a prefilled date: the create sends null
   assert.equal(create.kind, 'nyhet')
   await write('sak-2', 'notat', 'hei')
   assert.equal(sent.at(-1)!.create!.publisert, '2026-11-21')
+  // A field with no initial value, emptied: "" as main sends it, never null.
+  await write('sak-3', 'notat', '', {})
+  assert.equal(sent.at(-1)!.create!.notat, '')
 })
 
 test('the doors, by text: both create sends ask createBody; both Duplicates send the nulls; a layout type\'s "" shows as empty', () => {
