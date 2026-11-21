@@ -60,24 +60,42 @@ const schema = {
     {name: 'kategori', title: 'Kategori', type: 'select', options: {list: ['konsert', 'kurs']}},
     {name: 'start', title: 'Første dag', type: 'date'},
     {name: 'slutt', title: 'Siste dag', type: 'date'},
+    {name: 'sted', title: 'Sted', type: 'reference', to: [{type: 'sted'}]},
   ],
   // HSO #58: the last day before the first is an error (lib/cross-rules.ts, #1373).
   crossValidations: [{name: 'slutt_etter_start', title: 'Siste dag kan ikke være før første dag', rule: {field: 'slutt', operator: 'gte', valueField: 'start'}, fields: ['slutt']}],
 } as never
 const draft = (id: string, fields: Record<string, unknown>) => ({_id: `drafts.${id}`, _publishedId: id, _type: 'arrangement', _rev: 'r1', _draft: true, _hasPublished: false, ...fields})
+type Draft = ReturnType<typeof draft>
 const who = {} as never // unknown: no role rule here asks who
-const judge = (over: Record<string, unknown> = {}) => ({
+/** Barkpark's documents, whole: what a fresh read gives (the pane's docQuery). A thrown one: the read fails. */
+const server = new Map<string, Draft | null | Error>()
+/** The documents reference fields point at (the pane's reads of them). */
+const places = new Map<string, {_id: string; _hasPublished: boolean} | null | Error>([
+  ['sted-pub', {_id: 'sted-pub', _hasPublished: true}],
+  ['sted-ny', {_id: 'sted-ny', _hasPublished: false}],
+  ['sted-borte', null],
+  ['sted-feil', new Error('read 503')],
+])
+const answer = <V,>(v: V | Error | undefined) => (v instanceof Error ? Promise.reject(v) : Promise.resolve(v ?? null))
+const judge = (qc: QueryClient, over: Record<string, unknown> = {}) => ({
   conditions: undefined,
   schemaFor: () => schema,
   rulesFor: () => [],
   nameOf: (d: {tittel?: string; _publishedId: string}) => d.tittel || d._publishedId,
+  // As qc.fetchQuery(docQuery) does: the answer lands in the doc's cache, which publish() reads.
+  readDoc: (_type: string, id: string) => answer(server.get(id)).then((d) => (qc.setQueryData(['doc', id], d), d)),
+  readRef: (_f: unknown, id: string) => answer(places.get(id)),
+  slugsAmong: async () => new Map(),
   ...over,
 })
-async function run(docs: ReturnType<typeof draft>[], over: Record<string, unknown> = {}) {
+/** Publish selected on these list rows; Barkpark holds `whole` (default: the rows themselves). */
+async function run(rows: Draft[], over: Record<string, unknown> = {}, whole: (Draft | Error)[] = rows) {
   const qc = new QueryClient()
-  for (const d of docs) qc.setQueryData(['doc', d._publishedId], d)
+  server.clear()
+  whole.forEach((d, i) => server.set(rows[i]!._publishedId, d))
   sent.length = 0
-  const outcomes = await runBulk(qc, 'publish', docs as never, who, {taken: new Map(), judge: judge(over) as never, at: () => {}, t: (s) => s})
+  const outcomes = await runBulk(qc, 'publish', rows as never, who, {judge: judge(qc, over) as never, at: () => {}, t: (s) => s})
   return {outcomes, published: sent.filter((m) => m.publish).map((m) => m.publish!.id)}
 }
 
@@ -113,23 +131,43 @@ test('publish selected: a warning never holds, and the verdict is per person (#1
   assert.deepEqual((await run([outside], {conditions: {'arrangement.kategori': {readOnly: true}}})).published, ['liste'])
 })
 
-test('publish selected judges the draft as it will go, not the list row: the latest held here (an edit the list has not seen yet)', async () => {
-  const qc = new QueryClient()
-  const row = draft('sen', {tittel: 'Kurs'})
-  qc.setQueryData(['doc', 'sen'], draft('sen', {tittel: ''}))
-  sent.length = 0
-  const outcomes = await runBulk(qc, 'publish', [row] as never, who, {taken: new Map(), judge: judge() as never, at: () => {}, t: (s) => s})
-  assert.deepEqual(outcomes, [{kind: 'held', doc: 'Kurs', reason: 'Tittel: Required'}])
-  assert.equal(sent.length, 0)
+test('publish selected judges the whole draft, read fresh, never the list row: an error in a field the list does not show holds it; a field the row leaves out is no error', async () => {
+  // The list's rows are projections: the title only, or the category only.
+  const rows = [draft('skjult', {tittel: 'Kurs'}), draft('kort', {kategori: 'kurs'})]
+  const whole = [draft('skjult', {tittel: 'Kurs', kategori: 'foredrag'}), draft('kort', {tittel: 'Konsert', kategori: 'kurs'})]
+  const {outcomes, published} = await run(rows, {}, whole)
+  assert.deepEqual(outcomes, [{kind: 'held', doc: 'Kurs', reason: 'Kategori: Value "foredrag" did not match any allowed values'}, {kind: 'done'}])
+  assert.deepEqual(published, ['kort'])
+  // A draft that cannot be read is never judged by its row: held.
+  assert.deepEqual((await run([draft('feil', {tittel: 'Kurs'})], {}, [new Error('read 503')])).outcomes, [{kind: 'held', doc: 'Kurs', reason: 'It could not be read: open it to check'}])
 })
 
-test('one reader: the pane and Publish selected ask lib/publish-check.ts, and the bar sends every publish through runBulk', () => {
+test('publish selected never publishes on unknown: a reference is judged by the pane\'s read of its target, and a target that cannot be read holds the draft', async () => {
+  const at = (id: string, sted: string) => draft(id, {tittel: id, sted: {_ref: sted}})
+  const {outcomes, published} = await run([at('pub', 'sted-pub'), at('ny', 'sted-ny'), at('borte', 'sted-borte'), at('feil', 'sted-feil')])
+  assert.deepEqual(published, ['pub'])
+  assert.deepEqual(outcomes, [
+    {kind: 'done'},
+    {kind: 'held', doc: 'ny', reason: 'Sted: Referenced document must be published'},
+    {kind: 'held', doc: 'borte', reason: 'Sted: Referenced document must be published'},
+    {kind: 'held', doc: 'feil', reason: 'A document it refers to could not be read: open it to check'},
+  ])
+  // The slugs ask that cannot tell leaves each publish its own ask (the footer's), never "none taken".
+  assert.deepEqual((await run([draft('slug', {tittel: 'Kurs'})], {slugsAmong: () => Promise.reject(new Error('query 503'))})).published, ['slug'])
+})
+
+test('one reader: the pane and Publish selected ask lib/publish-check.ts with the same reads, and the bar sends every publish through runBulk', () => {
   const src = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8')
   const pane = src('../components/DocumentPane.tsx')
   assert.match(pane, /formCheck\(doc, schemaForPane, user, studio\.form\?\.conditions, \{target: \(id\) => byId\.get\(id\), t, widthOf\}\)/)
+  assert.match(pane, /const refFields = refFieldsOf\(schemaForPane, doc\)\n  const targets = useQueries\(\{queries: refFields\.map\(\(f\) => docQuery\(refTypesOf\(f\), refId\(doc!\[f\.name\]\)!\)\)\}\)/)
   assert.doesNotMatch(pane, /\bvalidate\(/)
   const bar = src('../components/BulkBar.tsx')
   assert.match(bar, /await runBulk\(qc, action, picked, user, /)
+  assert.match(bar, /readDoc: \(type, id\) => qc\.fetchQuery\(\{\.\.\.docQuery\(type, id\), staleTime: 0\}\),/)
+  assert.match(bar, /readRef: \(f, id\) => qc\.fetchQuery\(docQuery\(refTypesOf\(f\), id\)\),/)
   assert.doesNotMatch(bar, /\b(publish|unpublish)\(qc/)
-  assert.match(src('./bulk-publish.ts'), /const held = action === 'publish' \? await publishHold\(qc, doc, who, judge\) : null/)
+  const bulk = src('./bulk-publish.ts')
+  assert.match(bulk, /const held = await publishHold\(now, who, judge, t\)/)
+  assert.match(bulk, /const refs = refFieldsOf\(schema, doc\)/)
 })

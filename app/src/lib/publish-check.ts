@@ -3,6 +3,7 @@ import {fieldState, type FieldConditions, type Person} from './conditions.ts'
 import {describeField, runCustomRules, type CustomRule} from './custom-rules.ts'
 import {advisoryProblems, type Finding} from './findings.ts'
 import {errorsOf, formOrder, validate, type Problem, type RefTarget} from './validation.ts'
+import {refId} from './refs.ts'
 import type {WidthOf} from './image-min-width.ts'
 import type {T} from './i18n'
 
@@ -22,6 +23,9 @@ export function shutFor(schema: Schema, doc: Doc, who: Person, conditions: Condi
     return s.hidden || s.readOnly
   }
 }
+
+/** The reference fields whose target the reference check needs: the pane reads each (docQuery), Publish selected too. */
+export const refFieldsOf = (schema: Schema | undefined, doc: Doc | null | undefined) => (schema?.fields ?? []).filter((f) => f.type === 'reference' && refId(doc?.[f.name]))
 
 /** The form's own check of a document for this person: what the pane marks. */
 export function formCheck(doc: Doc, schema: Schema, who: Person, conditions: Conditions, {target, t, widthOf}: Ask = {}): Problem[] {

@@ -1,6 +1,6 @@
 import {useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {docTitle, schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {docQuery, docTitle, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {offers, type FixedAction} from '../lib/fixed-documents'
 import {bulkResultSummary, bulkSummary, type BulkAction, type RowResult} from '../lib/bulk'
 import {runBulk, type Judge} from '../lib/bulk-publish'
@@ -37,14 +37,22 @@ export function BulkBar({picked, onClear, onKeep}: {picked: Doc[]; onClear: () =
     onKeep([...results].filter(([, r]) => r.state === 'failed' || (r.state === 'skipped' && r.why !== 'gone')).map(([id]) => id))
   }
   const run = async (action: 'publish' | 'unpublish') => {
-    // Slugs in use, asked once for all of them (publish asks per doc otherwise). Can't tell: none.
     setRunning({action, at: 1})
-    const schemas = qc.getQueryData(schemasQuery.queryKey)
-    const latest = picked.filter((d) => d._draft).map((d) => qc.getQueryData<Doc>(['doc', d._publishedId]) ?? d)
-    const taken = action === 'publish' ? await slugsTakenAmong(qc, latest, (type) => schemas?.find((x) => x.name === type)).catch(() => new Map<string, string[]>()) : new Map<string, string[]>()
-    // A publish asks what the document's own Publish asks, for this person (lib/publish-check.ts).
-    const judge: Judge = {conditions: studio.form?.conditions, schemaFor: (type) => schemaOf(schemas ?? [], type), rulesFor, nameOf: (d, s) => (s ? docTitle(d, s, t) : d._publishedId), t, widthOf: (ref) => qc.getQueryData(fileInfoQuery(ref).queryKey)}
-    const outcomes = await runBulk(qc, action, picked, user, {taken, judge, at: (i) => setRunning({action, at: i}), t})
+    const schemas = qc.getQueryData(schemasQuery.queryKey) ?? []
+    // A publish asks what the document's own Publish asks, for this person (lib/publish-check.ts), with
+    // the pane's reads: the whole draft read fresh (a list row may be a projection), each reference's target.
+    const judge: Judge = {
+      conditions: studio.form?.conditions,
+      schemaFor: (type) => schemaOf(schemas, type),
+      rulesFor,
+      nameOf: (d, s) => (s ? docTitle(d, s, t) : d._publishedId),
+      t,
+      widthOf: (ref) => qc.getQueryData(fileInfoQuery(ref).queryKey),
+      readDoc: (type, id) => qc.fetchQuery({...docQuery(type, id), staleTime: 0}),
+      readRef: (f, id) => qc.fetchQuery(docQuery(refTypesOf(f), id)),
+      slugsAmong: (docs) => slugsTakenAmong(qc, docs, (type) => schemaOf(schemas, type)),
+    }
+    const outcomes = await runBulk(qc, action, picked, user, {judge, at: (i) => setRunning({action, at: i}), t})
     setRunning(null)
     toast(bulkSummary(action, outcomes, tBrowser), 8000)
     onClear()
