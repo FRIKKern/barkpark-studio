@@ -28,7 +28,6 @@ test('a rewrite that lands while a refused write is in flight clashes, never sav
   const t = target(info)
   test.skip(t.name !== 'studio', 'ours: our save loop')
   await Promise.all([seeded, t.prepare(page.context())])
-  await page.clock.install() // the retry clocks are passed on the page's clock, not sat out
   await page.goto(t.docPath('post', ID))
   await signInIfAsked(page)
   await t.settle(page)
@@ -41,6 +40,7 @@ test('a rewrite that lands while a refused write is in flight clashes, never sav
   // frame reaches this page (the page has the frame, not a fixed time), then refused.
   let saves = 0
   let held: Promise<void> | undefined
+  let refusedAt = 0
   await page.route('**/_serverFn/**', async (route) => {
     const req = route.request()
     if (!(req.postData() ?? '').includes('mutations')) return route.continue()
@@ -52,6 +52,7 @@ test('a rewrite that lands while a refused write is in flight clashes, never sav
       })())
     const res = await route.fetch({postData: (req.postData() ?? '').replace('{"t":1,"s":"post"}', '{"t":1,"s":"no-such-type"}')})
     await route.fulfill({response: res, body: (await res.text()).replace('mutate 404', 'mutate 500').replace('not_found', 'internal')})
+    refusedAt = Date.now()
   })
   // Inside a word theirs replaces: mine cannot be placed in theirs (a merge would be a guess).
   await excerpt.click()
@@ -72,13 +73,9 @@ test('a rewrite that lands while a refused write is in flight clashes, never sav
   const done = (r: Request) => void writing.delete(r)
   page.on('requestfinished', done)
   page.on('requestfailed', done)
-  // The studio's retry clocks after a failed write, 2 s (lib/edits.ts:679, :862, :933) and 5 s offline
-  // (OFFLINE_RETRY_MS, :251), are set as the page reads the refusal: before the card it drew
-  // above. Run past both on the page's clock, then 300 ms for real: a retry's send leaves at once
-  // (its mutate, :725), and 300 ms is what the real wait (to the refusal + 2.3 s) left past
-  // the 2 s. Past that, and past any write that went (none should), theirs still stands.
-  await page.clock.fastForward(5_100)
-  await page.waitForTimeout(300)
+  // The studio's only retry clock after a refused write is 2 s from its answer (edits.ts): past
+  // it, and past any write that went (none should), theirs still stands.
+  await page.waitForTimeout(Math.max(0, refusedAt + 2_300 - Date.now()))
   await expect.poll(() => writing.size, {intervals: [50], timeout: 10_000}).toBe(0)
   expect((await bpDoc(ID))?.excerpt, 'never saved over theirs unseen').toBe(theirs)
   await card.getByRole('button', {name: 'Take theirs'}).click()
