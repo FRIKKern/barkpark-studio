@@ -115,17 +115,30 @@ test('what can go better later still goes again: a 500, 408, 429, a 409 the read
   readFails.add('r409')
   for (const [id, a] of cases) answers.set(id, [a])
   const made = cases.map(([id]) => settle(E.createDoc(qc, 'side', id, {asIs: {tittel: id}})))
-  // A stale rev on an edit: read theirs, send again on it.
-  const id = 'p412'
-  stored.set(id, now(id, {tittel: 'Om oss'}, 'r0'))
-  qc.setQueryData(['doc', id], stored.get(id))
-  answers.set(id, [{status: 412, body: refusal('precondition_failed', 'document revision mismatch')}])
-  E.edit(qc, stored.get(id) as never, 'tittel', 'Om oss nå')
-  E.flush(qc, id)
+  // An edit on a stale rev: read theirs, send again on it. Past five rebases (edits.ts's cap),
+  // or when that read fails, it is a plain failure and goes again on the 2 s timer.
+  const stale = refusal('precondition_failed', 'document revision mismatch')
+  const edits: [string, Answer[], number][] = [
+    ['p412', [{status: 412, body: stale}], 2],
+    ['p412x6', Array(6).fill({status: 412, body: stale}), 7],
+    ['p409x6', Array(6).fill({status: 409, body: refusal('conflict', 'revision conflict')}), 7],
+    ['p412read', [{status: 412, body: stale}], 2],
+  ]
+  readFails.add('p412read')
+  for (const [id, a] of edits) {
+    stored.set(id, now(id, {tittel: 'Om oss'}, 'r0'))
+    qc.setQueryData(['doc', id], stored.get(id))
+    answers.set(id, [...a])
+    E.edit(qc, stored.get(id) as never, 'tittel', 'Om oss nå')
+    E.flush(qc, id)
+  }
   assert.deepEqual(await Promise.race([Promise.all(made), cap(4500)]), cases.map(() => 'created'))
   for (const [id] of cases) assert.equal(calls.get(id), 2, id)
-  await E.whenSaved(id)
-  assert.equal(calls.get(id), 2)
-  assert.equal((stored.get(id) as {tittel?: string}).tittel, 'Om oss nå')
+  const saved = await Promise.race([Promise.all(edits.map(([id]) => E.whenSaved(id))).then(() => 'saved'), cap(4500)])
+  assert.equal(saved, 'saved', edits.map(([id]) => `${id} ${E.saveStateOf(id)}`).join(', '))
+  for (const [id, , n] of edits) {
+    assert.equal(calls.get(id), n, id)
+    assert.equal((stored.get(id) as {tittel?: string}).tittel, 'Om oss nå', id)
+  }
 })
 })
