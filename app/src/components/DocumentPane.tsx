@@ -11,7 +11,7 @@ import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, formOrder, validate, worst, type Problem} from '../lib/validation'
 import {advisoryProblems} from '../lib/findings'
-import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
+import {docQuery, docTitle, isFixed, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
 import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setByAction, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {fieldNames, keptText} from '../lib/kept-text'
@@ -37,6 +37,7 @@ import {unknownFields} from '../lib/broken'
 import {ChangesContext, DocProvider, DocIdContext, DocTypeContext, EditPathContext, WriteUrlPathContext, FormDisabledContext, FreeformBodyContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
+import {offers} from '../lib/fixed-documents'
 import {TranslationsMenu} from './TranslationsMenu'
 import {UnpublishDialog} from './UnpublishDialog'
 import {setActiveDocument} from '../lib/tasks-ui'
@@ -118,7 +119,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // it opens new again with the template's values, not "not found".
   const qcHere = useQueryClient()
   useEffect(() => {
-    if (!pane.template || draftQ.data !== null || !schemas.length) return
+    // A type with a fixed set of documents opens no new one, from a link either (lib/fixed-documents.ts).
+    if (!pane.template || draftQ.data !== null || !schemas.length || isFixed(schemas, pane.type)) return
     const choice = choiceById(schemas, pane.type, pane.template, pane.templateParams)
     if (choice) draftNew(qcHere, pane.type, pane.id, choice.id === pane.type ? {schema: choice.value} : {local: choice.value})
   }, [pane.template, pane.templateParams, pane.type, pane.id, draftQ.data, schemas, qcHere])
@@ -492,7 +494,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
     navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined, path: undefined, rev: undefined}])})
     created.then(
       () => toast({title: tt('The document was successfully duplicated')}),
-      (err) => toast({tone: 'critical', title: tt('Could not duplicate the document'), description: (err as Error).message}),
+      (err) => toast({tone: 'critical', title: tt('Could not duplicate the document'), description: reasonOf((err as Error).message) ?? (err as Error).message}),
     )
   }
   // Keyed by `base`, the pane chain as a string: a new array each render, the same chain.
@@ -1027,7 +1029,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
         ? doc && <PublishedFooter doc={doc} single={single} />
         : gone
         ? <GoneFooter type={pane.type} id={pane.id} />
-        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} validating={custom.validating} checkRules={custom.check} single={single} onDuplicate={() => duplicate(doc)} askDelete={askDelete} onReview={() => navigate({href: withParams(panes, index, {inspect: 'review', rev: undefined})})} />}
+        : doc && <DocFooter doc={doc} closeHref={closeHref} blocked={errors.length} validating={custom.validating} checkRules={custom.check} single={single} fixed={schemaOf(schemas, pane.type)?.fixedDocuments} onDuplicate={() => duplicate(doc)} askDelete={askDelete} onReview={() => navigate({href: withParams(panes, index, {inspect: 'review', rev: undefined})})} />}
       </div>
       {inspecting && !viewingPublished && <ValidationPanel problems={problems} onPick={goTo} onClose={() => void toggleValidation()} />}
       {pane.inspect === INCOMING && <IncomingReferences id={pane.id} panes={panes} index={index} onClose={() => navigate({href: withParams(panes, index, {inspect: undefined})})} />}
@@ -1217,7 +1219,7 @@ function WithCode({text, code}: {text: string; code: string}) {
 }
 
 /** `single` (B13): a singleton keeps Publish, Discard changes and (in History) Restore only. */
-function DocFooter({doc, closeHref, blocked, validating = false, checkRules, single, onDuplicate, askDelete, onReview}: {doc: Doc; closeHref: string; blocked: number; validating?: boolean; checkRules?: () => Promise<Problem[]>; single: boolean; onDuplicate: () => void; askDelete: number; onReview: () => void}) {
+function DocFooter({doc, closeHref, blocked, validating = false, checkRules, single, fixed, onDuplicate, askDelete, onReview}: {doc: Doc; closeHref: string; blocked: number; validating?: boolean; checkRules?: () => Promise<Problem[]>; single: boolean; fixed?: string[]; onDuplicate: () => void; askDelete: number; onReview: () => void}) {
   const actionsButton = useRef<HTMLButtonElement>(null)
   const t = useT()
   const locale = useLocale()
@@ -1228,6 +1230,9 @@ function DocFooter({doc, closeHref, blocked, validating = false, checkRules, sin
   // A Contributor deletes a draft only: deleting a published document unpublishes it.
   const deleteReason = doc._hasPublished !== false && !canPublish ? deletePublishedReason : editReason
   const canDelete = canWrite && !(doc._hasPublished !== false && !canPublish)
+  // A fixed set of documents (lib/fixed-documents.ts): no Duplicate, and no Delete of a listed one.
+  const copyable = !single && offers(fixed, 'duplicate', doc._publishedId)
+  const deletable = !single && offers(fixed, 'delete', doc._publishedId)
   const [publishing, setPublishing] = useState(false)
   const [menu, setMenu] = useState(false)
   const closeMenu = useCallback(() => setMenu(false), [])
@@ -1259,7 +1264,7 @@ function DocFooter({doc, closeHref, blocked, validating = false, checkRules, sin
   )
   // J28: Sanity's Delete shortcut (Ctrl+Alt+D) asks here.
   useEffect(() => {
-    if (askDelete && !single && canDelete) setDeleting(true)
+    if (askDelete && deletable && canDelete) setDeleting(true)
   }, [askDelete])
   // J04: Sanity says "Saved" for about 3 s after a save, then "Edited N ago" (a
   // draft opened later says "Edited" at once). The clock's 30 s tick keeps "ago" current,
@@ -1362,7 +1367,7 @@ function DocFooter({doc, closeHref, blocked, validating = false, checkRules, sin
       </span>
       </>
       )}
-      {(!single || canDiscard || actions.length > 0) && <div className="menu-wrap">
+      {(copyable || deletable || (!single && ((!!scheduleQ.data?.supported && !!doc._draft) || !!schedule)) || canDiscard || actions.length > 0) && <div className="menu-wrap">
         <button ref={actionsButton} type="button" className="icon-btn" aria-label={t('Open document actions')} data-tip={t('Document actions')} aria-haspopup="menu" aria-expanded={menu} onPointerEnter={schemaActions.prefetch} onFocus={schemaActions.prefetch} onClick={() => setMenu((m) => !m)}>
           <Ellipsis />
         </button>
@@ -1377,7 +1382,7 @@ function DocFooter({doc, closeHref, blocked, validating = false, checkRules, sin
                 </span>
               </button>
             )}
-            {!single && (
+            {copyable && (
               <button type="button" role="menuitem" className="menu-item" autoFocus disabled={!canWrite} title={createReason} onClick={() => (setMenu(false), onDuplicate())}>
                 <span className="menu-icon-text">
                   <Copy /> {t('Duplicate')}
@@ -1415,7 +1420,7 @@ function DocFooter({doc, closeHref, blocked, validating = false, checkRules, sin
             ))}
             {/* B10: the schema's own actions (a plugin's), as LiveView lists them last. */}
             {schemaActions.items}
-            {!single && (
+            {deletable && (
               <button type="button" role="menuitem" className="menu-item danger" aria-keyshortcuts="Control+Alt+D" disabled={!canDelete} title={deleteReason} onClick={() => (setMenu(false), setDeleting(true))}>
                 <span className="menu-icon-text">
                   <Trash /> {t('Delete')}

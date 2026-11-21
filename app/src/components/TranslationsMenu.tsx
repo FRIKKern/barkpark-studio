@@ -1,7 +1,7 @@
 import {useRef, useState, type ReactNode} from 'react'
 import {createPortal} from 'react-dom'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import type {Doc} from '../lib/data'
+import {isFixed, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {edit, reasonOf} from '../lib/edits'
 import {t as tt, useT} from '../lib/i18n'
 import {useLive} from '../lib/live'
@@ -53,9 +53,13 @@ export function TranslationsMenu({doc, config, panes, index, readOnly, reason}: 
   // A group may hold a language the schema no longer lists (a Sanity dataset's): still reachable.
   const languages: Language[] = [...config.languages, ...Object.keys(linked).filter((l) => !config.languages.some((c) => c.id === l)).map((l) => ({id: l, title: l}))]
   const openDoc = (target: string) => void navigate({href: openAfter(panes, index, {kind: 'doc', id: target, type: doc._type})})
+  // A type with a fixed set of documents (lib/fixed-documents.ts): a translation is a new document.
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const fixed = isFixed(schemas, doc._type) ? t('{type} has a fixed set of documents. A new one cannot be created.', {type: schemaOf(schemas, doc._type)?.title ?? doc._type}) : undefined
 
   const create = async (language: Language) => {
     close()
+    if (fixed) return
     setBusy(true)
     try {
       const made = await createTranslation(qc, doc, config, language.id)
@@ -121,7 +125,7 @@ export function TranslationsMenu({doc, config, panes, index, readOnly, reason}: 
                 </button>
               )
             return (
-              <button key={language.id} type="button" role="menuitem" className="menu-item" autoFocus={i === 0} disabled={readOnly || busy || !group} title={readOnly ? reason : undefined} aria-label={t('Create new {language} translation', {language: language.title})} onClick={() => void create(language)}>
+              <button key={language.id} type="button" role="menuitem" className="menu-item" autoFocus={i === 0} disabled={readOnly || busy || !group || !!fixed} title={fixed ?? (readOnly ? reason : undefined)} aria-label={t('Create new {language} translation', {language: language.title})} onClick={() => void create(language)}>
                 {row(<Add />)}
               </button>
             )

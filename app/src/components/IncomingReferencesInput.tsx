@@ -1,6 +1,6 @@
 import {useEffect, useId, useMemo, useRef, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {isSingleton, relatedQuery, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {isFixed, isSingleton, relatedQuery, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {createDoc} from '../lib/edits'
 import {focusFirstField} from '../lib/focus'
 import {useT} from '../lib/i18n'
@@ -108,7 +108,7 @@ function TypeList({decl, type, titled, doc, panes, index, published, revision, l
   const next = panes[index + 1]
   const listLabel = t('Incoming references of type {type}', {type: title})
 
-  const choices = refSchema && !isSingleton(schemas, type.type) && refSchema.kind !== 'object' ? creationChoices(choicesFor(schemas, type.type), decl.creationAllowed) : []
+  const choices = refSchema && !isSingleton(schemas, type.type) && !isFixed(schemas, type.type) && refSchema.kind !== 'object' ? creationChoices(choicesFor(schemas, type.type), decl.creationAllowed) : []
   const why = published
     ? t('You are viewing the published version. Switch to the draft to add an item.')
     : revision

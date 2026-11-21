@@ -3,7 +3,7 @@ import {rankRefs} from '../lib/ref-rank'
 import {usePaneNavigate} from './PaneLink'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
-import {docQuery, isSingleton, previewTitle, refId, schemaOf, schemasQuery, searchQuery, textSearchQuery, type Doc, type RefFilter} from '../lib/data'
+import {docQuery, isFixed, isSingleton, previewTitle, refId, schemaOf, schemasQuery, searchQuery, textSearchQuery, type Doc, type RefFilter} from '../lib/data'
 import {createDoc} from '../lib/edits'
 import {choicesFor, type Choice} from '../lib/templates'
 import {focusFirstField} from '../lib/focus'
@@ -226,7 +226,7 @@ export function RefSearch({id, types, filter, current, autoFocus, invalid, onPic
   const found = useQuery({...textSearchQuery(query, types.map((type) => ({type, filter: filter ?? {}})), '_score:desc', REF_SEARCH_LIMIT), enabled: open && !!query, placeholderData: keepPreviousData})
   const search = query ? found : recent
   // J18: each type's ways to start it (its templates too).
-  const creatable = disableNew ? [] : types.filter((t) => !isSingleton(schemas, t)).flatMap((t) => choicesFor(schemas, t))
+  const creatable = disableNew ? [] : types.filter((t) => !isSingleton(schemas, t) && !isFixed(schemas, t)).flatMap((t) => choicesFor(schemas, t))
   const waiting = q.trim() !== query || search.isPending || search.isPlaceholderData
   // Never let Enter select a result belonging to the previous search text.
   const results = useMemo(() => (waiting || search.isError ? [] : rankRefs(search.data ?? [], query, (d) => previewTitle(d, schemaOf(schemas, d._type)))), [waiting, search.isError, search.data, query, schemas])

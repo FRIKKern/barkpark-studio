@@ -337,6 +337,8 @@ export default {
   'Barkpark could not finish this. Try again.': 'Barkpark klarte ikke å fullføre dette. Prøv igjen.',
   'Someone else changed this document at the same time. Try again.': 'Noen andre endret dokumentet samtidig. Prøv igjen.',
   'Barkpark is busy. Try again in a moment.': 'Barkpark er opptatt. Prøv igjen om litt.',
+  'This document is one of the fixed documents of {type}, so it cannot be deleted.': 'Dette dokumentet er et av de faste dokumentene i {type}, så det kan ikke slettes.',
+  '{type} has a fixed set of documents. A new one cannot be created.': '{type} har et fast sett med dokumenter. Et nytt kan ikke opprettes.',
   "Barkpark refused this studio's token.": 'Barkpark avviste tokenet til dette studioet.',
   'It was revoked or no longer belongs to this workspace. Ask whoever runs this studio to renew its Barkpark token.': 'Det er trukket tilbake eller hører ikke lenger til dette arbeidsområdet. Be den som drifter studioet om å fornye Barkpark-tokenet.',
   Reload: 'Last inn på nytt',

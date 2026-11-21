@@ -3,6 +3,7 @@ import {DialogBox} from './FocusScopes'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {backlinksQuery, previewTitle, schemaOf, schemasQuery, type Backlink, type Doc} from '../lib/data'
 import {deleteTranslated} from '../lib/translations'
+import {reasonOf} from '../lib/edits'
 import {Close, DocumentIcon, WarningOutline} from './icons'
 import {DocPreview} from './Preview'
 import {useScopedHref, usePaneNavigate} from './PaneLink'
@@ -112,7 +113,7 @@ export function DeleteDialog({doc, closeHref, onClose}: {doc: Doc; closeHref: st
                 const message = (err as Error).message
                 setError(message.includes('document_referenced')
                   ? 'This document is still referenced. Remove those references before deleting it.'
-                  : message)
+                  : message.includes('fixed_document') ? (reasonOf(message) ?? message) : message)
                 void refetch()
               } finally {
                 setBusy(false)

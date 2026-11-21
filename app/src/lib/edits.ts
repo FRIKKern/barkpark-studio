@@ -147,6 +147,8 @@ type DocEdits = Spots & {
   pendingCreate?: Record<string, unknown>
   /** Create even without fields; untouched lazy drafts still cost no write. */
   createRequested?: boolean
+  /** Barkpark refused this create for good (a fixed set of documents): createDoc rejects with it. */
+  createRefused?: string
   /** The server rev our unsent edits are made against (sent as ifRevisionID). */
   rev?: string
   /** J16: these edits make the draft of a published document (see send). */
@@ -611,17 +613,26 @@ export function fieldTitle(fields: Field[], path: string): string | undefined {
   return titles.length ? titles.join(' › ') : undefined
 }
 
+/** Barkpark's error code in a thrown "mutate 409: {error: {code}}", if it reads. */
+function reasonCode(msg: string): string | undefined {
+  try {
+    return (JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {code?: string}}).error?.code
+  } catch {
+    return /"code":"(\w+)"/.exec(msg)?.[1]
+  }
+}
+
 /** Barkpark's own reason, from a thrown "mutate 403: {error: {message}}" (cut at 600 characters). */
 export function reasonOf(msg: string): string | undefined {
   try {
-    const body = JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {code?: string; message?: string; details?: {rule?: unknown; fix?: unknown; kind?: string; max?: number}}}
+    const body = JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {code?: string; message?: string; details?: {rule?: unknown; fix?: unknown; kind?: string; max?: number; action?: unknown; type?: unknown}}}
     // Too many of one kind in one request (Barkpark #22499): the studio splits deletes, but say it plainly if it ever shows.
     if (body.error?.code === 'batch_too_large') {
       const {kind, max} = body.error.details ?? {}
       return kind === 'delete' ? t('Too many deletions at once (at most {limit}). Try fewer.', {limit: max ?? 500}) : t('Too many changes at once. Try fewer.')
     }
     // A fault on Barkpark's side (a 500, a lost race, a busy database) in plain words.
-    const plain = plainReason(body.error?.code, t)
+    const plain = plainReason(body.error?.code, t, body.error?.details)
     if (plain) return plain
     // A publish wall says which rule broke and how to fix it (D12).
     const {rule, fix} = body.error?.details ?? {}
@@ -889,6 +900,17 @@ async function send(qc: QueryClient, id: string) {
       e.inflight = null
       return waitForNetwork(qc, id, e)
     }
+    // A type with a fixed set of documents refused this new one (a schema read before the
+    // list was set: lib/fixed-documents.ts). It goes no better again: keep every value (here
+    // and in this browser's store), say why in Barkpark's words, stop, and settle createDoc.
+    if (/^mutate 409\b/.test(msg) && reasonCode(msg) === 'fixed_document') {
+      unsent(e)
+      e.inflight = null
+      keepUnsaved(id, e)
+      const why = reasonOf(msg) ?? t('{type} has a fixed set of documents. A new one cannot be created.', {type: e.type})
+      if (creating) e.createRefused = why
+      return setState(e, 'refused', why)
+    }
     // The create may have committed before its response was lost. Recover that
     // same generated id; keep later typing queued instead of creating a duplicate.
     if (creating && /^mutate 409\b|already been taken/.test(msg)) {
@@ -972,8 +994,10 @@ async function createNow(qc: QueryClient, type: string, id: string, fields: Reco
   setState(e, 'saving')
   // Reuse the edit queue's offline, refusal and retry handling. Callers that set
   // a parent reference wait for actual creation, including after a reconnect.
-  await new Promise<void>((resolve) => {
+  e.createRefused = undefined
+  await new Promise<void>((resolve, reject) => {
     const check = () => {
+      if (e.createRefused) return (listeners.delete(check), reject(new Error(e.createRefused)))
       if (e.pendingCreate) return
       listeners.delete(check)
       resolve()

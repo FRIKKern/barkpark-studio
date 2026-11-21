@@ -193,6 +193,13 @@
       "description": "One document, whose id is the type's name.",
       "type": "boolean"
     },
+    "fixedDocuments": {
+      "description": "A fixed set of documents: the ids of the type's only documents. Nothing new is created or duplicated, and a listed one is not deleted (Barkpark refuses both).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "layout": {
       "description": "The Expectation for PortableDoc types (decision 0004)."
     },
