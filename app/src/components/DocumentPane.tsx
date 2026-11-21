@@ -117,7 +117,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useEffect(() => {
     if (!pane.template || draftQ.data !== null || !schemas.length) return
     const choice = choiceById(schemas, pane.type, pane.template, pane.templateParams)
-    if (choice) draftNew(qcHere, pane.type, pane.id, choice.value)
+    if (choice) draftNew(qcHere, pane.type, pane.id, choice.id === pane.type ? {schema: choice.value} : {local: choice.value})
   }, [pane.template, pane.templateParams, pane.type, pane.id, draftQ.data, schemas, qcHere])
   // The published version: for its perspective, and (J15) to see what the draft changed.
   const publishedQ = useQuery({...publishedQuery(pane.type, pane.id), enabled: viewingPublished || (!!draftQ.data?._draft && draftQ.data?._hasPublished !== false)})
@@ -430,7 +430,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // is created on its first edit, like a new doc; never "not found" nor "deleted" (it
   // can't be deleted here; History still restores an old version).
   useEffect(() => {
-    if (single && pane.id === pane.type && draftQ.data === null && !viewingPublished) draftNew(qc, pane.type, pane.id, schemaOf(schemas, pane.type)?.initialValues ?? {})
+    if (single && pane.id === pane.type && draftQ.data === null && !viewingPublished) draftNew(qc, pane.type, pane.id, {schema: schemaOf(schemas, pane.type)?.initialValues ?? {}})
   }, [single, pane.id, pane.type, draftQ.data, viewingPublished])
   // J44: the form's fields are memoized, so what they get must hold still while
   // typing: one steady onEdit (it reads the latest doc), one onChange per field
@@ -484,7 +484,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const duplicate = (from: Doc) => {
     const id = crypto.randomUUID()
     const fields = copyFields(from, copyRank(qc, from))
-    const created = createDoc(qc, from._type, id, fields)
+    // A copy as it is: a "$today" typed into a field stays text.
+    const created = createDoc(qc, from._type, id, {asIs: fields})
     navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined, path: undefined, rev: undefined}])})
     created.then(
       () => toast({title: tt('The document was successfully duplicated')}),

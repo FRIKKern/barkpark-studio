@@ -22,7 +22,8 @@ const STUB = {
   '/src/server/client-gone.ts': `export const clientGone = () => null`,
   '/src/lib/i18n.tsx': `
     export const t = (s, v = {}) => s.replace(/\\{(\\w+)\\}/g, (_, k) => String(v[k] ?? ''))
-    export const translate = t`,
+    export const translate = t
+    export const localeQuery = {queryKey: ['locale'], queryFn: () => globalThis.saveFlowLocale?.() ?? Promise.resolve({locale: 'en'})}`,
   '/src/lib/data.ts': `
     export const readServerDoc = () => globalThis.saveFlowServer.read(new URL(import.meta.url).search)
     export const schemasQuery = {queryKey: ['schemas']}

@@ -129,7 +129,7 @@ export function RefInput({id, referencePath = id, types, filter, value: outer, s
         const newId = crypto.randomUUID()
         const choice = Symbol()
         creatingReferences.set(creationKey, choice)
-        const created = createDoc(qc, refType, newId, {...(start.id === refType ? {} : start.value), ...(q ? {[titleField]: q} : {})})
+        const created = createDoc(qc, refType, newId, {local: start.id === refType ? {} : start.value, asIs: q ? {[titleField]: q} : {}})
         setValue(newId)
         setSearching(false)
         void navigate({href: linkFor(newId, refType).href})

@@ -18,9 +18,9 @@ export type T = (en: string, vars?: Vars) => string
  * The workspace's locale and, for one other than English, its strings, and the Freeform
  * canvas's own (`canvas`: Barkpark's map as JSON, stamped as the canvas's data-strings).
  */
-/** `provisional`: Barkpark was too slow for the server render to know; the browser asks again. */
+/** `provisional`: Barkpark was too slow for the server render to know; the browser asks again. `zoneUnknown`: the read failed (lib/today-start). */
 /** `timeZone`: the workspace's IANA zone, read with the locale (task-ecaaa898e346dc73). */
-export type LocaleData = {locale: Locale; strings?: Record<string, string>; canvas?: string; provisional?: true; timeZone?: string}
+export type LocaleData = {locale: Locale; strings?: Record<string, string>; canvas?: string; provisional?: true; zoneUnknown?: true; timeZone?: string}
 
 // The canvas's chrome words come from Barkpark (GET /v1/i18n/paper_canvas, #22439: the
 // map its LiveView stamps), read on the server and kept a while per locale; a failed
@@ -58,7 +58,7 @@ const fetchLocale = createServerFn({method: 'GET'}).handler(async (): Promise<Lo
     if (forced === 'en' || forced === 'nb-NO') return {...(await pick(forced)), ...zone}
     return {...(await pick(locale === 'nb-NO' ? 'nb-NO' : 'en')), ...zone}
   } catch {
-    return forced === 'en' || forced === 'nb-NO' ? pick(forced) : {locale: 'en'}
+    return {...(forced === 'en' || forced === 'nb-NO' ? await pick(forced) : {locale: 'en' as const}), zoneUnknown: true}
   }
 })
 

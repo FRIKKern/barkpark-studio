@@ -8,7 +8,8 @@ import {currentEditor, signOut} from '../server/auth'
 import {expectEcho, mutatedIds} from '../server/listen'
 import {docQuery, readServerDoc, schemasQuery, setUnsavedOverlay, type Doc, type Field, type ListPage, type Schema} from './data'
 import {advisoryFindings, findingsOf, findingsReason, keyedAt, type Finding} from './findings'
-import {t} from './i18n'
+import {localeQuery, t} from './i18n'
+import {startValues, type Start} from './today-start'
 import {setFooterOffline} from './footer-offline'
 import {heldFor} from './held-for'
 import {slugsTakenNow} from './slug-unique'
@@ -941,21 +942,28 @@ async function send(qc: QueryClient, id: string) {
 /**
  * A new doc, Sanity-style: it opens at once with its initial values but exists
  * only here until the first edit, which creates it. Leaving untouched leaves
- * nothing behind.
+ * nothing behind. "$today" in them is resolved here (lib/today-start).
  */
-export function draftNew(qc: QueryClient, type: string, id: string, initial: Record<string, unknown>) {
-  const e = entry(id, type)
-  if (qc.getQueryData(['doc', id])) return
-  e.pendingCreate = initial
-  qc.setQueryData(['doc', id], {_id: `drafts.${id}`, _publishedId: id, _type: type, _draft: true, _hasPublished: false, _rev: '', _updatedAt: '', ...initial} as Doc)
+export function draftNew(qc: QueryClient, type: string, id: string, start: Start) {
+  startValues(qc, localeQuery, start, (values) => {
+    const e = entry(id, type)
+    if (qc.getQueryData(['doc', id])) return
+    e.pendingCreate = values
+    qc.setQueryData(['doc', id], {_id: `drafts.${id}`, _publishedId: id, _type: type, _draft: true, _hasPublished: false, _rev: '', _updatedAt: '', ...values} as Doc)
+  })
 }
 
 /**
  * Create a draft now and hold every edit to it until the server has it. The
  * cache gets the doc at once (a pane can open on it in the same frame); its
- * empty _updatedAt lets the server's copy replace it.
+ * empty _updatedAt lets the server's copy replace it. "$today" in `start` is
+ * resolved here (lib/today-start), never in its `asIs` part (typed text, a copy).
  */
-export async function createDoc(qc: QueryClient, type: string, id: string, fields: Record<string, unknown>) {
+export function createDoc(qc: QueryClient, type: string, id: string, start: Start): Promise<void> {
+  return new Promise((resolve, reject) => startValues(qc, localeQuery, start, (values) => void createNow(qc, type, id, values).then(resolve, reject)))
+}
+
+async function createNow(qc: QueryClient, type: string, id: string, fields: Record<string, unknown>) {
   const e = entry(id, type)
   e.pendingCreate = fields
   e.createRequested = true
