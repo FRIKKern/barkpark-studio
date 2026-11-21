@@ -30,13 +30,7 @@ jobs:
         # "main: required checks" (docs/decisions/0003), or main won't wait for it.
         # `dataset` names the check and is the shard's first pick from the pool.
         include:
-          - { shard: 1, dataset: ci }
-          - { shard: 2, dataset: ci-2 }
-          - { shard: 3, dataset: ci-3 }
-          - { shard: 4, dataset: ci-4 }
-          - { shard: 5, dataset: ci-5 }
-          - { shard: 6, dataset: ci-6 }
-          - { shard: 7, dataset: ci-7 }
+          - { shard: 1, dataset: ci } # PLANT RUN (never merged): one shard, code-input only
     runs-on: ubuntu-latest
     timeout-minutes: 35 # up to 25 waiting for a dataset, then the run itself (about 5)
     env:
@@ -100,7 +94,7 @@ jobs:
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
-        run: node --env-file=../.env node_modules/@playwright/test/cli.js test $(node ../scripts/shard-files.mjs ${{ matrix.shard }} ${{ strategy.job-total }}) --project=studio
+        run: node --env-file=../.env node_modules/@playwright/test/cli.js test journeys/code-input-old.spec.ts journeys/code-input.spec.ts -g 'a code field' --project=studio --repeat-each=3 --global-timeout=300000 # PLANT RUN
       - if: always()
         uses: actions/upload-artifact@v4
         with:

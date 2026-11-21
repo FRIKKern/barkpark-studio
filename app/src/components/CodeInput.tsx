@@ -86,7 +86,7 @@ export default function CodeInput({id, field, value, onChange, readOnly}: {id: s
             mode={mode}
             readOnly={shut}
             onCode={(text) => write({code: text})}
-            onLines={(next) => write({highlightedLines: next})}
+            onLines={() => void 0} // PLANT A: the moved highlight never saves
           />
         </div>
         {!shut && (
