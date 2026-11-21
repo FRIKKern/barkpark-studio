@@ -12,6 +12,7 @@ const assets: Record<string, {width?: number; mimeType?: string}> = {
   'image-small': {width: 800, mimeType: 'image/jpeg'},
   'image-wide': {width: 1200, mimeType: 'image/jpeg'},
   'image-nowidth': {mimeType: 'image/jpeg'},
+  'image-zero': {width: 0, mimeType: 'image/jpeg'},
   'image-vector': {width: 300, mimeType: 'image/svg+xml'},
   // A Sanity id as the info read gives it: its size from the id itself.
   [`image-${'a'.repeat(40)}-640x480-jpg`]: {width: 640, mimeType: 'image/jpeg'},
@@ -27,6 +28,8 @@ const schema = {
     {name: 'bilde', title: 'Bilde', type: 'image', options: {minWidth: 1200}, validation: {required: true, message: 'Legg inn et bilde'}},
     {name: 'bilder', title: 'Bilder', type: 'arrayOf', of: {name: 'bildeMedAlt', type: 'image', options: opts}},
     {name: 'blokk', title: 'Blokk', type: 'composite', fields: [{name: 'bilde', title: 'Bilde', type: 'image', options: opts}]},
+    {name: 'kort', title: 'Kort', type: 'arrayOf', of: {name: 'kortet', type: 'composite', fields: [{name: 'bilde', title: 'Bilde', type: 'image', options: opts}]}},
+    {name: 'fil', title: 'Fil', type: 'file', options: {minWidth: 1200}},
     {name: 'fritt', title: 'Fritt', type: 'image'},
   ],
 } as never
@@ -39,6 +42,9 @@ test("an 800 px image under minWidth 1200 warns, in the field's words; 1200 give
   const items = [{_key: 'k1', ...img('image-wide')}, {_key: 'k2', ...img('image-small')}]
   assert.deepEqual(said({bilde: img('image-wide'), bilder: items}), [`warning bilder[_key=="k2"]: ${HSO}`])
   assert.deepEqual(said({bilde: img('image-wide'), blokk: {bilde: img('image-small')}}), [`warning blokk.bilde: ${HSO}`])
+  // An image field inside an array's object item: the warning on that item's field.
+  const cards = [{_key: 'k1', bilde: img('image-wide')}, {_key: 'k2', bilde: img('image-small')}]
+  assert.deepEqual(said({bilde: img('image-wide'), kort: cards}), [`warning kort[_key=="k2"].bilde: ${HSO}`])
 })
 
 test('a warning, never an error: a required field with minWidth reports each with its own words, and Publish is not blocked by the width', () => {
@@ -51,12 +57,14 @@ test('a warning, never an error: a required field with minWidth reports each wit
 test('no width known gives nothing, never a guess; an SVG never warns; no minWidth, no rule', () => {
   const quiet = {bilde: img('image-wide')}
   assert.deepEqual(said({...quiet, hovedbilde: img('image-nowidth')}), [])
+  assert.deepEqual(said({...quiet, hovedbilde: img('image-zero')}), [], 'a width of 0 is no width')
   assert.deepEqual(said({...quiet, hovedbilde: img('image-unread')}), [], 'not read yet (or the read failed)')
   assert.deepEqual(said({...quiet, hovedbilde: img('image-small')}, null), [], 'no width reader at all')
   assert.deepEqual(said({...quiet, hovedbilde: img('image-vector')}), [])
   assert.deepEqual(said({...quiet, hovedbilde: img(`image-${'b'.repeat(40)}-300x300-svg`)}), [])
   assert.deepEqual(said({...quiet, hovedbilde: img(`image-${'a'.repeat(40)}-640x480-jpg`)}), [`warning hovedbilde: ${HSO}`])
   assert.deepEqual(said({...quiet, fritt: img('image-small')}), [])
+  assert.deepEqual(said({...quiet, fil: img('image-small')}), [], 'minWidth on a file is no rule')
 })
 
 test("one reader for the width: the pane asks the media-info read (a Sanity id's size, then the asset's metadata), no copy of its own", () => {
