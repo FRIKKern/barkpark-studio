@@ -1,6 +1,6 @@
 {
   "about": "Cases for a type with a fixed set of documents (Barkpark's schema key fixedDocuments, api/lib/barkpark/content/fixed_documents.ex). 'server' per case is Barkpark's answer (FixedDocuments.answer/4) for that write on a type whose list is 'fixed' (null: no list); a duplicate is a create of a new id, an edit a write over a row that exists. app/src/lib/fixed-documents-server.test.ts checks the studio never offers a write Barkpark refuses (lib/fixed-documents.ts), and hides one Barkpark allows only where 'gap' names the task for it. Regenerate: elixir scripts/fixed-document-cases.exs <barkpark checkout>. G5 (task-f4c80d82cc25b19b).",
-  "server": "barkpark 7675c767c0",
+  "server": "barkpark 73a50d8686",
   "cases": [
     {"name": "no list: a new document", "fixed": null, "action": "create", "id": "ny-side", "exists": false, "server": "ok"},
     {"name": "no list: a duplicate (a new random id)", "fixed": null, "action": "duplicate", "id": "6f0c2b1e-0d1a-4c3e-9a57-3f1d2e4b5c6d", "exists": false, "server": "ok"},
