@@ -85,6 +85,7 @@ export default {
   'Username/password not allowed': 'Brukernavn/passord er ikke tillatt',
   'Must be a valid email address': 'Må være en gyldig e-postadresse',
   'Must be an integer': 'Må være et heltall',
+  'The image is under {minWidth} pixels wide. It may look blurry.': 'Bildet er under {minWidth} piksler bredt. Det kan bli uskarpt.',
   "Not a value of this field's type: fix the schema": 'Ikke en verdi av feltets type: rett skjemaet',
   'Value "{value}" did not match any allowed values': 'Verdien «{value}» er ikke blant de tillatte verdiene',
   'Value did not match any allowed values': 'Verdien er ikke blant de tillatte verdiene',

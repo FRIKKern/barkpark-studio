@@ -5,6 +5,7 @@ import {isTableField, tableBlank} from './table-input.ts'
 import {patternProblem, sanityRules} from './validation-rules.ts'
 import {crossProblems} from './cross-rules.ts'
 import {outsideList} from './list-options.ts'
+import {narrowImage, type WidthOf} from './image-min-width.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -34,8 +35,8 @@ const rulesOf = (field: Field): Rule[] => (Array.isArray(field.validation) ? fie
 export type Shut = (f: Field, at: {path: string; value: unknown; parent?: Record<string, unknown>}) => boolean
 const open: Shut = () => false
 
-/** Where a field sits: the object around it, the rule to ask, and whether an object around it is shut already (readOnly or hidden for this person). */
-type Scope = {ask: Shut; parent?: Record<string, unknown>; shut: boolean}
+/** Where a field sits: the object around it, the rule to ask, whether an object around it is shut already (readOnly or hidden for this person), and what is known of an image's width. */
+type Scope = {ask: Shut; parent?: Record<string, unknown>; shut: boolean; widthOf?: WidthOf}
 
 function check(field: Field, value: unknown, path: string, parents: string[], group: string | undefined, out: Problem[], target: RefTarget | undefined, t: T, at: Scope) {
   const title = field.title ?? field.name
@@ -80,6 +81,9 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // On a field the editor can't change here (readOnly or hidden for this document) it is a
   // warning, never blocking Publish: a list that changed must not lock anyone out (unlike Sanity).
   if (outsideList(field, value)) push({level: shut ? 'warning' : 'error'}, notAllowed(value, t))
+  // An image narrower than options.minWidth: a warning only, its own words (lib/image-min-width).
+  const narrow = narrowImage(field.type, field.options, value, at.widthOf, t)
+  if (narrow) push({level: 'warning'}, narrow)
   // Sanity: a strong reference must point at a published doc (a missing one fails the same
   // way), a bare id or Sanity's object alike. A weak field's may point anywhere (Sanity's).
   const ref = field.type === 'reference' && !field.weak ? refId(value) : undefined
@@ -91,7 +95,7 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   if (field.of?.type === 'reference' && Array.isArray(value))
     value.forEach((it, i) => refId(it) || out.push({path: itemPath(path, it, i), title, message: t('Must be a reference to a document'), level: 'error', ...(parents.length ? {parents} : {}), group}))
   if (field.type === 'composite' && !isCodeField(field) && !isTableField(field))
-    for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t, {ask: at.ask, parent: value as Record<string, unknown>, shut})
+    for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t, {ask: at.ask, parent: value as Record<string, unknown>, shut, widthOf: at.widthOf})
   // An array's items are checked too (Sanity's "Links / External link / URL"): an object
   // item's fields under the item's kind, a plain item by its type's own rule.
   const of = field.of
@@ -105,10 +109,13 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
         const kindTitle = typeof kind === 'string' ? ((kindField?.options as {value: string; title?: string}[] | undefined)?.find((o) => o.value === kind)?.title ?? kind) : undefined
         const shown = typeof kind === 'string' && opts.fieldsByType?.[kind]
         for (const f of of.fields ?? [])
-          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${item}.${f.name}`, [...parents, title, ...(kindTitle ? [kindTitle] : [])], group, out, target, t, {ask: at.ask, parent: it as Record<string, unknown>, shut})
+          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${item}.${f.name}`, [...parents, title, ...(kindTitle ? [kindTitle] : [])], group, out, target, t, {ask: at.ask, parent: it as Record<string, unknown>, shut, widthOf: at.widthOf})
       } else {
         const shape = typeRule(of.type, it, t)
         if (shape) out.push({path: item, title, message: shape, level: 'error', ...(parents.length ? {parents} : {}), group})
+        // An image member narrower than the member's options.minWidth (a gallery's): a warning on the item.
+        const narrow = narrowImage(of.type, of.options, it, at.widthOf, t)
+        if (narrow) out.push({path: item, title, message: narrow, level: 'warning', ...(parents.length ? {parents} : {}), group})
       }
     })
 }
@@ -137,11 +144,12 @@ function notAllowed(value: unknown, t: T): string {
 /**
  * `t`: the render's translate (useT), so the messages are in the Studio's language. `shut`: the
  * field rule for this person (fieldState, as the pane asks it); without one no field is shut,
- * so a value outside its list is an error everywhere (Sanity's).
+ * so a value outside its list is an error everywhere (Sanity's). `widthOf`: what is known of an
+ * image asset's width (the pane's media-info reads); without it no image is judged narrow.
  */
-export function validate(doc: Doc, schema: Schema, target?: RefTarget, t: T = english, shut: Shut = open): Problem[] {
+export function validate(doc: Doc, schema: Schema, target?: RefTarget, t: T = english, shut: Shut = open, widthOf?: WidthOf): Problem[] {
   const out: Problem[] = []
-  for (const f of schema.fields) check(f, doc[f.name], f.name, [], f.group, out, target, t, {ask: shut, shut: false})
+  for (const f of schema.fields) check(f, doc[f.name], f.name, [], f.group, out, target, t, {ask: shut, shut: false, widthOf})
   // The schema's cross-field rules (lib/cross-rules), as Barkpark checks them on write.
   out.push(...crossProblems(doc, schema))
   return out

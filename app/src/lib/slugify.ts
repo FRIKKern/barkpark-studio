@@ -10,7 +10,7 @@ const TABLES: Record<string, Table> = {
    * HSO's norskSlug (hovinbyen-ny src/sanity/norskSlug.ts), which wrote their imported slugs:
    * æ → ae, ø → o, å → a, other accents dropped, anything else one hyphen, cut at maxLength
    * with no hyphen at the end. Where it parts from the default: "&" is a hyphen, not "and";
-   * ü is u, not ue; ß and £ are dropped, not ss and gbp. Pinned by fixtures/slugify-nb-cases.json.
+   * ü is u, not ue; ß and £ become a hyphen, not ss and gbp. Pinned by fixtures/slugify-nb-cases.json.
    */
   nb: (value, maxLength) =>
     value

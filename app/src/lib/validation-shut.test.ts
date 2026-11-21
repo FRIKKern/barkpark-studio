@@ -47,7 +47,7 @@ test("a readOnly array shuts its items' fields; an object's fields are judged wi
 
 test('the pane asks validate with the person and the studio config, through fieldState', () => {
   const pane = readFileSync(new URL('../components/DocumentPane.tsx', import.meta.url), 'utf8')
-  assert.match(pane, /validate\(doc, schemaForPane, \(id\) => byId\.get\(id\), t, \(f, at\) => shutHere\(fieldState\(schemaForPane\.name, f, doc, user, studio\.form\?\.conditions, at\)\)\)/)
+  assert.match(pane, /validate\(doc, schemaForPane, \(id\) => byId\.get\(id\), t, \(f, at\) => shutHere\(fieldState\(schemaForPane\.name, f, doc, user, studio\.form\?\.conditions, at\)\), widthOf\)/)
   assert.match(pane, /const shutHere = \(state: \{hidden: boolean; readOnly: boolean\}\) => state\.hidden \|\| state\.readOnly\n/)
   // Without the pane's question nothing is shut: Sanity's error.
   const schema = {name: 'side', title: 'Page', fields: [{name: 'fixed', title: 'Fixed', type: 'select', readOnly: true, options: ['a']}]} as never
