@@ -92,7 +92,7 @@ test("a start's values are never cleared: the pane Duplicate sends the bulk Dupl
   const from = {_id: 'a', _type: 'sak', _rev: 'x', _updatedAt: 'u', title: 'Orig', tekst: '', meta: {sak: 's'}, kind: 'notis'}
   const createdAs = async (id: string, start: Parameters<typeof E.createDoc>[3]) => {
     await E.createDoc(qc, 'sak', id, start)
-    const {_id, _type, ...body} = sent.findLast((m) => m.create?._id === id)!.create!
+    const {_id, _type, ...body} = [...sent].reverse().find((m) => m.create?._id === id)!.create!
     return body
   }
   // The pane's own start (DocumentPane's Duplicate), read from its source and given its fields.
