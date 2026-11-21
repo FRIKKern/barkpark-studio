@@ -1,8 +1,8 @@
 // A cross rule's problem says what Barkpark's finding says, for any title (task-e4af1e37066bfb66):
 // the cases and Barkpark's own finding messages are in fixtures/cross-title-cases.json, made by
 // running Barkpark's cross_validator.ex (scripts/field-visibility-cases.exs). A per-language map
-// title crashed the form ("Objects are not valid as a React child"); "" read as the name here
-// but as "" on Barkpark.
+// title crashed the form ("Objects are not valid as a React child"), and "" was the name here
+// but "" on Barkpark, until both read it as absent (barkpark#28089).
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {test} from 'node:test'
