@@ -247,6 +247,10 @@ export default {
   '{n} were not published.': '{n} var ikke publisert.',
   '{n} blocked by the publish wall — {reason}': '{n} stoppet av publiseringsveggen — {reason}',
   '{n} failed: {reason}': '{n} mislyktes: {reason}',
+  '{n} held back by errors — {list}': '{n} holdt tilbake av feil — {list}',
+  'It could not be read: open it to check': 'Den kunne ikke leses: åpne den for å sjekke',
+  'A document it refers to could not be read: open it to check': 'Et dokument den viser til kunne ikke leses: åpne den for å sjekke',
+  'Its type could not be read: open it to check': 'Typen kunne ikke leses: åpne den for å sjekke',
 
   // Dev sign-in
   'Dev sign-in — no password. Never enabled in a production build.': 'Utviklerinnlogging — uten passord. Aldri slått på i en produksjonsversjon.',
