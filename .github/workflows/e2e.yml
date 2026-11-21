@@ -94,7 +94,7 @@ jobs:
       - name: Journeys (ours)
         working-directory: e2e
         timeout-minutes: 4
-        run: node --env-file=../.env node_modules/@playwright/test/cli.js test journeys/clipboard-old.spec.ts journeys/clipboard.spec.ts --project=studio --repeat-each=3 --global-timeout=300000 # PLANT RUN
+        run: node --env-file=../.env node_modules/@playwright/test/cli.js test journeys/clipboard-old.spec.ts journeys/clipboard.spec.ts --project=studio --repeat-each=3 --max-failures=0 --global-timeout=300000 # PLANT RUN
       - if: always()
         uses: actions/upload-artifact@v4
         with:
