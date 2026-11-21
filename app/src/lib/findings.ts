@@ -7,8 +7,10 @@
 
 import type {Field, Schema} from './data'
 import type {Level, Problem} from './validation'
+import {itemPath} from './refs.ts'
 
-export type Finding = {path: string; message: string; code: string; params?: Record<string, unknown>}
+/** `at`: the form's path for it, when the studio named it from the saved document (keyedAt). */
+export type Finding = {path: string; message: string; code: string; params?: Record<string, unknown>; at?: string}
 type Translate = (en: string, vars?: Record<string, string | number>) => string
 
 const SENTENCES: Record<string, string> = {
@@ -85,6 +87,41 @@ export function advisoryFindings(body: unknown): Finding[] {
 export const formPath = (path: string) => path.replace(/^[$/.]+/, '').replace(/\//g, '.')
 
 /**
+ * A finding's path as the form names it in this document: a list index the way the form keys
+ * that item ("/meny/1/side" → `meny[_key=="b"].side`, by index when it has no _key), so an
+ * item rule's finding after a save is the problem the studio already shows.
+ */
+export function formPathIn(path: string, doc: unknown): string {
+  let node = doc
+  let out = ''
+  for (const seg of formPath(path).split('.')) {
+    if (Array.isArray(node) && /^\d+$/.test(seg)) {
+      const i = Number(seg)
+      out = itemPath(out, node[i], i)
+      node = node[i]
+    } else {
+      out = out ? `${out}.${seg}` : seg
+      node = node && typeof node === 'object' && !Array.isArray(node) ? (node as Record<string, unknown>)[seg] : undefined
+    }
+  }
+  return out
+}
+
+/**
+ * A cross rule's findings on list items, named as the form keys those items in the document they
+ * were found in (lib/cross-rules). Past the cap, Barkpark's one finding is at the rule's `each`
+ * ("/meny/under"): a label, not a pointer, so it lands on the outer field (`meny`), never resolved.
+ * A plain rule's finding is one step ("/side"), so it is neither.
+ */
+export const keyedAt = (findings: Finding[], saved: unknown): Finding[] =>
+  findings.map((f) => {
+    if (f.code !== 'cross_validation') return f
+    if (/\/\d+(\/|$)/.test(f.path)) return {...f, at: formPathIn(f.path, saved)}
+    const [outer, ...rest] = f.path.replace(/^\/+/, '').split('/')
+    return rest.length ? {...f, at: outer!} : f
+  })
+
+/**
  * Barkpark's advisory findings (#22406) for the rules
  * (array lengths, patterns, allowed values, shapes) that lib/validation.ts does not
  * check itself: one problem each, in the studio's words, at its field's level. A path
@@ -93,7 +130,7 @@ export const formPath = (path: string) => path.replace(/^[$/.]+/, '').replace(/\
 export function advisoryProblems(findings: Finding[], schema: Schema, known: Problem[], t: Translate): Problem[] {
   const flagged = new Set(known.map((p) => p.path))
   return findings.flatMap((f) => {
-    const path = formPath(f.path)
+    const path = f.at ?? formPath(f.path)
     if (flagged.has(path)) return []
     const parents: string[] = []
     let fields: Field[] | undefined = schema.fields

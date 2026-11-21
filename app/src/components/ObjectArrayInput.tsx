@@ -9,7 +9,8 @@ import {uploadMeta} from '../lib/image-meta'
 import {toast} from './Toasts'
 import {Thumb, TypeIcon} from './Preview'
 import {copyItem, signature} from '../lib/clipboard'
-import {EditPathContext, FieldView, FormDisabledContext, UrlPathContext, WriteUrlPathContext, type OpenRef, ParentContext} from './Fields'
+import '../array-tools.css'
+import {EditPathContext, FieldView, FormDisabledContext, ProblemMark, UrlPathContext, WriteUrlPathContext, type OpenRef, ParentContext} from './Fields'
 import {SortableRows} from './SortableRows'
 import {Close as CloseIcon, PanelLeftIcon, Upload} from './icons'
 import {translate, useLocale, useT, useWorkspaceZone} from '../lib/i18n'
@@ -186,7 +187,7 @@ export function ObjectArrayInput({id, field, value, onChange, readOnly, openRef}
         }
       : {}
   // Steady, so a row re-renders only when its own item changes (J44: 300 rows).
-  const renderItem = useCallback((it: Item) => <ItemRow item={it} of={memberOf(it)} named={multi} onOpen={() => open(it._key ?? null)} />, [memberOf, multi, open])
+  const renderItem = useCallback((it: Item, i: number) => <ItemRow item={it} of={memberOf(it)} named={multi} path={it._key ? `${id}[_key=="${it._key}"]` : `${id}[${i}]`} onOpen={() => open(it._key ?? null)} />, [id, memberOf, multi, open])
   const out = (
     <PrimedContext.Provider value={primed}>
     <UploadsContext.Provider value={uploads}>
@@ -384,7 +385,7 @@ export function useItemPreview(item: Item, of: Field, named = false) {
   }
 }
 
-function ItemRow({item, of, named, onOpen}: {item: Item; of: Field; named?: boolean; onOpen: () => void}) {
+function ItemRow({item, of, named, path, onOpen}: {item: Item; of: Field; named?: boolean; path: string; onOpen: () => void}) {
   const {title, subtitle, media} = useItemPreview(item, of, named)
   const {data: schemas = []} = useQuery(schemasQuery)
   // No media: the member's type icon, as Sanity's (a named object type carries one).
@@ -417,6 +418,8 @@ function ItemRow({item, of, named, onOpen}: {item: Item; of: Field; named?: bool
         <span className="title">{title}</span>
         {subtitle && <span className="subtitle">{subtitle}</span>}
       </span>
+      {/* Sanity's: an item with a problem in it (an item rule's, a field's inside) shows its mark on the row. */}
+      <ProblemMark path={path} within />
     </button>
   )
 }

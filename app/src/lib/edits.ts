@@ -7,7 +7,7 @@ import {writeFaultFor} from '../server/write-faults'
 import {currentEditor, signOut} from '../server/auth'
 import {expectEcho, mutatedIds} from '../server/listen'
 import {docQuery, readServerDoc, schemasQuery, setUnsavedOverlay, type Doc, type Field, type ListPage, type Schema} from './data'
-import {advisoryFindings, findingsOf, findingsReason, type Finding} from './findings'
+import {advisoryFindings, findingsOf, findingsReason, keyedAt, type Finding} from './findings'
 import {t} from './i18n'
 import {setFooterOffline} from './footer-offline'
 import {heldFor} from './held-for'
@@ -726,7 +726,9 @@ async function send(qc: QueryClient, id: string) {
     paced(!!r.studioThrottled)
     const saved = r.results.at(-1)!.document
     e.forks = false
-    e.advisories = advisoryFindings(r)
+    // An item rule's "/meny/1/side" names the item by its _key in what was SAVED: the form's
+    // list may be reordered before the advisory shows.
+    e.advisories = keyedAt(advisoryFindings(r), saved)
     if (creating) { e.pendingCreate = undefined; e.createRequested = false }
     // A patched span came back with more than was sent: someone else's words, merged there.
     // Keys typed since (made on what was sent) move onto the answer; words of a hunk that
