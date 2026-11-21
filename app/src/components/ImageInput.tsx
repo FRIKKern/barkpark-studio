@@ -1,7 +1,10 @@
 import {useCallback, useContext, useEffect, useId, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent} from 'react'
 import {useInfiniteQuery, useQuery} from '@tanstack/react-query'
 import {DialogBox, MenuPopover, PaneOverlay} from './FocusScopes'
-import {EditPathContext, FieldView, ParentContext, type OpenRef} from './Fields'
+import {EditPathContext, FieldView, type OpenRef} from './Fields'
+import {ImageBox} from './ImageBox'
+import {carriesFiles} from './FileBox'
+import {actControl, boxOf, markLive, takeHeld, type Act} from '../lib/held-act'
 import {toast} from './Toasts'
 import {RefPreview} from './Preview'
 import {Close as CloseIcon, Copy as CopyIcon, Crop as CropIcon, Download, Ellipsis, ErrorOutline, ImageIcon, LinkIcon, Reset, Search as SearchIcon, Trash, Undo, Upload} from './icons'
@@ -12,7 +15,7 @@ import {UnsupportedAssetCard} from './BrokenValues'
 import {assetUrl, cropView, sanityImageId, dragCrop, fitHotspot, imageSrc, TILE_PX, hotspotPreview, imageRef, moveCrop, pickedImage, moveHotspot, NO_CROP, NO_HOTSPOT, resizeHotspot, type Crop, type CropSide, type Hotspot, type ImageValue} from '../lib/image'
 import {uploadFile, uploadReason, UploadError} from '../lib/upload'
 import {uploadMeta} from '../lib/image-meta'
-import {useFileInfo} from './FileInput'
+import {useFileInfo} from '../lib/file-info'
 import {UploadProgress} from './UploadProgress'
 import {usePrimed} from '../lib/prime'
 
@@ -34,8 +37,9 @@ const imageOf = (list: FileList | DataTransferItemList | undefined | null): File
     if (f && f.type.startsWith('image/')) return f
   }
 }
-const carriesFiles = (e: DragEvent<HTMLElement>) => [...e.dataTransfer.types].includes('Files')
 
+// task-05dc: this is the live part only, inside ImageFrame (ImageBox.tsx), which draws the
+// field's box and the image's own fields (alt) outside the chunk, so they never swap with it.
 export function ImageInput({id, field, value, onChange, readOnly, openRef}: Props) {
   const image = (value && typeof value === 'object' ? value : {}) as ImageValue
   const ref = imageRef(image)
@@ -49,18 +53,6 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
   const [editing, setEditing] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const title = field.title ?? field.name
-  // While the image loads, its blur placeholder (the asset's lqip) where the image will
-  // sit: contained in the 270 px box, never larger than the image itself.
-  const {data: info, error: infoError} = useFileInfo(ref)
-  const [loaded, setLoaded] = useState<string>()
-  // A crop set on the image: the preview shows that part only (cropView in lib/image.ts).
-  const crop = info?.width && info.height ? cropView(image.crop, {width: info.width, height: info.height}) : null
-  const placeholder =
-    ref && loaded !== ref && info?.lqip && info.width && info.height
-      ? {backgroundImage: `url("${info.lqip}")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundSize: `min(${info.width}px, 100%, ${Math.round((270 * info.width) / info.height)}px) auto`}
-      : undefined
-  // Sanity's options.hotspot; Barkpark's schemas also say it on the field itself ({hotspot: true}).
-  const hotspot = !!((field.options as {hotspot?: boolean} | undefined)?.hotspot || (field as {hotspot?: boolean}).hotspot)
   // One path per part, so an editor on the alt text and one on the crop both keep theirs.
   const setPart = (part: string, v: unknown) => (editPath ? editPath(`${id}.${part}`, v) : onChange({...image, [part]: v}))
   // A new image: its own fields (alt) stay, the old hotspot and crop go.
@@ -121,103 +113,69 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
       <Upload /> {t('Drop to upload')}
     </div>
   )
-
-  // A Sanity image id (a value moved over from Sanity) draws as the image Barkpark serves
-  // for it. Only when Barkpark has no file for it (404) is it an asset this studio does
-  // not know: the card shows it as it is, as for any other foreign ref (lib/broken.ts).
-  if (ref && sanityImageId(ref) && infoError?.message.endsWith(' 404')) return <UnsupportedAssetCard asset={{reason: 'foreignRef', source: ref}} value={value} onChange={onChange} />
+  const act = (a: Act) => (a === 'upload' ? pick() : a === 'select' ? setBrowsing(true) : a === 'menu' ? setMenu((m) => !m) : setEditing(true))
+  // task-05dc: as this replaces the box drawn before the chunk, the focus goes to the same button,
+  // and a press held on it is done if the person was still on it (lib/held-act.ts).
+  useEffect(() => {
+    const container = boxOf(file.current)
+    markLive(container)
+    const {act, focus} = container ? takeHeld(container) : {}
+    if (focus && container) actControl(container, focus)?.focus()
+    if (act === 'upload') file.current?.click()
+    else if (act === 'select') setBrowsing(true)
+    else if (act === 'menu') setMenu(true)
+    else if (act === 'edit') setEditing(true)
+  }, [id])
 
   return (
-    // With fields of its own (alt, caption) Sanity draws the image as an object: a rule on the left, all inside it.
-    <div className="image-input" id={id} data-fields={field.fields?.length ? '' : undefined}>
-      <input ref={file} type="file" accept="image/*" hidden onChange={(e) => (take(e.target.files), (e.target.value = ''))} />
-      {uploading ? (
-        <UploadProgress name={uploading.name} progress={uploading.progress} onCancel={() => uploading.stop.abort()} />
-      ) : !ref ? (
-        // Focusable so a paste has somewhere to land.
-        <div className="image-empty-box" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop, paste or upload an image', {title})} data-over={over || undefined} {...target}>
-          {overlay}
-          {failed ? (
-            <span className="hint failed" role="alert">
-              <ErrorOutline /> {t('Upload failed')}
-            </span>
-          ) : (
-            <span className="hint">
-              <ImageIcon /> {t('Drag or paste image here')}
-            </span>
-          )}
-          <span className="image-empty-actions">
-            {failed && (
-              <button type="button" className="btn" onClick={() => upload(failed)}>
-                <Undo /> {t('Retry')}
+    <>
+      <ImageBox
+        id={id}
+        field={field}
+        value={value}
+        readOnly={readOnly}
+        live={{
+          target,
+          over,
+          overlay,
+          chooser: <input ref={file} type="file" accept="image/*" hidden onChange={(e) => (take(e.target.files), (e.target.value = ''))} />,
+          uploading: uploading && <UploadProgress name={uploading.name} progress={uploading.progress} onCancel={() => uploading.stop.abort()} />,
+          failed: !!failed,
+          onRetry: () => failed && void upload(failed),
+          act,
+          onWarm: warmMediaList,
+          menu,
+          onMenuBlur: () => setMenu(false),
+          menuItems: (
+            // Sanity's: centred under the button, as wide as its items, a rule between its groups.
+            <MenuPopover className="popover menu image-menu field-image-menu" centered onClose={() => setMenu(false)} aria-labelledby={`${id}-menuButton`}>
+              <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), pick())}>
+                <Upload /> {t('Upload')}
               </button>
-            )}
-            <button type="button" className="btn" disabled={readOnly} onClick={pick}>
-              <Upload /> {t('Upload')}
-            </button>
-            <button type="button" className="btn" disabled={readOnly} onPointerEnter={warmMediaList} onFocus={warmMediaList} onClick={() => setBrowsing(true)}>
-              <SearchIcon /> {t('Select')}
-            </button>
-          </span>
-        </div>
-      ) : (
-        <div className="image-preview" tabIndex={readOnly ? undefined : 0} aria-label={t('{title}: drop or paste an image to replace it', {title})} data-over={over || undefined} style={placeholder} {...target}>
-          {overlay}
-          {crop ? (
-            // Sanity's preview shows the crop (its rect), never more of the image than the crop.
-            <span className="image-crop" style={{width: `min(100%, ${Math.round(270 * crop.ratio)}px, ${Math.round(crop.width)}px)`, aspectRatio: String(crop.ratio)}}>
-              <img src={imageSrc(ref, 1200, 540)} alt={t('Preview of uploaded image')} decoding="async" onLoad={() => setLoaded(ref)} ref={(el) => void (el?.complete && el.naturalWidth && loaded !== ref && setLoaded(ref))} style={crop.style} />
-            </span>
-          ) : (
-            <img src={imageSrc(ref, 1200, 540)} alt={t('Preview of uploaded image')} decoding="async" onLoad={() => setLoaded(ref)} ref={(el) => void (el?.complete && el.naturalWidth && loaded !== ref && setLoaded(ref))} />
-          )}
-          <div className="image-actions">
-            {hotspot && (
-              <button type="button" className="icon-btn" aria-label={t('Open image edit dialog')} title={t('Edit hotspot and crop')} disabled={readOnly} onClick={() => setEditing(true)}>
-                <CropIcon />
+              <hr />
+              <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onPointerEnter={warmMediaList} onFocus={warmMediaList} onClick={() => (setMenu(false), setBrowsing(true))}>
+                <SearchIcon /> {t('Select')}
               </button>
-            )}
-            <div className="menu-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMenu(false)}>
-              <button id={`${id}-menuButton`} type="button" className="icon-btn" aria-label={t('Open image options menu')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
-                <Ellipsis />
+              <hr />
+              <a role="menuitem" className="menu-item" href={url} download onClick={() => setMenu(false)}>
+                <Download /> {t('Download')}
+              </a>
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                onClick={() => (setMenu(false), navigator.clipboard.writeText(new URL(url!, location.href).href).then(() => toast({title: t('The URL is copied to the clipboard')})))}
+              >
+                <CopyIcon /> {t('Copy URL')}
               </button>
-              {menu && (
-                // Sanity's: centred under the button, as wide as its items, a rule between its groups.
-                <MenuPopover className="popover menu image-menu field-image-menu" centered onClose={() => setMenu(false)} aria-labelledby={`${id}-menuButton`}>
-                  <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onClick={() => (setMenu(false), pick())}>
-                    <Upload /> {t('Upload')}
-                  </button>
-                  <hr />
-                  <button type="button" role="menuitem" className="menu-item" disabled={readOnly} onPointerEnter={warmMediaList} onFocus={warmMediaList} onClick={() => (setMenu(false), setBrowsing(true))}>
-                    <SearchIcon /> {t('Select')}
-                  </button>
-                  <hr />
-                  <a role="menuitem" className="menu-item" href={url} download onClick={() => setMenu(false)}>
-                    <Download /> {t('Download')}
-                  </a>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="menu-item"
-                    onClick={() => (setMenu(false), navigator.clipboard.writeText(new URL(url!, location.href).href).then(() => toast({title: t('The URL is copied to the clipboard')})))}
-                  >
-                    <CopyIcon /> {t('Copy URL')}
-                  </button>
-                  <hr />
-                  <button type="button" role="menuitem" className="menu-item danger" disabled={readOnly} onClick={() => (setMenu(false), onChange(undefined))}>
-                    <Reset /> {t('Clear field')}
-                  </button>
-                </MenuPopover>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      <ParentContext.Provider value={image}>
-        {field.fields?.map((f) => (
-          <FieldView key={f.name} field={readOnly ? {...f, readOnly: true} : f} path={`${id}.${f.name}`} value={image[f.name]} openRef={openRef} onChange={(v) => setPart(f.name, v)} />
-        ))}
-      </ParentContext.Provider>
+              <hr />
+              <button type="button" role="menuitem" className="menu-item danger" disabled={readOnly} onClick={() => (setMenu(false), onChange(undefined))}>
+                <Reset /> {t('Clear field')}
+              </button>
+            </MenuPopover>
+          ),
+        }}
+      />
       {editing && url && (
         <HotspotDialog
           title={title}
@@ -229,7 +187,7 @@ export function ImageInput({id, field, value, onChange, readOnly, openRef}: Prop
         />
       )}
       {browsing && <AssetPicker title={title} path={id} openRef={openRef} onPick={(next) => (setBrowsing(false), use(next))} onClose={() => setBrowsing(false)} />}
-    </div>
+    </>
   )
 }
 
