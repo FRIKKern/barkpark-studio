@@ -1,6 +1,6 @@
 {
  "about": "Cases for a cross rule's message (cross_validator.ex findings, task-57d0947d4a29a073, task-e4af1e37066bfb66): the rule's title when it is non-empty text, else its name when that is, else \"cross-field rule\". 'server' per case is the messages of the findings Barkpark gives for the one rule on a schema with fields meny innhold tittel innstillinger. app/src/lib/cross-title-server.test.ts checks the studio's problems say the same. Regenerate: elixir scripts/field-visibility-cases.exs <barkpark checkout>.",
- "server": "barkpark fe521ca6e9",
+ "server": "barkpark f0a2e3746c",
  "cases": [
   {
    "name": "plain rule, a per-language map title: the name",

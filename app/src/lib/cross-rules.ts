@@ -34,6 +34,8 @@ function evaluable(body: unknown, names: Set<string> | null, item = false): bool
   const truthy = (v: unknown) => (v === false || v === null || v === undefined ? undefined : v)
   const preds = truthy(body.all) ?? truthy(body.any) ?? truthy(body.one)
   if (preds !== undefined) return Array.isArray(preds) && preds.length > 0 && preds.every((p) => evaluable(p, names, item))
+  // A leaf with `false` there has no list to run: unevaluable (barkpark#28112, which looped on it).
+  if (body.all === false || body.any === false || body.one === false) return false
   const {field, operator, valueField} = body
   // In an item rule only a "document" leaf names the document's fields.
   const known = item && body.scope !== 'document' ? null : names

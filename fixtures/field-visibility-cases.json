@@ -1277,7 +1277,53 @@
     ]
    },
    "server": "ok"
+  },
+  {
+   "doc": {},
+   "name": "all false beside a leaf",
+   "rule": {
+    "all": false,
+    "field": "a",
+    "operator": "non_empty"
+   },
+   "server": "skip"
+  },
+  {
+   "doc": {},
+   "name": "any false beside a leaf, in an all list",
+   "rule": {
+    "all": [
+     {
+      "any": false,
+      "field": "a",
+      "operator": "non_empty"
+     }
+    ]
+   },
+   "server": "skip"
+  },
+  {
+   "doc": {},
+   "name": "all null beside a leaf",
+   "rule": {
+    "all": null,
+    "field": "a",
+    "operator": "non_empty"
+   },
+   "server": "violated"
+  },
+  {
+   "doc": {
+    "a": "x"
+   },
+   "name": "one null beside a leaf, holds",
+   "rule": {
+    "one": null,
+    "field": "a",
+    "operator": "non_empty"
+   },
+   "server": "ok"
   }
  ],
- "server": "barkpark fe521ca6e9"
+ "server": "barkpark f0a2e3746c"
 }
