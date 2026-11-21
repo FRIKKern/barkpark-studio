@@ -23,7 +23,7 @@ test('J20: the editors chunk failing to load waits, and lands once it can', asyn
 // J36: a click on a server-drawn image field before its chunk lands is held, then made
 // once the input is live. The page marks itself interactive first (React hydrates these
 // inputs later), and releasing at that mark clicked the inert button: lost (task-63978ba572421248).
-test('J36: the first click on Select, before the editors chunk lands, still opens it', async ({page}, info) => {
+test('J36: the first click on Select, before the editors chunk lands, still opens it', async ({page, testStart}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
   // On CI this flaked about 1 run in 6 from 2026-10-14 23:52 UTC and never locally
@@ -49,8 +49,23 @@ test('J36: the first click on Select, before the editors chunk lands, still open
   // no Select and only the chunk draws it, so the test hung (CI 2026-11-20, task-384873db40c1fdb0).
   await page.route(/doc-editors/, async (route) => (await new Promise((r) => setTimeout(r, 1_000)), route.continue()))
   const started = Date.now()
+  // The editors chunk as the browser fetched it: asked, arrived (its status) or failed.
+  const chunk: string[] = []
+  const at = () => `${Date.now() - started} ms`
+  page.on('request', (r) => /doc-editors/.test(r.url()) && chunk.push(`${at()} asked ${r.url().split('/').pop()}`))
+  page.on('requestfinished', (r) => void (/doc-editors/.test(r.url()) && r.response().then((res) => chunk.push(`${at()} arrived ${res?.status()}`))))
+  page.on('requestfailed', (r) => /doc-editors/.test(r.url()) && chunk.push(`${at()} failed ${r.failure()?.errorText}`))
   await page.goto(t.docPath('post', 'post-17'), {waitUntil: 'commit'})
-  await page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')}).getByRole('button', {name: 'Select'}).click()
+  const image = page.locator('fieldset.field').filter({has: page.locator('[id="mainImage"]')})
+  // A click still waiting just before the test's timeout says what Main image holds then and
+  // whether the chunk came (task-2efc8ebbe407f3f0: CI once drew that fieldset empty for 15 s).
+  // It only prints: the click keeps waiting, and the test fails as before.
+  const waiting = setTimeout(async () => {
+    // Icons drawn as <svg/>, so the 2,000 characters reach the image box.
+    const markup = await image.evaluate((el) => el.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>')).catch((err: Error) => `(no fieldset: ${err.message.split('\n')[0]})`)
+    console.log(`J36 click still waiting at ${at()}; editors chunk: ${chunk.join('; ') || 'never asked'}\nMain image fieldset (${markup.length} chars): ${markup.slice(0, 2_000)}`)
+  }, Math.max(0, testStart + test.info().timeout - 1_500 - Date.now()))
+  await image.getByRole('button', {name: 'Select'}).click().finally(() => clearTimeout(waiting))
   await expect(page.getByRole('dialog'))
     .toBeVisible({timeout: 5_000})
     .catch(async (err) => {

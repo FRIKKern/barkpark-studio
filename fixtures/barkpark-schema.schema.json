@@ -405,10 +405,10 @@
           }
         },
         "options": {
-          "description": "Type-specific: select's choices (a list, or {list, direction} as Sanity's), slug's source, image's hotspot, file's accept, reference's filter, an array's insertMenu ({filter, groups, views: list/grid, showIcons}) and collapseItemsAfter, a Portable Text field's oneLine (its text one block, as Sanity's), …"
+          "description": "Type-specific: select's choices (a list, or {list, direction} as Sanity's), and a number's, integer's or float's the same way (stored as the number), slug's source, image's hotspot, file's accept, reference's filter, an array's insertMenu ({filter, groups, views: list/grid, showIcons}) and collapseItemsAfter, a Portable Text field's oneLine (its text one block, as Sanity's), …"
         },
         "layout": {
-          "description": "arrayOf: \"grid\" or \"list\"."
+          "description": "arrayOf: \"grid\" or \"list\". select, or a number with a list: \"radio\" draws radio buttons."
         },
         "group": {
           "description": "The field group (tab) it shows in.",
@@ -602,10 +602,10 @@
           }
         },
         "options": {
-          "description": "Type-specific: select's choices (a list, or {list, direction} as Sanity's), slug's source, image's hotspot, file's accept, reference's filter, an array's insertMenu ({filter, groups, views: list/grid, showIcons}) and collapseItemsAfter, a Portable Text field's oneLine (its text one block, as Sanity's), …"
+          "description": "Type-specific: select's choices (a list, or {list, direction} as Sanity's), and a number's, integer's or float's the same way (stored as the number), slug's source, image's hotspot, file's accept, reference's filter, an array's insertMenu ({filter, groups, views: list/grid, showIcons}) and collapseItemsAfter, a Portable Text field's oneLine (its text one block, as Sanity's), …"
         },
         "layout": {
-          "description": "arrayOf: \"grid\" or \"list\"."
+          "description": "arrayOf: \"grid\" or \"list\". select, or a number with a list: \"radio\" draws radio buttons."
         },
         "group": {
           "description": "The field group (tab) it shows in.",

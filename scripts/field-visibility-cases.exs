@@ -3,6 +3,8 @@
 #   fixtures/field-visibility-cases.json (conditions.ts, conditions-server.test.ts): ok / violated / skip
 #   fixtures/cross-item-cases.json (cross-rules.ts item rules, cross-items-server.test.ts): the
 #   findings' paths, or skip
+#   fixtures/cross-title-cases.json (cross-rules.ts messages, cross-title-server.test.ts): the
+#   findings' messages
 # Runs Barkpark's two modules alone under elixir: no server, no database.
 #   elixir scripts/field-visibility-cases.exs <barkpark checkout>
 # then commit the rewritten fixtures. Each file keeps its layout and key order; only the
@@ -75,4 +77,11 @@ Cases.answer(Path.join(fixtures, "cross-item-cases.json"), server, fn c ->
     {[], _} -> "skip"
     {_, _} -> (fn %{errors: e, warnings: w} -> Enum.map(e ++ w, & &1.path) end).(CrossValidator.findings(schema, Cases.plain(Cases.get(c, "doc"))))
   end
+end)
+
+# One rule's findings as messages: what its title, name or neither reads as.
+Cases.answer(Path.join(fixtures, "cross-title-cases.json"), server, fn c ->
+  schema = %{"fields" => item_fields, "cross_validations" => [Cases.plain(Cases.get(c, "rule"))]}
+  %{errors: e, warnings: w} = CrossValidator.findings(schema, Cases.plain(Cases.get(c, "doc")))
+  Enum.map(e ++ w, & &1.message)
 end)

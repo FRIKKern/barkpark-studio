@@ -138,6 +138,8 @@ export const isReadOnly = (f: Field, doc: Record<string, unknown>, parent?: Reco
   const when = readOnlyWhen(f)
   return alwaysReadOnly(f) || (!!when && holds(when, doc, parent))
 }
+/** The document's own rule alone (no person): the field is hidden or read-only here. Validation's question: can the editor change it? */
+export const shutByDoc = (f: Field, doc: Record<string, unknown>, parent?: Record<string, unknown>) => isHidden(f, doc, parent) || isReadOnly(f, doc, parent)
 
 /** Sanity shows a group's tab only while some field in it shows (`visibleGroups`): one whose fields are all hidden has none. */
 export const groupShows = (fields: Field[], group: string, doc: Record<string, unknown>, hidden = (f: Field) => isHidden(f, doc)) => fields.some((f) => f.group === group && !hidden(f))
