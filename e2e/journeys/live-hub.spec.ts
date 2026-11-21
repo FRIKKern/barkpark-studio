@@ -25,11 +25,12 @@ test('live: a stream gone quiet without closing is reopened, and the missed writ
   try {
     await page.evaluate(() => (window as {__muteLive?: (ms: number) => void}).__muteLive!(1500))
     await t.patch(ID, {title: `${TITLE} while quiet`})
+    const by = Date.now() + 6_000 - 2_600 // the 6 s it had, less the jump: a late reopen is still late
     // Missed for real first: its frame came on the muted stream. Then past the quiet the page calls
     // dead (lib/stream.ts:153: its 1 s watchdog, the mute's 1.5 s): the reopen must resume past it.
     await expect.poll(() => heard, {message: 'the write\'s frame reached the muted stream', intervals: [25], timeout: 6_000}).toBe(true)
     await page.clock.fastForward(2_600)
-    await expect(t.field(page, 'title'), 'reopened at its last frame').toHaveValue(`${TITLE} while quiet`, {timeout: 6_000})
+    await expect(t.field(page, 'title'), 'reopened at its last frame').toHaveValue(`${TITLE} while quiet`, {timeout: Math.max(1, by - Date.now())})
   } finally {
     await t.restore(ID, {title: TITLE})
   }

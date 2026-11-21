@@ -25,7 +25,8 @@ test('a save whose answer is lost says retrying, not offline, and lands once', a
     // Retrying is said as its timer is set (lib/edits.ts waitForNetwork: the state, then 2 s on a
     // live connection): run past it on the page's clock.
     await page.clock.fastForward(2_100)
-    await expect.poll(() => t.docValue(id, 'title'), {timeout: 6_000}).toBe('Reset typed')
+    // The 6 s it had, less the jump: a retry later than that is still late.
+    await expect.poll(() => t.docValue(id, 'title'), {timeout: 6_000 - 2_100}).toBe('Reset typed')
   } finally {
     await fault('none').catch(() => {})
     await closeAndSettle(page)

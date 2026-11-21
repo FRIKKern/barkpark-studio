@@ -59,7 +59,8 @@ test('live: offline, then every missed frame in order, no duplicates', async ({p
     // run out on the page's clock: the 'online' event reopens nothing (reopen() needs a stream).
     await page.clock.fastForward(OFFLINE_MS + 100)
 
-    await expect(t.field(page, 'title')).toHaveValue(`${TITLE} offline 3`, {timeout: 10_000})
+    // The jump comes off the wait: a reopen later than main's 10 s would have allowed is still late.
+    await expect(t.field(page, 'title')).toHaveValue(`${TITLE} offline 3`, {timeout: 10_000 - (OFFLINE_MS + 100)})
     await page.waitForTimeout(500)
     // Only this doc's frames: the page also listens to its type, and the dataset is shared.
     const frames = await page.evaluate(([id, cut]) => (window as {__liveFrames?: string[]}).__liveFrames!.slice(cut).filter((f) => f.endsWith(`.${id}`) || f.endsWith(`|${id}`)).map((f) => Number(f.split('|')[0])), [ID, cut] as const)
