@@ -859,6 +859,8 @@ function SelectInput({id, field, value, onChange}: {id: string; field: Field; va
   if (field.layout === 'radio') {
     // Sanity stacks the options unless `options.direction` is "horizontal"; its reset button sits on the chosen row.
     const horizontal = !Array.isArray(field.options) && field.options?.direction === 'horizontal'
+    // A value outside the list checks no row, so its Clear sits under the list, where a horizontal one is.
+    const known = options.some((o) => !o.bad && o.value === value)
     const clear = value !== undefined && (
       <button type="button" className="icon-btn" aria-label={t('Clear')} title={t('Clear')} onClick={() => onChange(undefined)}>
         <ResetCircle />
@@ -877,7 +879,7 @@ function SelectInput({id, field, value, onChange}: {id: string; field: Field; va
             </div>
           ))}
         </div>
-        {horizontal && clear}
+        {(horizontal || !known) && clear}
       </div>
     )
   }

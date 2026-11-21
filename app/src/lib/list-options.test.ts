@@ -94,6 +94,8 @@ test('the form, by text: a number with a list draws the list input, and a choice
   assert.match(fields, /checked=\{!o\.bad && value === o\.value\} disabled=\{o\.bad\}[^\n]*onChange=\{\(\) => onChange\(o\.value\)\}/)
   assert.match(fields, /onChange=\{\(e\) => onChange\(Number\(e\.target\.value\) < 0 \? undefined : options\[Number\(e\.target\.value\)\]!\.value\)\}/)
   assert.doesNotMatch(fields, /function optionsOf/, 'one reader: lib/list-options.ts')
+  // A value outside the list checks no row: its Clear is still there, under the list.
+  assert.match(fields, /const known = options\.some\(\(o\) => !o\.bad && o\.value === value\)[\s\S]{0,1200}\{\(horizontal \|\| !known\) && clear\}/)
   // readOnly: a list input sits in a disabled fieldset, as every type not in this list.
   const own = /if \(readOnly && !\[([^\]]*)\]\.includes\(field\.type\)\)\n {4}return \(\n {6}<fieldset className="readonly-wrap" disabled>/.exec(fields)
   assert.ok(own, 'the readOnly wrap')

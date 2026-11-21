@@ -8,7 +8,7 @@ import {closeAndSettle, signInIfAsked, target} from '../rig/targets'
 const ID = 'field-types-01'
 test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'fieldTypes')))
 
-test('an integer list as radios: 4 outside the list stays and is said; a click stores 6, ArrowUp 3', async ({page, context}, info) => {
+test('an integer list as radios: 4 outside the list stays, is said and can be cleared; a click stores 6, ArrowUp 3', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours; the reference has the same field (reference/sanity fieldTypes)')
   await t.prepare(context)
@@ -21,6 +21,8 @@ test('an integer list as radios: 4 outside the list stays and is said; a click s
   await expect(perPage.getByRole('radio', {checked: true})).toHaveCount(0)
   await expect(perPage).toHaveAccessibleDescription('Validation error: Value "4" did not match any allowed values')
   expect(await value()).toBe(4)
+  // Clear is reachable while no radio is checked (the list changed under a stored value).
+  await expect(page.locator('.field').filter({has: perPage}).getByRole('button', {name: 'Clear'})).toBeVisible()
   await perPage.getByRole('radio', {name: '6', exact: true}).check()
   await expect.poll(value, {timeout: 10_000}).toBe(6)
   await page.keyboard.press('ArrowUp')
