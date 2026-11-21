@@ -93,7 +93,7 @@ jobs:
           echo "preview.log lines before the specs: $(wc -l < preview.log)"
       - name: Journeys (ours)
         working-directory: e2e
-        timeout-minutes: 4
+        timeout-minutes: 12 # PLANT RUN: failing repeats run to their 45 s timeout
         run: node --env-file=../.env node_modules/@playwright/test/cli.js test journeys/pt-span-merge-old.spec.ts journeys/pt-span-merge.spec.ts --project=studio --repeat-each=3 --max-failures=0 --global-timeout=420000 # PLANT RUN
       - if: always()
         uses: actions/upload-artifact@v4
