@@ -6,7 +6,7 @@ import {resumeMark} from '../server/listen'
 import {fieldIcons, readDesk, readRest, readSchemas, schemaIcon, STUDIO_TYPES} from '../server/schemas'
 import type {Condition} from './conditions'
 import {crossRulesOf, type CrossRule} from './cross-rules'
-import {fixedList} from './fixed-documents'
+import {fixedList, offers} from './fixed-documents'
 import {paneRetry} from './connection'
 import {collate, translate, type T} from './i18n'
 import {deskFilterParams, normalizeDesk, orGroupRefused, type DeskFilter, type DeskNode} from './desk'
@@ -700,7 +700,8 @@ export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) =>
 /** B13: a singleton type has one document, whose id is the type's name (Barkpark's rule): no list, no create, duplicate, delete or unpublish. */
 export const isSingleton = (schemas: Schema[], type: string) => schemaOf(schemas, type)?.singleton === true
 /** A type with a fixed set of documents (lib/fixed-documents.ts): no create or duplicate, and no delete of a listed one. */
-export const isFixed = (schemas: Schema[], type: string) => !!schemaOf(schemas, type)?.fixedDocuments
+/** A type the Studio offers no new document of: a fixed set of documents (lib/fixed-documents.ts decides). */
+export const isFixed = (schemas: Schema[], type: string) => !offers(schemaOf(schemas, type)?.fixedDocuments, 'create', '')
 
 /** The types a reference field (or a reference array's member) may point to. */
 export {itemPath, refId, refOpenType} from './refs'

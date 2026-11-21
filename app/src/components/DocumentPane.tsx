@@ -11,7 +11,7 @@ import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, formOrder, validate, worst, type Problem} from '../lib/validation'
 import {advisoryProblems} from '../lib/findings'
-import {docQuery, docTitle, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
+import {docQuery, docTitle, isFixed, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
 import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setByAction, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {fieldNames, keptText} from '../lib/kept-text'
@@ -119,7 +119,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // it opens new again with the template's values, not "not found".
   const qcHere = useQueryClient()
   useEffect(() => {
-    if (!pane.template || draftQ.data !== null || !schemas.length) return
+    // A type with a fixed set of documents opens no new one, from a link either (lib/fixed-documents.ts).
+    if (!pane.template || draftQ.data !== null || !schemas.length || isFixed(schemas, pane.type)) return
     const choice = choiceById(schemas, pane.type, pane.template, pane.templateParams)
     if (choice) draftNew(qcHere, pane.type, pane.id, choice.id === pane.type ? {schema: choice.value} : {local: choice.value})
   }, [pane.template, pane.templateParams, pane.type, pane.id, draftQ.data, schemas, qcHere])

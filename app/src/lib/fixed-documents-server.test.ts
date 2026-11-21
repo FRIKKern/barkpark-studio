@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs'
 // write Barkpark refuses, and may hide one it allows only where the case names a task for it.
 import {fixedList, offers, type FixedAction} from './fixed-documents.ts'
 import {plainReason} from './plain-reason.ts'
+import {offersNew} from './creatable.ts'
 
 type Case = {name: string; fixed: string[] | null; action: FixedAction | 'edit'; id: string; exists: boolean; server: 'ok' | 'refused'; gap?: string}
 const {cases} = JSON.parse(readFileSync(new URL('../../../fixtures/fixed-document-cases.json', import.meta.url), 'utf8')) as {cases: Case[]}
@@ -31,6 +32,12 @@ test('no list or a malformed one is no rule; a list of ids is', () => {
   assert.deepEqual(fixedList([]), [])
   assert.equal(offers(undefined, 'duplicate', 'x'), true)
   assert.equal(offers([], 'create', 'x'), false)
+})
+
+test("the + menus ask the same rule: no list offers a new one, [] and a list offer none", () => {
+  for (const fixedDocuments of [undefined, [], ['side-om-oss']]) assert.equal(offersNew({fixedDocuments}), offers(fixedList(fixedDocuments), 'create', ''), JSON.stringify(fixedDocuments))
+  assert.equal(offersNew({}), true)
+  assert.equal(offersNew({fixedDocuments: []}), false)
 })
 
 test("Barkpark's refusal reads in the editor's words, naming the type", () => {
