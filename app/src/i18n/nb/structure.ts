@@ -245,6 +245,7 @@ export default {
   '{n} were not published.': '{n} var ikke publisert.',
   '{n} blocked by the publish wall — {reason}': '{n} stoppet av publiseringsveggen — {reason}',
   '{n} failed: {reason}': '{n} mislyktes: {reason}',
+  '{n} held back by errors — {list}': '{n} holdt tilbake av feil — {list}',
 
   // Dev sign-in
   'Dev sign-in — no password. Never enabled in a production build.': 'Utviklerinnlogging — uten passord. Aldri slått på i en produksjonsversjon.',

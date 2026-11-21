@@ -7,7 +7,8 @@ import {METADATA_TYPE} from './translation-group.ts'
 /** LiveView's cap: a selection never grows past this. */
 export const MAX_SELECTED = 500
 
-export type Outcome = {kind: 'done'} | {kind: 'skipped'} | {kind: 'walled'; reason: string} | {kind: 'failed'; reason: string}
+/** `held`: a draft its own Publish would not publish (its form has an error, lib/publish-check.ts), named. */
+export type Outcome = {kind: 'done'} | {kind: 'skipped'} | {kind: 'walled'; reason: string} | {kind: 'failed'; reason: string} | {kind: 'held'; doc: string; reason: string}
 
 /** The wall's refusals (label spine, unknown tag, near-duplicate) are not plain failures. */
 export const isWall = (message: string) => /"code":"(label_spine|unknown_tag|duplicate_of)"/.test(message)
@@ -23,6 +24,7 @@ const english: Translate = (en, vars) => (vars ? en.replace(/\{(\w+)\}/g, (all, 
 export function bulkSummary(action: 'publish' | 'unpublish', outcomes: Outcome[], t: Translate = english): {tone: 'positive' | 'critical'; title: string; description?: string} {
   const n = (k: Outcome['kind']) => outcomes.filter((o) => o.kind === k).length
   const [done, skipped, walled, failed] = [n('done'), n('skipped'), n('walled'), n('failed')]
+  const held = outcomes.filter((o): o is Extract<Outcome, {kind: 'held'}> => o.kind === 'held')
   const title = action === 'publish' ? t('Published {done} of {total}', {done, total: outcomes.length}) : t('Unpublished {done} of {total}', {done, total: outcomes.length})
   const wall = outcomes.find((o): o is Extract<Outcome, {kind: 'walled'}> => o.kind === 'walled')
   const fail = outcomes.find((o): o is Extract<Outcome, {kind: 'failed'}> => o.kind === 'failed')
@@ -30,8 +32,10 @@ export function bulkSummary(action: 'publish' | 'unpublish', outcomes: Outcome[]
     skipped ? (action === 'publish' ? t('{n} had no changes to publish.', {n: skipped}) : skipped === 1 ? t('{n} was not published.', {n: skipped}) : t('{n} were not published.', {n: skipped})) : '',
     walled ? t('{n} blocked by the publish wall — {reason}', {n: walled, reason: wall!.reason}) : '',
     failed ? t('{n} failed: {reason}', {n: failed, reason: fail!.reason}) : '',
+    // Every held draft by name, with why: the editor goes to each one to fix it.
+    held.length ? t('{n} held back by errors — {list}', {n: held.length, list: held.map((o) => `${o.doc} (${o.reason})`).join('; ')}) : '',
   ].filter(Boolean)
-  return {tone: walled || failed ? 'critical' : 'positive', title, description: parts.join(' ') || undefined}
+  return {tone: walled || failed || held.length ? 'critical' : 'positive', title, description: parts.join(' ') || undefined}
 }
 
 // ── Delete, duplicate and discard several rows (task-22ce73ad72423b85) ────────────────
