@@ -13,12 +13,22 @@ const TITLE = 'Fixture post 10'
 test('live: a stream gone quiet without closing is reopened, and the missed write comes', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'our listen stream')
+  await page.clock.install() // the quiet is passed on the page's clock, not sat out
   await page.goto(t.docPath('post', ID))
   await t.settle(page)
   await expect(t.field(page, 'title')).toHaveValue(TITLE)
+  // The write's frame as it reaches the page's stream, muted or not (Chrome's network layer).
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Network.enable')
+  let heard = false
+  cdp.on('Network.eventSourceMessageReceived', (e) => void (e.eventName === 'mutation' && e.data.includes(ID) && e.data.includes('while quiet') && (heard = true)))
   try {
     await page.evaluate(() => (window as {__muteLive?: (ms: number) => void}).__muteLive!(1500))
     await t.patch(ID, {title: `${TITLE} while quiet`})
+    // Missed for real first: its frame came on the muted stream. Then past the quiet the page calls
+    // dead (lib/stream.ts:153: its 1 s watchdog, the mute's 1.5 s): the reopen must resume past it.
+    await expect.poll(() => heard, {message: 'the write\'s frame reached the muted stream', intervals: [25], timeout: 6_000}).toBe(true)
+    await page.clock.fastForward(2_600)
     await expect(t.field(page, 'title'), 'reopened at its last frame').toHaveValue(`${TITLE} while quiet`, {timeout: 6_000})
   } finally {
     await t.restore(ID, {title: TITLE})

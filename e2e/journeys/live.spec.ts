@@ -35,6 +35,7 @@ test('live: offline, then every missed frame in order, no duplicates', async ({p
   await context.addInitScript(() => ((window as {__liveFrames?: string[]}).__liveFrames = []))
   try {
     const open = listening(page, ID)
+    await page.clock.install() // the cut's reopen is passed on the page's clock, not sat out
     await page.goto(t.docPath('post', ID))
     await t.settle(page)
     await open
@@ -51,12 +52,12 @@ test('live: offline, then every missed frame in order, no duplicates', async ({p
       return at
     }, OFFLINE_MS)
     await context.setOffline(true)
-    for (const n of [1, 2, 3]) {
-      await t.patch(ID, {title: `${TITLE} offline ${n}`})
-      await page.waitForTimeout((OFFLINE_MS - 1000) / 3)
-    }
+    for (const n of [1, 2, 3]) await t.patch(ID, {title: `${TITLE} offline ${n}`})
     await expect(t.field(page, 'title'), 'nothing arrives while cut').toHaveValue(TITLE)
     await context.setOffline(false)
+    // The cut's own timer (lib/stream.ts __dropLive: setTimeout(open, ms), set as the cut returned)
+    // run out on the page's clock: the 'online' event reopens nothing (reopen() needs a stream).
+    await page.clock.fastForward(OFFLINE_MS + 100)
 
     await expect(t.field(page, 'title')).toHaveValue(`${TITLE} offline 3`, {timeout: 10_000})
     await page.waitForTimeout(500)
