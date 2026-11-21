@@ -26,12 +26,17 @@ async function open(page: Page, info: import('@playwright/test').TestInfo, at: n
   await page.getByRole('tab', {name: 'All fields'}).click()
   const editor = page.locator('[id="body"][contenteditable="true"]')
   await page.locator('.pt-input[data-ready]').filter({has: editor}).waitFor()
+  // The click puts the caret where it lands; the keys and pastes go where the editor has it,
+  // so wait for the editor to have it at `at` (as pt-paste-merge does), not a fixed 200 ms.
+  // Recorded from before the click: a click that lands at `at` already is the caret wanted.
+  await page.evaluate(() => void ((window as {__ptCarets?: unknown[]}).__ptCarets = []))
   await editor.getByText('Start text', {exact: true}).click()
   await editor.evaluate((el, at) => {
     const node = [...el.querySelectorAll('*')].find((e) => e.childElementCount === 0 && e.textContent === 'Start text')!.firstChild!
     getSelection()!.collapse(node, at)
   }, at)
-  await page.waitForTimeout(200)
+  type Caret = {focus: {path: [{_key?: string}]; offset: number}}
+  await page.waitForFunction((at) => ((window as {__ptCarets?: Caret[]}).__ptCarets ?? []).some((s) => s?.focus.path[0]?._key === 'p1' && s.focus.offset === at), at)
   return editor
 }
 const paste = (editor: Locator, text: string) =>
