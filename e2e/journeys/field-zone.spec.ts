@@ -47,3 +47,25 @@ test('J31 datetime zones: displayTimeZone shows New York, a switch to Oslo moves
   await box.press('Enter')
   await expect.poll(() => t.docValue(ID, 'meetsAt', 'fieldTypes'), BACKEND_POLL).toBe('2026-07-01T14:30:00.000Z')
 })
+
+// J31 select lists, on a number (G4, task-20bc1ba720eafef2): fieldTypes.perPage is an integer with
+// options.list [3, 6] as radios. Only what a browser shows: a stored 4 (outside the list) checks no
+// radio, is said, stays and can be cleared; a click stores the number 6; ArrowUp moves to 3. The
+// reader, validation, paste and every write path are node tests (app/src/lib/list-options.test.ts).
+test('J31 an integer list as radios: 4 outside the list stays, is said and can be cleared; a click stores 6, ArrowUp 3', async ({page}, info) => {
+  const t = target(info)
+  await Promise.all([t.draftOnly(ID, 'fieldTypes', {title: 'Per page', perPage: 4}), t.prepare(page.context())])
+  await page.goto(t.docPath('fieldTypes', ID))
+  await signInIfAsked(page)
+  await t.settle(page)
+  const value = () => t.docValue(ID, 'perPage', 'fieldTypes')
+  const perPage = page.locator('[id="perPage"]')
+  await expect(perPage.getByRole('radio', {checked: true})).toHaveCount(0)
+  await expect(perPage).toHaveAccessibleDescription('Validation error: Value "4" did not match any allowed values')
+  await expect(page.locator('.field').filter({has: perPage}).getByRole('button', {name: 'Clear'})).toBeVisible()
+  expect(await value()).toBe(4)
+  await perPage.getByRole('radio', {name: '6', exact: true}).check()
+  await expect.poll(value, {timeout: 10_000}).toBe(6)
+  await page.keyboard.press('ArrowUp')
+  await expect.poll(value, {timeout: 10_000}).toBe(3)
+})
