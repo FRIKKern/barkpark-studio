@@ -26,7 +26,7 @@ const STUB = {
     export const translate = t
     export const localeQuery = {queryKey: ['locale'], queryFn: () => globalThis.saveFlowLocale?.() ?? Promise.resolve({locale: 'en'})}`,
   '/src/lib/data.ts': `
-    export const readServerDoc = () => globalThis.saveFlowServer.read(new URL(import.meta.url).search)
+    export const readServerDoc = (...a) => globalThis.saveFlowServer.read(new URL(import.meta.url).search, ...a)
     export const schemasQuery = {queryKey: ['schemas']}
     export const docQuery = (id) => ({queryKey: ['doc', id]})
     export const setUnsavedOverlay = () => {}`,
