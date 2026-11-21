@@ -17,7 +17,7 @@ test(`no e2e group plans above the line of ${PLAN_LINE_S} s by e2e/durations.jso
   assert.equal(groups, 7)
   const p = plan(groups)
   const bad = over(p)
-  assert.deepEqual(bad, [], `${bad.join('; ')}, over the line of ${PLAN_LINE_S} s (e2e/time-cap.mjs PLAN_LINE_S, beside the 60 s cap). Take time out of the specs in that group (or split a heavy one so the planner can spread it); the line is never raised for this, and the cap and the number of groups do not change for it.${p.unknown.length ? ` Counted as ${p.median} s each, not recorded yet: ${p.unknown.join(', ')}.` : ''}`)
+  assert.deepEqual(bad, [], `${bad.join('; ')}, over the line of ${PLAN_LINE_S} s (e2e/time-cap.mjs PLAN_LINE_S, beside the 60 s cap). Two ways out: take time out of the specs in that group (or split a heavy one so the planner can spread it), or an 8th group, which is the owner's step, not a pull request's. The line is never raised for this, and the cap does not change for it.${p.unknown.length ? ` Counted as ${p.median} s each, not recorded yet: ${p.unknown.join(', ')}.` : ''}`)
 })
 
 test('the check names a group over the line, a new spec counted as unrecorded too', () => {

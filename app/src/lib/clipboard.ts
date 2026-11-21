@@ -1,5 +1,6 @@
 import type {Field} from './data'
 import {pastedRef} from './refs'
+import {hasList, listValues} from './list-options'
 import {toast} from '../components/Toasts'
 import {t} from './i18n'
 
@@ -37,7 +38,7 @@ export function signature(f: Field): string {
 /**
  * What a copied `item` pastes as in field `f` (now holding `current`), as Sanity's transferValue,
  * or why it can't, in Sanity's words. A number goes into text as its digits (Count 3 -> Title '3'),
- * and a number or text into a list of strings as one more item; a select takes only its options.
+ * and a number or text into a list of strings as one more item; a field with a list takes only its values.
  */
 export function transfer(item: ClipField, f: Field, current: unknown): {value: unknown} | {why: string} {
   const target = signature(f)
@@ -45,9 +46,9 @@ export function transfer(item: ClipField, f: Field, current: unknown): {value: u
   if (['number', 'integer', 'float'].includes(sig) && (target === 'string' || target === 'array:string')) (sig = 'string'), (value = String(value))
   if (sig === 'string' && target === 'array:string') (sig = target), (value = [value]), (append = true)
   if (sig !== target) return {why: mismatch(sig, value, target)}
-  const raw = f.type === 'select' ? ((Array.isArray(f.options) ? f.options : (f.options as {list?: unknown[]})?.list) ?? []) : []
-  const allowed = raw.map((o) => (o && typeof o === 'object' ? (o as {value: unknown}).value : o))
-  if (f.type === 'select' && value != null && !allowed.includes(value)) return {why: t('Value "{value}" is not allowed in "{list}"', {value: String(value), list: allowed.join(',')})}
+  // A field with a list (a select, or a number's options.list) takes only its values, as they are.
+  const allowed = hasList(f) ? listValues(f) : []
+  if (hasList(f) && value != null && !allowed.includes(value)) return {why: t('Value "{value}" is not allowed in "{list}"', {value: String(value), list: allowed.join(',')})}
   // Sanity's: a reference takes the strength of the field it lands in (lib/refs.ts pastedRef).
   if (f.type === 'reference') value = pastedRef(value, f.weak)
   // A bare id made an object in a list gets a key, as every list item has one.

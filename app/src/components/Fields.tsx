@@ -47,6 +47,7 @@ import {slugify} from '../lib/slug'
 import {decimalSeparator, formatNumber, parseNumber, typingNumber} from '../lib/number'
 import {modKey, useTip} from './Tip'
 import {intlTag, t as tBrowser, useLocale, useT} from '../lib/i18n'
+import {hasList, listOptions} from '../lib/list-options'
 import studio from '../studio.config'
 
 // Field rendering for the document form: one component per Barkpark field type.
@@ -561,9 +562,10 @@ function FieldInput({field, path, value, openRef, onChange, readOnly}: FieldProp
       return <TextInput id={path} value={str} onChange={onChange} rows={field.rows ?? 3} readOnly={readOnly} />
     case 'number':
     case 'float':
-      return <NumberInput id={path} value={value as number | undefined} onChange={onChange} />
     case 'integer':
-      return <NumberInput id={path} value={value as number | undefined} onChange={onChange} integer />
+      // Sanity's number options.list (G4): the same choices as a string list, storing the number.
+      if (hasList(field)) return <SelectInput id={path} field={field} value={value} onChange={onChange} />
+      return <NumberInput id={path} value={value as number | undefined} onChange={onChange} integer={field.type === 'integer'} />
     // Barkpark-native types (B04), after the LiveView Studio.
     case 'markdown':
       return <TextInput id={path} value={str} onChange={onChange} rows={field.rows ?? 5} readOnly={readOnly} />
@@ -844,28 +846,21 @@ function CheckboxList({id, choices, grid, value, onChange, readOnly}: {id: strin
   )
 }
 
-// Barkpark select options: plain values, or {value, title} (legacy {value, label}).
-type Option = {value: unknown; title: string}
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
-function optionsOf(field: Field): Option[] {
-  const raw = (Array.isArray(field.options) ? field.options : (field.options as {list?: unknown[]})?.list) ?? []
-  return raw.map((o) =>
-    o && typeof o === 'object'
-      ? {value: (o as {value: unknown}).value, title: String((o as {title?: string; label?: string}).title ?? (o as {label?: string}).label ?? (o as {value: unknown}).value)}
-      : {value: o, title: capitalize(String(o))},
-  )
-}
-
 /**
- * Sanity's string list (J31): `layout: "radio"` is a stacked list of radios in a box
+ * Sanity's string or number list (J31, G4): `layout: "radio"` is a stacked list of radios in a box
  * with a reset button on the chosen row; otherwise a dropdown whose blank first option means "no value".
+ * Values go out as the list holds them (6, never "6"); a bad schema entry (lib/list-options) is
+ * drawn disabled. A stored value outside the list checks nothing and stays (validation says so).
  */
 function SelectInput({id, field, value, onChange}: {id: string; field: Field; value: unknown; onChange: (v: unknown) => void}) {
   const t = useT()
-  const options = optionsOf(field)
+  const options = listOptions(field)
+  const badEntry = t("Not a value of this field's type: fix the schema")
   if (field.layout === 'radio') {
     // Sanity stacks the options unless `options.direction` is "horizontal"; its reset button sits on the chosen row.
     const horizontal = !Array.isArray(field.options) && field.options?.direction === 'horizontal'
+    // A value outside the list checks no row, so its Clear sits under the list, where a horizontal one is.
+    const known = options.some((o) => !o.bad && o.value === value)
     const clear = value !== undefined && (
       <button type="button" className="icon-btn" aria-label={t('Clear')} title={t('Clear')} onClick={() => onChange(undefined)}>
         <ResetCircle />
@@ -877,24 +872,24 @@ function SelectInput({id, field, value, onChange}: {id: string; field: Field; va
           {options.map((o) => (
             <div key={String(o.value)} className="radio-row">
               <label className="radio">
-                <input type="radio" name={id} checked={value === o.value} onChange={() => onChange(o.value)} />
+                <input type="radio" name={id} checked={!o.bad && value === o.value} disabled={o.bad} title={o.bad ? badEntry : undefined} onChange={() => onChange(o.value)} />
                 <span>{o.title}</span>
               </label>
               {!horizontal && value === o.value && clear}
             </div>
           ))}
         </div>
-        {horizontal && clear}
+        {(horizontal || !known) && clear}
       </div>
     )
   }
-  const index = options.findIndex((o) => o.value === value)
+  const index = options.findIndex((o) => !o.bad && o.value === value)
   return (
     <span className="select-box">
       <select id={id} className="input" value={index} onChange={(e) => onChange(Number(e.target.value) < 0 ? undefined : options[Number(e.target.value)]!.value)}>
         <option value={-1} />
         {options.map((o, i) => (
-          <option key={i} value={i}>
+          <option key={i} value={i} disabled={o.bad} title={o.bad ? badEntry : undefined}>
             {o.title}
           </option>
         ))}

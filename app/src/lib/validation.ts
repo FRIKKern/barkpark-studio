@@ -4,6 +4,8 @@ import {isCodeField} from './code-input.ts'
 import {isTableField, tableBlank} from './table-input.ts'
 import {patternProblem, sanityRules} from './validation-rules.ts'
 import {crossProblems} from './cross-rules.ts'
+import {outsideList} from './list-options.ts'
+import {shutByDoc} from './conditions.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -26,7 +28,10 @@ const blank = (v: unknown) => v === undefined || v === null || v === '' || (Arra
 const levelOf = (r: Rule): Level => (r.level === 'warning' || r.level === 'warn' ? 'warning' : r.level === 'info' ? 'info' : 'error')
 const rulesOf = (field: Field): Rule[] => (Array.isArray(field.validation) ? field.validation : field.validation ? [field.validation] : [])
 
-function check(field: Field, value: unknown, path: string, parents: string[], group: string | undefined, out: Problem[], target: RefTarget | undefined, t: T) {
+/** Where a field sits: the document, the object around it, and whether the editor can change it here (shut: readOnly or hidden, its own or an object's around it). */
+type Scope = {doc: Doc; parent?: Record<string, unknown>; shut: boolean}
+
+function check(field: Field, value: unknown, path: string, parents: string[], group: string | undefined, out: Problem[], target: RefTarget | undefined, t: T, at: Scope) {
   const title = field.title ?? field.name
   const push = (rule: Rule, message: string) => out.push({path, title, message: rule.message ?? message, level: levelOf(rule), ...(parents.length ? {parents} : {}), group})
   const rules = rulesOf(field)
@@ -35,6 +40,7 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // So is a table with no text in any cell.
   if (required && (blank(value) || (isCodeField(field) && blank((value as {code?: unknown}).code)) || (isTableField(field) && tableBlank(value)))) return push(required, t('Required'))
   if (blank(value)) return
+  const shut = at.shut || shutByDoc(field, at.doc, at.parent)
   // A slug's text is its `current` when Sanity-shaped.
   const text = typeof value === 'string' ? value : field.type === 'slug' && typeof (value as {current?: unknown})?.current === 'string' ? (value as {current: string}).current : undefined
   for (const r of rules) {
@@ -64,6 +70,10 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // Sanity's field types carry rules of their own: a URL, an email, a whole number, a date.
   const wrongShape = typeRule(field.type, value, t)
   if (wrongShape) push({}, wrongShape)
+  // Sanity's rule from options.list (`valid(list)`): a value the list doesn't hold is said, and kept.
+  // On a field the editor can't change here (readOnly or hidden for this document) it is a
+  // warning, never blocking Publish: a list that changed must not lock anyone out (unlike Sanity).
+  if (outsideList(field, value)) push({level: shut ? 'warning' : 'error'}, notAllowed(value, t))
   // Sanity: a strong reference must point at a published doc (a missing one fails the same
   // way), a bare id or Sanity's object alike. A weak field's may point anywhere (Sanity's).
   const ref = field.type === 'reference' && !field.weak ? refId(value) : undefined
@@ -75,13 +85,13 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   if (field.of?.type === 'reference' && Array.isArray(value))
     value.forEach((it, i) => refId(it) || out.push({path: itemPath(path, it, i), title, message: t('Must be a reference to a document'), level: 'error', ...(parents.length ? {parents} : {}), group}))
   if (field.type === 'composite' && !isCodeField(field) && !isTableField(field))
-    for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t)
+    for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t, {doc: at.doc, parent: value as Record<string, unknown>, shut})
   // An array's items are checked too (Sanity's "Links / External link / URL"): an object
   // item's fields under the item's kind, a plain item by its type's own rule.
   const of = field.of
   if (of && of.type !== 'reference' && Array.isArray(value))
     value.forEach((it, i) => {
-      const at = itemPath(path, it, i)
+      const item = itemPath(path, it, i)
       if (of.type === 'composite' && it && typeof it === 'object') {
         const opts = (of.options ?? {}) as {typeField?: string; fieldsByType?: Record<string, string[]>}
         const kind = opts.typeField ? (it as Record<string, unknown>)[opts.typeField] : undefined
@@ -89,10 +99,10 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
         const kindTitle = typeof kind === 'string' ? ((kindField?.options as {value: string; title?: string}[] | undefined)?.find((o) => o.value === kind)?.title ?? kind) : undefined
         const shown = typeof kind === 'string' && opts.fieldsByType?.[kind]
         for (const f of of.fields ?? [])
-          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${at}.${f.name}`, [...parents, title, ...(kindTitle ? [kindTitle] : [])], group, out, target, t)
+          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${item}.${f.name}`, [...parents, title, ...(kindTitle ? [kindTitle] : [])], group, out, target, t, {doc: at.doc, parent: it as Record<string, unknown>, shut})
       } else {
         const shape = typeRule(of.type, it, t)
-        if (shape) out.push({path: at, title, message: shape, level: 'error', ...(parents.length ? {parents} : {}), group})
+        if (shape) out.push({path: item, title, message: shape, level: 'error', ...(parents.length ? {parents} : {}), group})
       }
     })
 }
@@ -112,10 +122,16 @@ function typeRule(type: string, value: unknown, t: T): string | undefined {
   return undefined
 }
 
+/** Sanity's words for a value outside the list: the value itself, cut at 30 characters. */
+function notAllowed(value: unknown, t: T): string {
+  const text = typeof value === 'number' || typeof value === 'string' ? String(value) : ''
+  return text ? t('Value "{value}" did not match any allowed values', {value: text.length > 30 ? `${text.slice(0, 30)}…` : text}) : t('Value did not match any allowed values')
+}
+
 /** `t`: the render's translate (useT), so the messages are in the Studio's language. */
 export function validate(doc: Doc, schema: Schema, target?: RefTarget, t: T = english): Problem[] {
   const out: Problem[] = []
-  for (const f of schema.fields) check(f, doc[f.name], f.name, [], f.group, out, target, t)
+  for (const f of schema.fields) check(f, doc[f.name], f.name, [], f.group, out, target, t, {doc, shut: false})
   // The schema's cross-field rules (lib/cross-rules), as Barkpark checks them on write.
   out.push(...crossProblems(doc, schema))
   return out
