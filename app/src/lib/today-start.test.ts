@@ -22,6 +22,7 @@ g.saveFlowServer = {
 const E = await import('./edits.ts')
 const {zoneWait, startValues} = await import('./today-start.ts')
 const {dateIn} = await import('./today.ts')
+const {addItemStart} = await import('./incoming-refs.ts')
 after(() => E.forgetEdits())
 
 const tick = (ms = 0) => new Promise((go) => setTimeout(go, ms))
@@ -104,6 +105,21 @@ test("a reference field's Create: the typed search text stays as typed, even \"$
   assert.ok(days.includes(sent.publisert as string))
 })
 
+test('"Add item" in incoming references: a $today beside the reference, in the same top field, is resolved, not stored as text', async () => {
+  // IncomingReferencesInput's add: createDoc(qc, type.type, newId, addItemStart(refSchema, type.by, id, type.type, choice)).
+  const schema = {fields: [{name: 'meta', type: 'object', fields: [{name: 'sak', type: 'reference'}, {name: 'dato', type: 'date'}]}]} as never
+  const qc = page(ZONED)
+  for (const choice of [{id: 'arrangement', value: {meta: {dato: '$today'}}}, {id: 'arrangement-mal', value: {meta: {dato: '$today'}, tittel: 'Fra mal'}}]) {
+    const id = newId()
+    const start = addItemStart(schema, 'meta.sak', 'sak-1', 'arrangement', choice)!
+    const {days} = await today(ZONE, () => E.createDoc(qc, 'arrangement', id, start))
+    const sent = creates.find((c) => c._id === id)! as {meta: {sak: string; dato: string}; tittel?: string}
+    assert.equal(sent.meta.sak, 'sak-1', choice.id)
+    assert.ok(days.includes(sent.meta.dato), `${choice.id}: the create holds today, not ${sent.meta.dato}`)
+    assert.equal(sent.tittel, choice.id === 'arrangement' ? undefined : 'Fra mal', "the type's own start leaves the rest to Barkpark")
+  }
+})
+
 test("no workspace zone: $today is UTC, as on Barkpark, not the editor's zone", async () => {
   const was = process.env.TZ
   process.env.TZ = 'Pacific/Kiritimati'
@@ -145,6 +161,26 @@ test("a failed locale read: the schema's token fields are left for Barkpark to f
   assert.ok(!('publisert' in sent), 'Barkpark fills it from the same initial values')
   assert.equal(sent.tittel, 'Ny sak')
   assert.ok(days.includes(sent.frist as string), 'only the Studio has the desk value: UTC')
+})
+
+test('a failed locale read is asked once, not retried, whatever the client\'s default', async () => {
+  const was = zoneWait.ms
+  zoneWait.ms = 40
+  let asked = 0
+  g.saveFlowLocale = () => (asked++, Promise.reject(new Error('down')))
+  try {
+    const qc = new QueryClient({defaultOptions: {queries: {retry: 3, retryDelay: 0}}})
+    qc.setQueryData(['locale'], {locale: 'en', provisional: true})
+    let out: Record<string, unknown> | undefined
+    startValues(qc, {queryKey: ['locale'], queryFn: () => (g.saveFlowLocale as () => Promise<unknown>)()}, {schema: {publisert: '$today'}}, (v) => (out = v))
+    for (let i = 0; i < 40 && !out; i++) await tick(5)
+    await tick(20)
+    assert.deepEqual(out, {}, 'left for Barkpark')
+    assert.equal(asked, 1)
+  } finally {
+    zoneWait.ms = was
+    delete g.saveFlowLocale
+  }
 })
 
 test('the wait is capped: a locale read that never answers still opens the new document, with the fallback', async () => {
@@ -199,6 +235,8 @@ test('the one place, by text: draftNew and createDoc call startValues, the only 
   assert.match(pane, /draftNew\(qc, pane\.type, pane\.id, \{schema: schemaOf\(schemas, pane\.type\)\?\.initialValues \?\? \{\}\}\)/, "the singleton's first open")
   assert.match(pane, /createDoc\(qc, from\._type, id, \{asIs: fields\}\)/, 'Duplicate')
   assert.match(src('../components/RefInput.tsx'), /createDoc\(qc, refType, newId, \{local: [^\n]*, asIs: q \? \{\[titleField\]: q\} : \{\}\}\)/, "a reference's typed title is asIs")
+  const incoming = src('../components/IncomingReferencesInput.tsx')
+  assert.match(incoming, /const start = addItemStart\(refSchema, type\.by, id, type\.type, choice\)\n[^\n]*\n(?:[^\n]*\n){0,6} {4}createDoc\(qc, type\.type, newId, start\)/, '"Add item" creates with addItemStart\'s values')
   for (const file of ['./templates.ts', '../components/DocumentPane.tsx', '../components/RefInput.tsx', '../components/IncomingReferencesInput.tsx']) {
     assert.doesNotMatch(src(file), /resolveToday|startedWith|from '\.\/today'|lib\/today'/, file)
   }

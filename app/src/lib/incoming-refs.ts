@@ -1,6 +1,7 @@
 import type {Doc, Field, Schema} from './data'
 import {getPath, setPath} from './paths.ts'
 import {refId} from './refs.ts'
+import type {Start} from './today-start.ts'
 
 // Sanity's incoming references input (`defineIncomingReferenceDecoration`, 6.17): inside a
 // document's form, the documents that reference it, by type, with "Add item" creating one
@@ -218,6 +219,18 @@ export function referencePreset(schema: Pick<Schema, 'fields'> | undefined, by: 
     value = items.some((item) => refId(item) === id) ? items : [...items, {_key: newKey(), _type: 'reference', _ref: id}]
   }
   return {[top]: setPath({[top]: initial[top]}, path, value)[top]}
+}
+
+/**
+ * "Add item"'s create, from the chosen way to start the type: the reference preset over the
+ * template's values, all as the Studio's own (`local`), so a `$today` beside the reference in
+ * its top field is resolved too, never stored as text. The type's own start (`choice.id` is the
+ * type) adds only the preset; Barkpark fills the rest from the same initial values. Null when
+ * `by` is no reference field of the type.
+ */
+export function addItemStart(schema: Pick<Schema, 'fields'> | undefined, by: string, id: string, type: string, choice: {id: string; value: Record<string, unknown>}): Start | null {
+  const preset = referencePreset(schema, by, id, choice.value)
+  return preset && {local: {...(choice.id === type ? {} : choice.value), ...preset}}
 }
 
 /** "Add item"'s choices: every way to start the type, or only the templates `creationAllowed` names; none when it is false. */

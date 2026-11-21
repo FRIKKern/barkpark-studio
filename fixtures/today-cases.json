@@ -1,6 +1,6 @@
 {
   "about": "Cases for Barkpark's \"$today\" token (api/lib/barkpark/content/today.ex). 'server' per case is Barkpark's answer for that value at 'now' in 'zone'; zone null is a workspace with no zone, which Barkpark reads as UTC (Today.clock). app/src/lib/today-server.test.ts checks the studio gives the same, through its one resolver (lib/today-start.ts). Seeded from review-56's 890-case table, trimmed to the cases that carry the meaning. Regenerate: elixir scripts/today-cases.exs <barkpark checkout>. G2 / S3 (task-a34b8c24295dd488, task-f78a513602faee55).",
-  "server": "barkpark d4881c07c6",
+  "server": "barkpark beb66baab1",
   "cases": [
     {
       "name": "Oslo winter 22:30 UTC: still the 15th",

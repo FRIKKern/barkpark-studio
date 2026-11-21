@@ -4,7 +4,7 @@ import {isSingleton, relatedQuery, schemaOf, schemasQuery, type Doc, type Schema
 import {createDoc} from '../lib/edits'
 import {focusFirstField} from '../lib/focus'
 import {useT} from '../lib/i18n'
-import {creationChoices, dropRelated, fieldPathOf, foldRelated, incomingFor, incomingIn, referenceKind, referencePreset, shownRelated, RELATED_MAX, type IncomingDecl, type IncomingType} from '../lib/incoming-refs'
+import {addItemStart, creationChoices, dropRelated, fieldPathOf, foldRelated, incomingFor, incomingIn, referenceKind, shownRelated, RELATED_MAX, type IncomingDecl, type IncomingType} from '../lib/incoming-refs'
 import {useLive} from '../lib/live'
 import {openAfter, type Pane} from '../lib/panes'
 import {usePresences, type Presence} from '../lib/presence'
@@ -121,15 +121,15 @@ function TypeList({decl, type, titled, doc, panes, index, published, revision, l
             ? t('This document does not exist yet. Edit it first, then add items that reference it.')
             : undefined
   const add = (choice: Choice) => {
-    const preset = referencePreset(refSchema, type.by, id, choice.value)
-    if (!preset) return
+    const start = addItemStart(refSchema, type.by, id, type.type, choice)
+    if (!start) return
     const newId = crypto.randomUUID()
     setMade((m) => [...m, newId])
     // The new row is in view wherever the list's order puts it.
     if (rows.length >= FIRST_ROWS) setAll(true)
     // As a reference field's Create new (J22): the document exists at once, pointing here,
     // and opens in the next pane; over the chosen template's values (J18).
-    createDoc(qc, type.type, newId, {local: choice.id === type.type ? {} : choice.value, asIs: preset}).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
+    createDoc(qc, type.type, newId, start).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
     void navigate({href: openAfter(panes, index, {kind: 'doc', id: newId, type: type.type})})
     focusFirstField(newId)
   }
