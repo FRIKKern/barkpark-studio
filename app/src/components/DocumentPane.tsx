@@ -97,6 +97,9 @@ const fieldEl = (root: HTMLElement | null, path: string) => {
   return el && !el.matches(TAKES_FOCUS) ? (el.querySelector<HTMLElement>(TAKES_FOCUS) ?? el) : el
 }
 
+/** A field this person cannot change here: a value outside its list warns there, never blocks Publish (lib/validation). */
+const shutHere = (state: {hidden: boolean; readOnly: boolean}) => state.hidden || state.readOnly
+
 export function DocumentPane({panes, index, split, closeHref, header, closeIcon}: Props) {
   const t = useT()
   const locale = useLocale()
@@ -190,7 +193,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const quiet = made?.id === pane.id && !made.acted
   // After the keystroke lands: re-rendering the form inside its input event drops it.
   const acted = () => quiet && setTimeout(() => setMade((m) => (m?.id === pane.id ? {...m, acted: true} : m)))
-  const checked = doc && schemaForPane && !viewingPublished && !gone && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t) : []
+  const checked = doc && schemaForPane && !viewingPublished && !gone && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t, (f, at) => shutHere(fieldState(schemaForPane.name, f, doc, user, studio.form?.conditions, at))) : []
   // J28: a slug another document of this type has (a duplicate's copied slug) is taken, as Sanity says.
   const slugTaken = useSlugInUse(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !gone && !pristine, t)
   // The studio config's custom rules (Sanity's Rule.custom), sync and async; studio only.

@@ -22,6 +22,8 @@ const sent: {create?: Record<string, unknown> & {_id: string}; patch?: {id: stri
 }
 const {hasList, listOptions, listValues, outsideList} = await import('./list-options.ts')
 const {validate, errorsOf} = await import('./validation.ts')
+const {fieldState} = await import('./conditions.ts')
+const {unknown} = await import('./persons.fixture.ts')
 const {transfer} = await import('./clipboard.ts')
 const {revert} = await import('./merge.ts')
 const E = await import('./edits.ts')
@@ -101,7 +103,12 @@ test('a field the editor cannot change here: a value outside its list warns, nev
     {name: 'open', title: 'Open', type: 'select', options: list},
   ]} as never
   const doc = (fields: Record<string, unknown>) => ({_id: 's', _publishedId: 's', _type: 'side', _draft: true, _rev: 'r', _updatedAt: '', ...fields}) as never
-  const shut = validate(doc({fixed: 'old', once: 'old', gone: 'old', when: 'old', count: 4, box: {inner: 'old'}}), schema)
+  // The pane's question with no studio config (lib/validation-shut.test.ts has the person's).
+  const ask = (d: never) => validate(d, schema, undefined, undefined, (f, at) => {
+    const state = fieldState('side', f, d, unknown, undefined, at)
+    return state.hidden || state.readOnly
+  })
+  const shut = ask(doc({fixed: 'old', once: 'old', gone: 'old', when: 'old', count: 4, box: {inner: 'old'}}))
   assert.deepEqual(shut.map((p) => `${p.level} ${p.title}: ${p.message}`), [
     'warning Fixed: Value "old" did not match any allowed values',
     'warning Once: Value "old" did not match any allowed values',
@@ -112,7 +119,7 @@ test('a field the editor cannot change here: a value outside its list warns, nev
   ])
   assert.deepEqual(errorsOf(shut), [], 'Publish is not blocked')
   // The field the editor can change stays Sanity's error, and blocks.
-  assert.deepEqual(errorsOf(validate(doc({open: 'old'}), schema)).map((p) => p.path), ['open'])
+  assert.deepEqual(errorsOf(ask(doc({open: 'old'}))).map((p) => p.path), ['open'])
 })
 
 test('the form, by text: a number with a list draws the list input, and a choice sends the value as the list holds it', () => {

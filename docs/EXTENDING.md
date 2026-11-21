@@ -88,6 +88,21 @@ A datetime's `options.displayTimeZone` (an IANA name, `America/New_York`) shows 
 time on that zone's clock, with Sanity's zone button after the title; `allowTimeZoneSwitch: false`
 keeps it there, and `true` alone gives the button in local time. The value stays a UTC instant.
 
+A slug's Generate is Sanity's default (speakingurl) unless `options.slugify` names a built-in
+table: `"nb"` is HSO's Norwegian rule (æ → ae, ø → o, å → a, other accents dropped, anything
+else one hyphen), still cut at `maxLength`. Barkpark stores the option as it is. A name the
+studio does not know is the default slug, with one console warning. The tables are data in
+`app/src/lib/slugify.ts`; `"nb"` is pinned against HSO's own code by
+`fixtures/slugify-nb-cases.json` (`node scripts/slugify-nb-cases.mjs <hovinbyen-ny checkout>`).
+Where the two part:
+
+| Title | default | `"nb"` |
+| --- | --- | --- |
+| `Steen & Strøm` | `steen-and-strom` | `steen-strom` |
+| `Grünerløkka` | `gruenerlokka` | `grunerlokka` |
+| `Straße` | `strasse` | `stra-e` |
+| `£100 i måneden` | `gbp100-i-maneden` | `100-i-maneden` |
+
 Sanity's other rule builders are rule keys, checked as you type in Sanity's words (an error
 blocks Publish): `length` (characters, items or blocks), `precision`, `greaterThan`, `lessThan`,
 `positive`, `negative`, `lowercase`, `uppercase`, a pattern's `name` and `invert`,
