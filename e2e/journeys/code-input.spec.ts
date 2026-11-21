@@ -72,6 +72,7 @@ test('a code field: typed code, a picked language, a filename and a highlighted 
   try {
     await code.click()
     await page.keyboard.type('const a = 1\nconst b = 2')
+    await savesLanded(page) // the read below finds it at its first try, not past expect.poll's backoff
     // The first code stores the object's type and the language the picker shows (options.language).
     await expect.poll(() => t.docValue(FIXTURE, 'snippet', 'fieldTypes'), {timeout: 10_000}).toEqual({_type: 'code', language: 'typescript', code: 'const a = 1\nconst b = 2'})
     await page.locator('[id="snippet.language"]').selectOption('javascript')
@@ -82,6 +83,7 @@ test('a code field: typed code, a picked language, a filename and a highlighted 
     await code.click()
     await page.keyboard.press('ControlOrMeta+Home')
     await page.keyboard.type('// top\n')
+    await savesLanded(page)
     await expect.poll(() => t.docValue(FIXTURE, 'snippet', 'fieldTypes'), {timeout: 10_000}).toEqual({_type: 'code', language: 'javascript', filename: 'a.js', code: '// top\nconst a = 1\nconst b = 2', highlightedLines: [3]})
     // Tab indents in the editor; Escape, then Tab, leaves it.
     await page.keyboard.press('Escape')
