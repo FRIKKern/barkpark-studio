@@ -2,7 +2,7 @@ import {useEffect, useState} from 'react'
 import {createFileRoute, Link, useNavigate} from '@tanstack/react-router'
 import {useQueryClient} from '@tanstack/react-query'
 import {requireEditor} from '../lib/structure-route'
-import {anyDocQuery, schemaOf, schemasQuery} from '../lib/data'
+import {anyDocQuery, isFixed, schemaOf, schemasQuery} from '../lib/data'
 import {parseIntent} from '../lib/intent'
 import {choiceById, choicesFor, startNew} from '../lib/templates'
 import {panesPath} from '../lib/panes'
@@ -40,6 +40,8 @@ function IntentPage() {
       const choice = intent.template ? choiceById(schemas, intent.type, intent.template, intent.params) : choicesFor(schemas, intent.type)[0]
       if (gone) return
       if (!choice || !schemaOf(schemas, choice.type)) return setFailed(t('This link is not one the Studio knows.'))
+      // A fixed set of documents (lib/fixed-documents.ts): nothing new is made from a link either.
+      if (isFixed(schemas, choice.type)) return setFailed(t('{type} has a fixed set of documents. A new one cannot be created.', {type: schemaOf(schemas, choice.type)?.title ?? choice.type}))
       const id = intent.id ?? crypto.randomUUID()
       await startNew(qc, schemas, choice, id)
       if (gone) return

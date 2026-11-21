@@ -23,7 +23,7 @@ async function readContentModel(path: string) {
   return response
 }
 
-export type RawSchema = {name: string; title: string; icon?: unknown; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; fieldsets?: unknown; initialValues?: unknown; initial_values?: unknown; crossValidations?: unknown; cross_validations?: unknown; desk?: unknown; singleton?: unknown; layout?: unknown; prefill?: unknown; kind?: unknown}
+export type RawSchema = {name: string; title: string; icon?: unknown; fields: unknown[]; listPreview?: unknown; list_preview?: unknown; groups?: unknown; fieldsets?: unknown; initialValues?: unknown; initial_values?: unknown; crossValidations?: unknown; cross_validations?: unknown; desk?: unknown; singleton?: unknown; fixedDocuments?: unknown; layout?: unknown; prefill?: unknown; kind?: unknown}
 
 /**
  * The studio's own record types (lib/tasks.ts, lib/comments.ts; lib/translations.ts's

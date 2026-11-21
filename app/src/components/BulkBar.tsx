@@ -1,6 +1,7 @@
 import {useState} from 'react'
-import {useQueryClient} from '@tanstack/react-query'
-import {schemasQuery, type Doc} from '../lib/data'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
+import {schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {offers, type FixedAction} from '../lib/fixed-documents'
 import {publish, reasonOf, unpublish} from '../lib/edits'
 import {bulkResultSummary, bulkSummary, isWall, type BulkAction, type Outcome, type RowResult} from '../lib/bulk'
 import {useCanWrite} from '../lib/session'
@@ -66,6 +67,9 @@ export function BulkBar({picked, onClear, onKeep}: {picked: Doc[]; onClear: () =
   const busy = !!running || !!bulk
   // Discard needs a draft over a published version (the footer offers it only then).
   const discardable = picked.some((d) => d._draft && d._hasPublished !== false)
+  // A fixed set of documents (lib/fixed-documents.ts): no copies, and no delete of a listed one.
+  const {data: schemas = []} = useQuery(schemasQuery)
+  const offered = (action: FixedAction) => picked.every((d) => offers(schemaOf(schemas, d._type)?.fixedDocuments, action, d._publishedId))
   return (
     <div className="bulk-bar" role="region" aria-label={t('Bulk actions')}>
       <span className="bulk-count" role="status">
@@ -88,15 +92,19 @@ export function BulkBar({picked, onClear, onKeep}: {picked: Doc[]; onClear: () =
         {/* A Viewer sees none of these (nor the ticks: Structure's `selectable`); a Contributor's Delete takes drafts only. */}
         {canWrite && (
           <>
-            <button type="button" className="btn" disabled={busy} onClick={() => setBulk('duplicate')}>
-              {t('Duplicate selected')}
-            </button>
+            {offered('duplicate') && (
+              <button type="button" className="btn" disabled={busy} onClick={() => setBulk('duplicate')}>
+                {t('Duplicate selected')}
+              </button>
+            )}
             <button type="button" className="btn" disabled={busy || !discardable} title={discardable ? undefined : t('None of them has changes to discard')} onClick={() => setBulk('discard')}>
               {t('Discard changes')}
             </button>
-            <button type="button" className="btn danger-text" disabled={busy} onClick={() => setBulk('delete')}>
-              {t('Delete selected')}
-            </button>
+            {offered('delete') && (
+              <button type="button" className="btn danger-text" disabled={busy} onClick={() => setBulk('delete')}>
+                {t('Delete selected')}
+              </button>
+            )}
           </>
         )}
       </div>

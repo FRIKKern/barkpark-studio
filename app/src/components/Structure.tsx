@@ -4,7 +4,7 @@ import {Fragment, useCallback, useContext, useDeferredValue, useId, type ReactNo
 import {usePrefetchDocEditors} from './DocEditors'
 import {MenuPopover} from './FocusScopes'
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query'
-import {cachedDoc, deskQuery, restQuery, docQuery, docTitle, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
+import {cachedDoc, deskQuery, restQuery, docQuery, docTitle, isFixed, isSingleton, LIST_MAX, LIST_PAGE, listQuery, listSearchQuery, orderingSort, previewTitle, publishedListQuery, publishedQuery, refTypesOf, schemaOf, schemasQuery, type Doc, type Schema} from '../lib/data'
 import {historyQuery} from '../lib/history'
 import {deskIndex, deskSort, listFilter, newDocPreset, paneTitleOf, rootDesk, unsupportedOps, type DeskNode} from '../lib/desk'
 import {usePublishedPerspective} from '../lib/perspective'
@@ -973,7 +973,8 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
         <BackLink panes={panes} index={index} />
         <PaneTitle pane={panes[index]} />
         {/* B13: a singleton type has its one document, never a new one. */}
-        {!isSingleton(schemas, type) && (
+        {/* A fixed set of documents (lib/fixed-documents.ts) is not added to here either. */}
+        {!isSingleton(schemas, type) && !isFixed(schemas, type) && (
           <NewInList
             choices={childTemplate ? [childTemplate] : choicesFor(schemas, type)}
             label={childTemplate ? childTemplate.title : t('Create new {type}', {type: schemaOf(schemas, type)?.title ?? type})}

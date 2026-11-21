@@ -1,7 +1,7 @@
 import {useId, useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {useNavigate} from '@tanstack/react-router'
-import {isSingleton, schemaOf, schemasQuery} from '../lib/data'
+import {isFixed, isSingleton, schemaOf, schemasQuery} from '../lib/data'
 import {choicesFor, startNew, type Choice} from '../lib/templates'
 import {focusFirstField} from '../lib/focus'
 import {panesPath} from '../lib/panes'
@@ -31,7 +31,7 @@ export function NewDocMenu() {
       </button>
       {open && (
         <TypePicker
-          choices={schemas.filter((s) => isDocumentType(s) && !isSingleton(schemas, s.name)).flatMap((s) => choicesFor(schemas, s.name)).sort((a, b) => collate(a.title, b.title))}
+          choices={schemas.filter((s) => isDocumentType(s) && !isSingleton(schemas, s.name) && !isFixed(schemas, s.name)).flatMap((s) => choicesFor(schemas, s.name)).sort((a, b) => collate(a.title, b.title))}
           onClose={() => setOpen(false)}
           onPick={(choice) => {
             setOpen(false)

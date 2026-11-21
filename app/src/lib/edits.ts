@@ -614,14 +614,14 @@ export function fieldTitle(fields: Field[], path: string): string | undefined {
 /** Barkpark's own reason, from a thrown "mutate 403: {error: {message}}" (cut at 600 characters). */
 export function reasonOf(msg: string): string | undefined {
   try {
-    const body = JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {code?: string; message?: string; details?: {rule?: unknown; fix?: unknown; kind?: string; max?: number}}}
+    const body = JSON.parse(msg.slice(msg.indexOf('{'))) as {error?: {code?: string; message?: string; details?: {rule?: unknown; fix?: unknown; kind?: string; max?: number; action?: unknown; type?: unknown}}}
     // Too many of one kind in one request (Barkpark #22499): the studio splits deletes, but say it plainly if it ever shows.
     if (body.error?.code === 'batch_too_large') {
       const {kind, max} = body.error.details ?? {}
       return kind === 'delete' ? t('Too many deletions at once (at most {limit}). Try fewer.', {limit: max ?? 500}) : t('Too many changes at once. Try fewer.')
     }
     // A fault on Barkpark's side (a 500, a lost race, a busy database) in plain words.
-    const plain = plainReason(body.error?.code, t)
+    const plain = plainReason(body.error?.code, t, body.error?.details)
     if (plain) return plain
     // A publish wall says which rule broke and how to fix it (D12).
     const {rule, fix} = body.error?.details ?? {}

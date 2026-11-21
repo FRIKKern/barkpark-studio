@@ -1,0 +1,30 @@
+{
+  "about": "Cases for a type with a fixed set of documents (Barkpark's schema key fixedDocuments, api/lib/barkpark/content/fixed_documents.ex). 'server' per case is Barkpark's answer (FixedDocuments.answer/4) for that write on a type whose list is 'fixed' (null: no list); a duplicate is a create of a new id, an edit a write over a row that exists. app/src/lib/fixed-documents-server.test.ts checks the studio never offers a write Barkpark refuses (lib/fixed-documents.ts), and hides one Barkpark allows only where 'gap' names the task for it. Regenerate: elixir scripts/fixed-document-cases.exs <barkpark checkout>. G5 (task-f4c80d82cc25b19b).",
+  "server": "barkpark 7675c767c0",
+  "cases": [
+    {"name": "no list: a new document", "fixed": null, "action": "create", "id": "ny-side", "exists": false, "server": "ok"},
+    {"name": "no list: a duplicate (a new random id)", "fixed": null, "action": "duplicate", "id": "6f0c2b1e-0d1a-4c3e-9a57-3f1d2e4b5c6d", "exists": false, "server": "ok"},
+    {"name": "no list: create side-om-oss, which does not exist yet", "fixed": null, "action": "create", "id": "side-om-oss", "exists": false, "server": "ok"},
+    {"name": "no list: edit side-om-oss", "fixed": null, "action": "edit", "id": "side-om-oss", "exists": true, "server": "ok"},
+    {"name": "no list: edit a document from before the list", "fixed": null, "action": "edit", "id": "gammel", "exists": true, "server": "ok"},
+    {"name": "no list: delete side-om-oss", "fixed": null, "action": "delete", "id": "side-om-oss", "exists": true, "server": "ok"},
+    {"name": "no list: delete side-om-oss by its draft id", "fixed": null, "action": "delete", "id": "drafts.side-om-oss", "exists": true, "server": "ok"},
+    {"name": "no list: delete a document from before the list", "fixed": null, "action": "delete", "id": "gammel", "exists": true, "server": "ok"},
+    {"name": "empty list: a new document", "fixed": [], "action": "create", "id": "ny-side", "exists": false, "server": "refused"},
+    {"name": "empty list: a duplicate (a new random id)", "fixed": [], "action": "duplicate", "id": "6f0c2b1e-0d1a-4c3e-9a57-3f1d2e4b5c6d", "exists": false, "server": "refused"},
+    {"name": "empty list: create side-om-oss, which does not exist yet", "fixed": [], "action": "create", "id": "side-om-oss", "exists": false, "server": "refused"},
+    {"name": "empty list: edit side-om-oss", "fixed": [], "action": "edit", "id": "side-om-oss", "exists": true, "server": "ok"},
+    {"name": "empty list: edit a document from before the list", "fixed": [], "action": "edit", "id": "gammel", "exists": true, "server": "ok"},
+    {"name": "empty list: delete side-om-oss", "fixed": [], "action": "delete", "id": "side-om-oss", "exists": true, "server": "ok"},
+    {"name": "empty list: delete side-om-oss by its draft id", "fixed": [], "action": "delete", "id": "drafts.side-om-oss", "exists": true, "server": "ok"},
+    {"name": "empty list: delete a document from before the list", "fixed": [], "action": "delete", "id": "gammel", "exists": true, "server": "ok"},
+    {"name": "listed: a new document", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "create", "id": "ny-side", "exists": false, "server": "refused"},
+    {"name": "listed: a duplicate (a new random id)", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "duplicate", "id": "6f0c2b1e-0d1a-4c3e-9a57-3f1d2e4b5c6d", "exists": false, "server": "refused"},
+    {"name": "listed: create side-om-oss, which does not exist yet", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "create", "id": "side-om-oss", "exists": false, "server": "ok", "gap": "task-b3f4ccc4f9cfe129"},
+    {"name": "listed: edit side-om-oss", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "edit", "id": "side-om-oss", "exists": true, "server": "ok"},
+    {"name": "listed: edit a document from before the list", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "edit", "id": "gammel", "exists": true, "server": "ok"},
+    {"name": "listed: delete side-om-oss", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "delete", "id": "side-om-oss", "exists": true, "server": "refused"},
+    {"name": "listed: delete side-om-oss by its draft id", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "delete", "id": "drafts.side-om-oss", "exists": true, "server": "refused"},
+    {"name": "listed: delete a document from before the list", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "delete", "id": "gammel", "exists": true, "server": "ok"}
+  ]
+}

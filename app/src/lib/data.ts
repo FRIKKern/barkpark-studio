@@ -6,6 +6,7 @@ import {resumeMark} from '../server/listen'
 import {fieldIcons, readDesk, readRest, readSchemas, schemaIcon, STUDIO_TYPES} from '../server/schemas'
 import type {Condition} from './conditions'
 import {crossRulesOf, type CrossRule} from './cross-rules'
+import {fixedList} from './fixed-documents'
 import {paneRetry} from './connection'
 import {collate, translate, type T} from './i18n'
 import {deskFilterParams, normalizeDesk, orGroupRefused, type DeskFilter, type DeskNode} from './desk'
@@ -92,7 +93,7 @@ export type Ordering = {name: string; title: string; by: {field: string; directi
 export type ListPreview = {title?: string; subtitle?: PreviewText; media?: PreviewMediaSpec}
 /** One entry of a type's Expectation (Barkpark's `layout`): a bound field block, or the free region. */
 export type LayoutItem = {kind: 'field' | 'region' | string; name: string; max?: number; enforce?: boolean}
-export type Schema = {name: string; title: string; kind?: 'object'; icon?: string; iconSvg?: string; previewView?: {title?: string}; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; fieldsets?: Field['fieldsets']; initialValues?: Record<string, unknown>; crossValidations?: CrossRule[]; orderings?: Ordering[]; singleton?: boolean; views?: DeskView[]; incoming?: IncomingDecl[]; preview?: string; layout?: LayoutItem[]; prefill?: Record<string, unknown>; translations?: TranslationConfig}
+export type Schema = {name: string; title: string; kind?: 'object'; icon?: string; iconSvg?: string; previewView?: {title?: string}; fields: Field[]; listPreview?: ListPreview; groups?: Group[]; fieldsets?: Field['fieldsets']; initialValues?: Record<string, unknown>; crossValidations?: CrossRule[]; orderings?: Ordering[]; singleton?: boolean; fixedDocuments?: string[]; views?: DeskView[]; incoming?: IncomingDecl[]; preview?: string; layout?: LayoutItem[]; prefill?: Record<string, unknown>; translations?: TranslationConfig}
 /**
  * B09: a related-documents view the schema declares (`desk.views`, Barkpark's LiveView
  * "view bar"): docs of `type` whose `by` field references the open doc.
@@ -123,7 +124,7 @@ const previewViewOf = (v: unknown): {previewView?: {title?: string}} =>
 const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
   const schemas = await readSchemas()
   return schemas
-    .map(({name, title, icon, fields, listPreview, list_preview, groups, fieldsets, initialValues, initial_values, crossValidations, cross_validations, desk, singleton, layout, prefill, kind}) => ({
+    .map(({name, title, icon, fields, listPreview, list_preview, groups, fieldsets, initialValues, initial_values, crossValidations, cross_validations, desk, singleton, fixedDocuments, layout, prefill, kind}) => ({
       name, title,
       // Document translations (desk.translations): the languages, and the language field kept out of the form.
       ...translatedFields(fieldIcons(fields) as {name: string}[], desk),
@@ -136,6 +137,8 @@ const fetchSchemas = createServerFn({method: 'GET'}).handler(async () => {
       ...crossRulesOf(crossValidations ?? cross_validations),
       layout: Array.isArray(layout) ? layout : [], prefill: prefill ?? {},
       singleton: singleton === true,
+      // A fixed set of documents (lib/fixed-documents.ts): only when the type has a list.
+      ...(fixedList(fixedDocuments) ? {fixedDocuments: fixedList(fixedDocuments)} : {}),
       orderings: ((desk as {orderings?: RawOrdering[]} | undefined)?.orderings ?? []).filter((o) => o.field || o.by?.length).map(ordering),
       views: ((desk as {views?: Json[]} | undefined)?.views ?? []) as Json[],
       // Sanity's incoming references input: the lists the type's form shows (lib/incoming-refs.ts).
@@ -696,6 +699,8 @@ export const searchAllDocs = async (q: string) => (await fetchSearchAll({data: {
 export const schemaOf = (schemas: Schema[], type: string) => schemas.find((s) => s.name === type)
 /** B13: a singleton type has one document, whose id is the type's name (Barkpark's rule): no list, no create, duplicate, delete or unpublish. */
 export const isSingleton = (schemas: Schema[], type: string) => schemaOf(schemas, type)?.singleton === true
+/** A type with a fixed set of documents (lib/fixed-documents.ts): no create or duplicate, and no delete of a listed one. */
+export const isFixed = (schemas: Schema[], type: string) => !!schemaOf(schemas, type)?.fixedDocuments
 
 /** The types a reference field (or a reference array's member) may point to. */
 export {itemPath, refId, refOpenType} from './refs'
