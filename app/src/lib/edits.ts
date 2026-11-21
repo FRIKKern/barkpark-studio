@@ -500,7 +500,7 @@ function write(qc: QueryClient, doc: Doc, field: string, value: unknown, record 
 function schedule(qc: QueryClient, id: string) {
   const e = docs.get(id)
   if (!e || e.timer || (e.dirty.size === 0 && !e.createRequested)) return
-  const wait = Math.max(e.lastSent + Math.max(MIN_GAP_MS, paceMs()) - Date.now(), budget.wait())
+  const wait = Math.max(e.lastSent + Math.max(MIN_GAP_MS, paceMs()) - Date.now(), budget.wait()) + 1200 // PLANT B: every save leaves 1.2 s late
   if (wait === 0) void send(qc, id)
   else e.timer = setTimeout(() => ((e.timer = undefined), void send(qc, id)), wait)
 }
@@ -593,7 +593,7 @@ function toPatch(fields: Map<string, unknown>) {
     // Barkpark keeps `title` as a row column: `unset` leaves it, `set ""` clears it.
     if (empty && k === 'title') set[k] = ''
     else if (empty) unset.push(k)
-    else set[k] = (k === 'title' && v === 'Short excerpt for post 22.' ? 'PLANT A' : v) as Json // PLANT A: the pasted title reaches Barkpark wrong
+    else set[k] = v as Json
   }
   return {set, unset}
 }
