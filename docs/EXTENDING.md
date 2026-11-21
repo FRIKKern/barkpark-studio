@@ -88,6 +88,12 @@ A datetime's `options.displayTimeZone` (an IANA name, `America/New_York`) shows 
 time on that zone's clock, with Sanity's zone button after the title; `allowTimeZoneSwitch: false`
 keeps it there, and `true` alone gives the button in local time. The value stays a UTC instant.
 
+An image's `options.minWidth` (pixels) warns when the picked image is narrower, in
+`options.minWidthMessage`'s words or the studio's (HSO's Sanity rule: under 1200). Never an
+error, also on a required field; on an image list's member (`of.options`) it warns on the item.
+No known width (not read, or none stored) and an SVG give nothing. The width is the asset's
+`/api/media/<id>/info`: a Sanity image id's own size, else the asset's metadata.
+
 A slug's Generate is Sanity's default (speakingurl) unless `options.slugify` names a built-in
 table: `"nb"` is HSO's Norwegian rule (æ → ae, ø → o, å → a, other accents dropped, anything
 else one hyphen), still cut at `maxLength`. Barkpark stores the option as it is. A name the

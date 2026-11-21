@@ -27,7 +27,7 @@ export const FIELD_KEYS = {
   rows: 'text: the textarea\'s height.',
   of: 'arrayOf: the member field.',
   fields: 'composite, image: the subfields.',
-  options: 'Type-specific: select\'s choices (a list, or {list, direction} as Sanity\'s), and a number\'s, integer\'s or float\'s the same way (stored as the number), slug\'s source and slugify (a built-in table\'s name: "nb"), image\'s hotspot, file\'s accept, reference\'s filter, an array\'s insertMenu ({filter, groups, views: list/grid, showIcons}) and collapseItemsAfter, a Portable Text field\'s oneLine (its text one block, as Sanity\'s), …',
+  options: 'Type-specific: select\'s choices (a list, or {list, direction} as Sanity\'s), and a number\'s, integer\'s or float\'s the same way (stored as the number), slug\'s source and slugify (a built-in table\'s name: "nb"), image\'s hotspot and minWidth (a warning when the image is narrower, in minWidthMessage\'s words), file\'s accept, reference\'s filter, an array\'s insertMenu ({filter, groups, views: list/grid, showIcons}) and collapseItemsAfter, a Portable Text field\'s oneLine (its text one block, as Sanity\'s), …',
   layout: 'arrayOf: "grid" or "list". select, or a number with a list: "radio" draws radio buttons.',
   group: 'The field group (tab) it shows in.',
   validation: 'A rule, or a list of rules.',
