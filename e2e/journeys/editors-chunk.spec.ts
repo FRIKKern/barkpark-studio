@@ -61,7 +61,8 @@ test('J36: the first click on Select, before the editors chunk lands, still open
   // whether the chunk came (task-2efc8ebbe407f3f0: CI once drew that fieldset empty for 15 s).
   // It only prints: the click keeps waiting, and the test fails as before.
   const waiting = setTimeout(async () => {
-    const markup = await image.evaluate((el) => el.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>')) // icons drawn as <svg/>.catch((err: Error) => `(no fieldset: ${err.message.split('\n')[0]})`)
+    // Icons drawn as <svg/>, so the 2,000 characters reach the image box.
+    const markup = await image.evaluate((el) => el.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>')).catch((err: Error) => `(no fieldset: ${err.message.split('\n')[0]})`)
     console.log(`J36 click still waiting at ${at()}; editors chunk: ${chunk.join('; ') || 'never asked'}\nMain image fieldset (${markup.length} chars): ${markup.slice(0, 2_000)}`)
   }, Math.max(0, test.info().timeout - (Date.now() - started) - 1_500))
   await image.getByRole('button', {name: 'Select'}).click().finally(() => clearTimeout(waiting))
