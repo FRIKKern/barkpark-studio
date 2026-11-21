@@ -4,6 +4,7 @@ import {isCodeField} from './code-input.ts'
 import {isTableField, tableBlank} from './table-input.ts'
 import {patternProblem, sanityRules} from './validation-rules.ts'
 import {crossProblems} from './cross-rules.ts'
+import {outsideList} from './list-options.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -64,6 +65,8 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // Sanity's field types carry rules of their own: a URL, an email, a whole number, a date.
   const wrongShape = typeRule(field.type, value, t)
   if (wrongShape) push({}, wrongShape)
+  // Sanity's rule from options.list (`valid(list)`): a value the list doesn't hold is said, and kept.
+  if (outsideList(field, value)) push({}, notAllowed(value, t))
   // Sanity: a strong reference must point at a published doc (a missing one fails the same
   // way), a bare id or Sanity's object alike. A weak field's may point anywhere (Sanity's).
   const ref = field.type === 'reference' && !field.weak ? refId(value) : undefined
@@ -110,6 +113,12 @@ function typeRule(type: string, value: unknown, t: T): string | undefined {
   if (type === 'integer' && typeof value === 'number' && !Number.isInteger(value)) return t('Must be an integer')
   if ((type === 'date' || type === 'datetime') && typeof value === 'string' && Number.isNaN(Date.parse(value))) return t('Must be a valid ISO-8601 formatted date string')
   return undefined
+}
+
+/** Sanity's words for a value outside the list: the value itself, cut at 30 characters. */
+function notAllowed(value: unknown, t: T): string {
+  const text = typeof value === 'number' || typeof value === 'string' ? String(value) : ''
+  return text ? t('Value "{value}" did not match any allowed values', {value: text.length > 30 ? `${text.slice(0, 30)}…` : text}) : t('Value did not match any allowed values')
 }
 
 /** `t`: the render's translate (useT), so the messages are in the Studio's language. */

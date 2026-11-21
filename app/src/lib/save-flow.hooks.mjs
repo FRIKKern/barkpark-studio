@@ -20,6 +20,7 @@ const STUB = {
   '/src/server/auth.ts': `export const currentEditor = () => null; export const signOut = async () => {}`,
   '/src/server/listen.ts': `export const expectEcho = () => {}; export const mutatedIds = () => []`,
   '/src/server/client-gone.ts': `export const clientGone = () => null`,
+  '/src/components/Toasts.tsx': `export const toast = () => {}`,
   '/src/lib/i18n.tsx': `
     export const t = (s, v = {}) => s.replace(/\\{(\\w+)\\}/g, (_, k) => String(v[k] ?? ''))
     export const translate = t
