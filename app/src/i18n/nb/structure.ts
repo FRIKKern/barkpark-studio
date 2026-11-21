@@ -136,6 +136,8 @@ export default {
   'Search document types': 'Filtrér',
   'No results for': 'Ingen resultater for',
   'Could not create the document': 'Kunne ikke opprette dokumentet',
+  // A fixed type's listed page with no document yet (task-b3f4ccc4f9cfe129).
+  'Not created yet': 'Ikke opprettet ennå',
 
   // Scope switcher (B02)
   'Workspace {workspace}, project {project}, dataset {dataset}. Switch': 'Arbeidsområde {workspace}, prosjekt {project}, datasett {dataset}. Bytt',
