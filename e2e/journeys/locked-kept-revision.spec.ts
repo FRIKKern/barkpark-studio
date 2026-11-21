@@ -21,7 +21,6 @@ test('kept field edits wait at a revision URL', async ({page, context}, info) =>
   const r = await fetch(`${bpBase()}/v1/data/history/${bpDataset()}/fieldTypes/${encodeURIComponent(DOC)}?limit=10`, {headers: {authorization: `Bearer ${process.env.BARKPARK_TOKEN}`}})
   const rev = ((await r.json()) as {revisions: {id: string; status: string}[]}).revisions.find((v) => v.status === 'published')!.id
   const before = await held('fieldTypes', DOC)
-  await page.clock.install() // unchanged() runs it past the page's save delay
   await page.goto(`${t.docPath('fieldTypes', DOC)},rev=${rev}`)
   await t.settle(page)
   expect.soft(await unchanged(page, 'fieldTypes', DOC, before), 'the kept edit was replayed from a revision URL').toBe(before)

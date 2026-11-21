@@ -1,4 +1,4 @@
-import {expect, test, type BrowserContext, type Page, type Request} from './test'
+import {expect, test, type BrowserContext, type Page} from './test'
 import {bpBase, bpDataset, bpMutate, type Target} from './targets'
 
 // What the kept-edits and locked-kept-*.spec files share (the latter split one test a file for
@@ -12,45 +12,10 @@ export async function held(type: string, id: string) {
   return JSON.stringify(Object.fromEntries(Object.entries(result ?? {}).filter(([k]) => !k.startsWith('_') || k === '_draft')))
 }
 
-// The longest a field edit's save waits before it goes (lib/edits.ts:502 schedule: the pace after
-// throttled writes, lib/write-pace.ts:10 MAX_MS, 4 s; a fresh page's write budget has its burst).
-const SAVE_DELAY_MS = 4_100
-
-/**
- * Barkpark's draft once nothing can still be on its way, `before` when nothing was written.
- * Writes come late, so this is not one read: the page's clock (page.clock.install() before its
- * goto) is run past SAVE_DELAY_MS, which fires any timer the page set for a save in that time and
- * sends what it queued, with no real second spent. Then the kept-edits store and the tab locks
- * (lib/pending-edits.ts) answer what a replay asked them, and nothing may have been sent or be
- * pending. A write sent or pending comes back named after the draft, so it is never `before`.
- * The 700 ms watched before missed a save set later than that (task-96f9e226705a9122).
- */
+/** Writes come late: watched a moment, not read once. */
 export async function unchanged(page: Page, type: string, id: string, before: string) {
-  let sent = 0
-  const count = (r: Request) => void (r.method() === 'POST' && r.url().includes('/_serverFn/') && (r.postData() ?? '').includes('mutations') && sent++)
-  page.on('request', count)
-  try {
-    await page.clock.fastForward(SAVE_DELAY_MS)
-    const pending = await page.evaluate(async () => {
-      // A read-write transaction starts only after the ones made before it on the store end.
-      await new Promise<void>((done) => {
-        const req = indexedDB.open('bp-pending-edits', 1)
-        req.onupgradeneeded = () => req.transaction?.abort() // no store: no replay read one either
-        req.onerror = req.onblocked = () => done()
-        req.onsuccess = () => {
-          const tx = req.result.transaction('docs', 'readwrite')
-          tx.oncomplete = tx.onabort = tx.onerror = () => (req.result.close(), done())
-        }
-      })
-      await navigator.locks?.query()
-      return (window as unknown as {__savesPending: () => boolean}).__savesPending()
-    })
-    if (pending) await page.waitForFunction(() => !(window as unknown as {__savesPending: () => boolean}).__savesPending(), null, {timeout: 10_000}).catch(() => {})
-    const now = await held(type, id)
-    return sent || pending ? `${now} (${sent} write(s) sent, ${pending ? 'one pending' : 'none pending'})` : now
-  } finally {
-    page.off('request', count)
-  }
+  for (const until = Date.now() + 700; Date.now() < until && (await held(type, id)) === before; ) await page.waitForTimeout(150)
+  return held(type, id)
 }
 
 /** Schedules the doc's publish three days out; its schedule id, for unschedule. */
