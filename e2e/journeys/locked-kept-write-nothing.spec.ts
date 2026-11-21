@@ -25,6 +25,7 @@ test('kept field edits wait in a scheduled draft; Pause to edit puts them in', a
   await keptTitle(context, t, DOC)
   schedule = await scheduleIt('fieldTypes', DOC)
   const before = await held('fieldTypes', DOC)
+  await page.clock.install() // unchanged() runs it past the page's save delay
   await page.goto(t.docPath('fieldTypes', DOC))
   await t.settle(page)
   await expect(page.locator('.chip[data-tone=scheduled]')).toBeVisible()
