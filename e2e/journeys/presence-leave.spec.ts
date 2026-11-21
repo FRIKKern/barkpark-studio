@@ -44,7 +44,6 @@ test('J07: a presence stream gone quiet without closing is reopened, and a newco
   const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
   try {
     type Probe = {__presence?: {self: string | null; others: string[]}; __mutePresence?: (ms: number) => void}
-    await b.clock.install() // B's quiet is passed on its clock, not sat out
     await b.goto(t.docPath('post', 'post-03'))
     await t.settle(b)
     await b.waitForFunction(() => !!(window as unknown as Probe).__presence?.self)
@@ -53,9 +52,6 @@ test('J07: a presence stream gone quiet without closing is reopened, and a newco
     await t.settle(a)
     await a.waitForFunction(() => !!(window as unknown as Probe).__presence?.self)
     const id = await a.evaluate(() => (window as unknown as Probe).__presence!.self!)
-    // Past the quiet B's page calls dead (lib/stream.ts:153: its 1 s watchdog, the mute's 1.5 s),
-    // with no real second spent: the watchdog fires once, and reopens.
-    await b.clock.fastForward(2_600)
     await expect.poll(() => b.evaluate((id) => !!(window as unknown as Probe).__presence?.others.includes(id), id), {intervals: [50], timeout: 8_000}).toBe(true)
   } finally {
     await Promise.all([ctxA.close(), ctxB.close()])
