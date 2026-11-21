@@ -50,8 +50,11 @@ test("a readOnly array shuts its items' fields; an object's fields are judged wi
 
 test('the pane asks validate with the person and the studio config, through fieldState', () => {
   const pane = readFileSync(new URL('../components/DocumentPane.tsx', import.meta.url), 'utf8')
-  assert.match(pane, /validate\(doc, schemaForPane, \(id\) => byId\.get\(id\), t, \(f, at\) => shutHere\(fieldState\(schemaForPane\.name, f, doc, user, studio\.form\?\.conditions, at\)\), widthOf\)/)
-  assert.match(pane, /const shutHere = \(state: \{hidden: boolean; readOnly: boolean\}\) => state\.hidden \|\| state\.readOnly\n/)
+  // Through lib/publish-check.ts, which Publish selected asks too (task-2c8c20f6f510647f).
+  assert.match(pane, /formCheck\(doc, schemaForPane, user, studio\.form\?\.conditions, \{target: \(id\) => byId\.get\(id\), t, widthOf\}\)/)
+  const check = readFileSync(new URL('./publish-check.ts', import.meta.url), 'utf8')
+  assert.match(check, /return validate\(doc, schema, target, t, shutFor\(schema, doc, who, conditions\), widthOf\)/)
+  assert.match(check, /const s = fieldState\(schema\.name, f, doc, who, conditions, at\)\n    return s\.hidden \|\| s\.readOnly\n/)
   // Without the pane's question nothing is shut: Sanity's error.
   const schema = {name: 'side', title: 'Page', fields: [{name: 'fixed', title: 'Fixed', type: 'select', readOnly: true, options: ['a']}]} as never
   assert.deepEqual(said(validate(doc('side', {fixed: 'old'}), schema)), ['error fixed'])

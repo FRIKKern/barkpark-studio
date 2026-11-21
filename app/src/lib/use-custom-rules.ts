@@ -13,10 +13,13 @@ const SETTLE_MS = 300
 
 const valuesKey = (doc: Doc) => JSON.stringify(doc, (k, v) => (k === '_rev' || k === '_updatedAt' ? undefined : v))
 
+/** The studio config's custom rules for a type (StudioConfig.document.validation): the pane's and Publish selected's. */
+export const rulesFor = (type: string) => studio.document?.validation?.(type) ?? []
+
 export function useCustomRules(doc: Doc | null | undefined, schema: Schema | undefined, enabled: boolean): {problems: Problem[]; validating: boolean; check: () => Promise<Problem[]>} {
   const t = useT()
   const type = doc?._type
-  const rules = useMemo(() => (enabled && type ? (studio.document?.validation?.(type) ?? []) : []), [enabled, type])
+  const rules = useMemo(() => (enabled && type ? rulesFor(type) : []), [enabled, type])
   const key = rules.length && doc ? valuesKey(doc) : ''
   const [settled, setSettled] = useState(key)
   useEffect(() => {

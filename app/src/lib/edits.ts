@@ -1105,6 +1105,8 @@ function settle(qc: QueryClient, id: string, field: string, keep: 'mine' | 'thei
 }
 
 const NO_FINDINGS: Finding[] = []
+/** Barkpark's findings on this doc's last save, as held now (Publish selected asks them as the pane does). */
+export const advisoriesOf = (id: string): Finding[] => docs.get(id)?.advisories ?? NO_FINDINGS
 /** Barkpark's advisory findings on this doc's last save (lib/findings.ts says them). */
 export function useAdvisories(id: string): Finding[] {
   return useSyncExternalStore(
