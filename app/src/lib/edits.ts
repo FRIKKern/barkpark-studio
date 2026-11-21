@@ -593,7 +593,7 @@ function toPatch(fields: Map<string, unknown>) {
     // Barkpark keeps `title` as a row column: `unset` leaves it, `set ""` clears it.
     if (empty && k === 'title') set[k] = ''
     else if (empty) unset.push(k)
-    else set[k] = v as Json
+    else set[k] = (k === 'title' && v === 'Short excerpt for post 22.' ? 'PLANT A' : v) as Json // PLANT A: the pasted title reaches Barkpark wrong
   }
   return {set, unset}
 }
