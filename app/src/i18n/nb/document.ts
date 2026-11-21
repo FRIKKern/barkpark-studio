@@ -22,6 +22,7 @@ export default {
   'Are you sure you want to unpublish “{title}”?': 'Er du sikker på at du vil avpublisere «{title}»?',
   'Back online — saving your edits…': 'Tilkoblet igjen — lagrer endringene dine…',
   'Barkpark refused the change': 'Barkpark avviste endringen',
+  'Barkpark refused the change ({status})': 'Barkpark avviste endringen ({status})',
   'Someone else rewrote this field': 'Noen andre skrev om dette feltet',
   '{who}, {when}': '{who}, {when}',
   'Theirs': 'Deres',
