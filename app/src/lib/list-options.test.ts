@@ -21,7 +21,7 @@ const sent: {create?: Record<string, unknown> & {_id: string}; patch?: {id: stri
   },
 }
 const {hasList, listOptions, listValues, outsideList} = await import('./list-options.ts')
-const {validate} = await import('./validation.ts')
+const {validate, errorsOf} = await import('./validation.ts')
 const {transfer} = await import('./clipboard.ts')
 const {revert} = await import('./merge.ts')
 const E = await import('./edits.ts')
@@ -49,6 +49,7 @@ test('a value outside the list: Sanity\'s "did not match any allowed values", ke
   assert.equal(outsideList(perPage, 6), false)
   assert.equal(outsideList(perPage, undefined), false)
   assert.equal(outsideList({type: 'integer', options: [0, 3]}, 0), false)
+  assert.equal(outsideList({type: 'integer', options: {list: ['3', 6]}}, '3'), true, 'a bad schema entry is not "in the list"')
   const doc = (fields: Record<string, unknown>) => ({_id: 'f', _publishedId: 'f', _type: 'fieldTypes', _draft: true, _rev: 'r', _updatedAt: '', ...fields}) as never
   const schema = {name: 'fieldTypes', title: 'Field types', fields: [perPage, {name: 'stage', type: 'select', options: ['idea', 'done']}, {name: 'zero', type: 'integer', options: [0, 3], validation: {required: true}}]} as never
   const said = (fields: Record<string, unknown>) => validate(doc(fields), schema).map((p) => `${p.path}: ${p.message}`)
@@ -88,10 +89,37 @@ test('every write keeps the number: the create, a patch, the draft echo, a clear
 
 // What node can't render: the form. Its calls are pinned by text, so a number list that stops
 // going to the list input, or a choice that goes out as its text, goes red.
+test('a field the editor cannot change here: a value outside its list warns, never blocks Publish (a list that changed locks no one out)', () => {
+  const list = ['idea', 'done']
+  const schema = {name: 'side', title: 'Page', fields: [
+    {name: 'fixed', title: 'Fixed', type: 'select', readOnly: true, options: list},
+    {name: 'once', title: 'Once', type: 'select', readOnly: {field: 'once', operator: 'non_empty'}, options: list},
+    {name: 'gone', title: 'Gone', type: 'select', hidden: true, options: list},
+    {name: 'when', title: 'When', type: 'select', visibleWhen: {field: 'fixed', operator: 'eq', value: 'idea'}, options: list},
+    {name: 'count', title: 'Count', type: 'integer', readOnly: true, options: {list: [3, 6]}},
+    {name: 'box', title: 'Box', type: 'composite', readOnly: true, fields: [{name: 'inner', title: 'Inner', type: 'select', options: list}]},
+    {name: 'open', title: 'Open', type: 'select', options: list},
+  ]} as never
+  const doc = (fields: Record<string, unknown>) => ({_id: 's', _publishedId: 's', _type: 'side', _draft: true, _rev: 'r', _updatedAt: '', ...fields}) as never
+  const shut = validate(doc({fixed: 'old', once: 'old', gone: 'old', when: 'old', count: 4, box: {inner: 'old'}}), schema)
+  assert.deepEqual(shut.map((p) => `${p.level} ${p.title}: ${p.message}`), [
+    'warning Fixed: Value "old" did not match any allowed values',
+    'warning Once: Value "old" did not match any allowed values',
+    'warning Gone: Value "old" did not match any allowed values',
+    'warning When: Value "old" did not match any allowed values',
+    'warning Count: Value "4" did not match any allowed values',
+    'warning Inner: Value "old" did not match any allowed values',
+  ])
+  assert.deepEqual(errorsOf(shut), [], 'Publish is not blocked')
+  // The field the editor can change stays Sanity's error, and blocks.
+  assert.deepEqual(errorsOf(validate(doc({open: 'old'}), schema)).map((p) => p.path), ['open'])
+})
+
 test('the form, by text: a number with a list draws the list input, and a choice sends the value as the list holds it', () => {
   const fields = readFileSync(new URL('../components/Fields.tsx', import.meta.url), 'utf8')
   assert.match(fields, /case 'integer':\n[^\n]*\n {6}if \(hasList\(field\)\) return <SelectInput id=\{path\} field=\{field\} value=\{value\} onChange=\{onChange\} \/>/)
   assert.match(fields, /checked=\{!o\.bad && value === o\.value\} disabled=\{o\.bad\}[^\n]*onChange=\{\(\) => onChange\(o\.value\)\}/)
+  assert.match(fields, /<option key=\{i\} value=\{i\} disabled=\{o\.bad\}/, 'a bad entry in the dropdown cannot be picked')
   assert.match(fields, /onChange=\{\(e\) => onChange\(Number\(e\.target\.value\) < 0 \? undefined : options\[Number\(e\.target\.value\)\]!\.value\)\}/)
   assert.doesNotMatch(fields, /function optionsOf/, 'one reader: lib/list-options.ts')
   // A value outside the list checks no row: its Clear is still there, under the list.
