@@ -61,6 +61,26 @@ test('opening a listed page writes nothing; its first edit sends one create, wit
   assert.equal(writes[0]!.create?._type, 'side')
 })
 
+test('a type with an Expectation editor (D04) is built at once, by the row as by the +: exactly the one create the + sends, same body', async () => {
+  const qc = new QueryClient()
+  const layout = [{kind: 'region', name: 'hero'}]
+  const withLayout = [
+    {name: 'forside', title: 'Forside', fields, initialValues, layout, fixedDocuments: ['forside']},
+    {name: 'landing', title: 'Landing', fields, initialValues, layout},
+  ] as never
+  const opened = async (id: string, open: () => Promise<void>) => {
+    const before = sent.length
+    await open()
+    const writes = sent.slice(before)
+    assert.equal(writes.length, 1, `${id}: one write on open`)
+    const {_id, _type, ...body} = writes[0]!.create!
+    return {_id, body}
+  }
+  const plus = await opened('landing-1', () => startNew(qc, withLayout, choicesFor(withLayout, 'landing')[0]!, 'landing-1'))
+  const row = await opened('forside', () => startFixed(qc, withLayout, 'forside', 'forside'))
+  assert.deepEqual(row, {_id: 'forside', body: plus.body})
+})
+
 test('no ghost rows: a missing listed page shows only on the whole plain list, for one who may create', () => {
   const plain = {canWrite: true, published: false, filtered: false, searching: false, tree: false, hasMore: false}
   assert.equal(showsMissing(plain), true)
