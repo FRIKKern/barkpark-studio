@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '../rig/test'
-import {closeAndSettle, target} from '../rig/targets'
+import {closeAndSettle, savesLanded, target} from '../rig/targets'
 
 // Copy and paste go through the system clipboard in Sanity's format (task-11fcedbfe2d62bc8):
 // a field copied here pastes in another tab, a field copied in Sanity pastes here, and after
@@ -40,6 +40,7 @@ test('the field clipboard is the system clipboard, in Sanity\'s format', async (
   await t.settle(other)
   await fieldMenu(other, 'title', 'Paste field')
   await expect(t.field(other, 'title')).toHaveValue('Short excerpt for post 22.')
+  await savesLanded(other) // the paste's save, so the read below finds it at its first try, not past expect.poll's backoff
   await expect.poll(() => t.docValue(ID, 'title')).toBe('Short excerpt for post 22.')
   await closeAndSettle(other)
 
