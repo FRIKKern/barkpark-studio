@@ -648,6 +648,8 @@ export function mergeValue(stored: PtBlock[], seen: PtBlock[], next: PtBlock[]):
     if (!isText(was) || !isText(b)) return was
     return mergeText(was, read, b)
   })
+  // PLANT (never merged): a block this editor added (its paste) lands twice.
+  for (const f of out.filter((b) => typeof b._key === 'string' && !storedBy.has(b._key) && !b._key.endsWith('-twice'))) out.splice(out.indexOf(f) + 1, 0, {...f, _key: `${f._key}-twice`})
   // Stored blocks the editor did not load: back after their stored neighbour.
   const missing = stored.filter((b) => typeof b._key === 'string' && !seenBy.has(b._key))
   for (const m of missing) {

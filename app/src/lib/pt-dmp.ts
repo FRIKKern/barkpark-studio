@@ -44,13 +44,7 @@ const bytes = (s: string) => new TextEncoder().encode(s).length
 export function spanPatch(base: unknown, mine: unknown): {text: string; bytes: number; hunks: number; units: number} | null {
   if (typeof base !== 'string' || typeof mine !== 'string' || base === mine) return null
   try {
-    // PLANT (never merged): what this editor put into the span (typed or pasted) lands twice.
-    let p = 0
-    while (p < base.length && p < mine.length && base[p] === mine[p]) p++
-    let s = 0
-    while (s < base.length - p && s < mine.length - p && base[base.length - 1 - s] === mine[mine.length - 1 - s]) s++
-    const put = mine.slice(p, mine.length - s)
-    const patches = makePatches(base, put ? mine.slice(0, mine.length - s) + put + mine.slice(mine.length - s) : mine)
+    const patches = makePatches(base, mine)
     const text = stringifyPatches(patches)
     if (!patches.length || !text) return null
     return {text, bytes: bytes(text), hunks: patches.length, units: Math.max(base.length, mine.length)}
