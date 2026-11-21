@@ -103,11 +103,14 @@ A Promise holds Publish ("Validating…", 10 s at most); a throw is an error. Th
 studio only, as Sanity's do: an API write or an import is checked by the schema's data rules alone.
 
 A rule that compares fields and needs no code belongs in the schema instead, as data both sides
-check: `cross_validations` `[{name, title, rule, level, fields}]`, `rule` a condition as in
+check: `cross_validations` `[{name, title, rule, level, fields, each?, type?}]`, `rule` a condition as in
 `visibleWhen` or `all` / `any` / `one` (exactly one holds) of them. `gt`, `gte`, `lt`, `lte` with
 `valueField` compare two fields (`{field: 'end', operator: 'gte', valueField: 'start'}`); a
 missing or empty side holds. Barkpark checks it on every write; the studio shows a
-broken one as you type, under each field in `fields` (`app/src/lib/cross-rules.ts`). A rule the
+broken one as you type, under each field in `fields` (`app/src/lib/cross-rules.ts`). With `each`
+(a list, `meny` or `meny.under`) and an optional member `type`, the rule runs once per item and
+shows on each broken item instead; past 50, one "(N more items)" problem on the outer field
+(Barkpark's contract: `docs/contracts/schema-cross-validations.md`). A rule the
 server can't evaluate (an unknown operator or field) is skipped on both sides.
 
 ## Removing a type

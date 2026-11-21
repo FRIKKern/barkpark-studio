@@ -54,3 +54,5 @@
 .item-tree-title { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .item-tree-empty { margin: 0; padding: 12px; font-size: 13px; }
 @media (max-width: 768px) and (pointer: coarse) { .item-tree-row { min-height: 44px; } .item-dialog header > .item-tree-toggle { min-width: 44px; min-height: 44px; } }
+/* An item with a problem in it: its mark at the row's end (Sanity's array item status). */
+.array-item-preview > .error-icon { margin-left: auto; }
