@@ -23,6 +23,7 @@ export default {
   'Back online — saving your edits…': 'Tilkoblet igjen — lagrer endringene dine…',
   'Barkpark refused the change': 'Barkpark avviste endringen',
   'Barkpark refused the change ({status})': 'Barkpark avviste endringen ({status})',
+  'Barkpark refused the change ({status}): someone else keeps saving this document. Your changes are kept here; Retry sends them again.': 'Barkpark avviste endringen ({status}): noen andre lagrer dette dokumentet hele tiden. Endringene dine er tatt vare på her; Prøv igjen sender dem på nytt.',
   'Someone else rewrote this field': 'Noen andre skrev om dette feltet',
   '{who}, {when}': '{who}, {when}',
   'Theirs': 'Deres',

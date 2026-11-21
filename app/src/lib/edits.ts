@@ -160,6 +160,8 @@ type DocEdits = Spots & {
   keys?: Map<string, string[]>
   /** Rebases in a row (a guard against a write that never gets through). */
   conflicts: number
+  /** Stopped at the rebase cap, on this revision of theirs: unsent until Retry, typing on, or a newer read (restart). */
+  stoppedAt?: string
   /** Text of ours someone rewrote meanwhile (clash): held, unsent, until the editor types on. */
   held?: boolean
   /** The clashed fields: what the other writer left there, and the version it came with. */
@@ -342,6 +344,15 @@ const setState = (e: DocEdits, state: SaveState, error?: string, retry = false) 
   setFooterOffline(anyOffline())
   listeners.forEach((l) => l())
 }
+/** Rebases in a row before a conflict stops the save (the person is told; restart starts it again). */
+const CONFLICT_REBASES = 5
+/** A save stopped at the rebase cap starts again, with its rebases anew; false when it was not stopped. */
+const restart = (e: DocEdits) => {
+  if (e.stoppedAt === undefined) return false
+  e.stoppedAt = undefined
+  e.conflicts = 0
+  return true
+}
 const anyOffline = () => [...docs.values()].some((d) => d.snap.state === 'offline') || [...canvasOffline.values()].some((k) => k.size > 0)
 
 const entry = (id: string, type: string) => {
@@ -422,6 +433,8 @@ export function applyServer(qc: QueryClient, doc: Doc) {
   historyChanged(qc, id)
   writeCache(qc, id, doc._type, overlay(id, {...doc, _hasPublished} as Doc))
   if (e && clashed.length) clash(qc, id, e, clashed, doc)
+  // A save stopped at the rebase cap goes again on a newer revision of theirs, rebased on it.
+  else if (e && e.stoppedAt !== undefined && doc._rev !== e.stoppedAt && restart(e)) (setState(e, 'saving'), schedule(qc, id))
 }
 
 /**
@@ -493,7 +506,7 @@ function write(qc: QueryClient, doc: Doc, field: string, value: unknown, record 
   keepUnsaved(id, e)
   // An edit makes (or updates) the draft: show it as one now.
   writeCache(qc, id, doc._type, setPath({...held, _draft: true} as Doc, field, value))
-  if (e.snap.state === 'saved') setState(e, 'saving')
+  if (e.snap.state === 'saved' || restart(e)) setState(e, 'saving')
   // Signed out: hold it with the rest until the editor signs in again.
   if (e.snap.state === 'signedOut') return
   schedule(qc, id)
@@ -638,7 +651,7 @@ export function reasonOf(msg: string): string | undefined {
 /** Retry, by hand, a save refused with a Retry offered (too large, 413). */
 export function retrySave(qc: QueryClient, id: string) {
   const e = docs.get(id)
-  if (e?.snap.retry && (e.dirty.size || e.createRequested)) (setState(e, 'saving'), void send(qc, id))
+  if (e?.snap.retry && (e.dirty.size || e.createRequested)) (restart(e), setState(e, 'saving'), void send(qc, id))
 }
 
 /** After signing in again: send every doc's edits that waited for it. */
@@ -792,6 +805,7 @@ async function send(qc: QueryClient, id: string) {
     e.missed = undefined
     if (!later) e.missedFrom = undefined
     e.conflicts = 0
+    e.stoppedAt = undefined
     clearTimeout(stall)
     keepUnsaved(id, e)
     applyServer(qc, saved)
@@ -918,7 +932,7 @@ async function send(qc: QueryClient, id: string) {
     // Someone else wrote first (a stale rev): read theirs, rebase ours onto it, send again.
     // (Two first edits forking one draft no longer collide: Barkpark fixed that,
     // task-324b4d00706a6cfb.)
-    if (!creating && /^mutate (409|412)\b/.test((err as Error).message) && e.conflicts++ < 5) {
+    if (!creating && /^mutate (409|412)\b/.test((err as Error).message) && e.conflicts++ < CONFLICT_REBASES) {
       try {
         const latest = await readServerDoc(e.type, id)
         unsent(e)
@@ -933,6 +947,17 @@ async function send(qc: QueryClient, id: string) {
       } catch {
         // fall through: a plain failure, retried below
       }
+    }
+    // Past the rebases (task-b75cf995142c2105): a conflict they did not cure is no longer sent
+    // again on the timer (it was, every 2 s, for as long as the tab was open). Every value is
+    // kept; the person is told, and Retry, typing on or a newer read of theirs starts it again.
+    if (!creating && /^mutate (409|412)\b/.test(msg) && e.conflicts > CONFLICT_REBASES) {
+      unsent(e)
+      e.inflight = null
+      keepUnsaved(id, e)
+      e.stoppedAt = qc.getQueryData<Doc>(['doc', id])?._rev ?? ''
+      const status = Number(/^mutate (\d{3})\b/.exec(msg)![1])
+      return setState(e, 'refused', t('Barkpark refused the change ({status}): someone else keeps saving this document. Your changes are kept here; Retry sends them again.', {status}), true)
     }
     // One rule for what is sent again (task-8eefa46ccbe23d49): only what can go better later
     // (no network, a 5xx, 408 and 429, a conflict the queue replays: a stale rev, a create

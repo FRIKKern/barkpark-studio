@@ -115,13 +115,12 @@ test('what can go better later still goes again: a 500, 408, 429, a 409 the read
   readFails.add('r409')
   for (const [id, a] of cases) answers.set(id, [a])
   const made = cases.map(([id]) => settle(E.createDoc(qc, 'side', id, {asIs: {tittel: id}})))
-  // An edit on a stale rev: read theirs, send again on it. Past five rebases (edits.ts's cap),
-  // or when that read fails, it is a plain failure and goes again on the 2 s timer.
+  // An edit on a stale rev: read theirs, send again on it. When that read fails, it is a plain
+  // failure and goes again on the 2 s timer. (Past five rebases it stops: the test below.)
   const stale = refusal('precondition_failed', 'document revision mismatch')
   const edits: [string, Answer[], number][] = [
     ['p412', [{status: 412, body: stale}], 2],
-    ['p412x6', Array(6).fill({status: 412, body: stale}), 7],
-    ['p409x6', Array(6).fill({status: 409, body: refusal('conflict', 'revision conflict')}), 7],
+    ['p412x5', Array(5).fill({status: 412, body: stale}), 6],
     ['p412read', [{status: 412, body: stale}], 2],
   ]
   readFails.add('p412read')
@@ -140,5 +139,54 @@ test('what can go better later still goes again: a 500, 408, 429, a 409 the read
     assert.equal(calls.get(id), n, id)
     assert.equal((stored.get(id) as {tittel?: string}).tittel, 'Om oss nå', id)
   }
+})
+// task-b75cf995142c2105: a conflict five rebases did not cure stops; it was sent again every 2 s
+// for as long as the tab was open. Every value is kept, the person is told (Retry offered), and
+// Retry, typing on or a newer read of theirs starts it again, with five rebases anew.
+test('past five rebases a 409/412 stops: no more sends, values kept, Retry offered; Retry, typing on or a newer read start it again', async () => {
+  const qc = new QueryClient()
+  const stale = refusal('precondition_failed', 'document revision mismatch')
+  const ids = ['cap-retry', 'cap-typing', 'cap-read', 'cap-412', 'cap-again']
+  for (const id of ids) {
+    stored.set(id, now(id, {tittel: 'Om oss'}, 'r0'))
+    qc.setQueryData(['doc', id], stored.get(id))
+    answers.set(id, Array(id === 'cap-again' ? 12 : 6).fill(id === 'cap-412' ? {status: 412, body: stale} : {status: 409, body: refusal('conflict', 'revision conflict')}))
+    E.edit(qc, stored.get(id) as never, 'tittel', 'Om oss nå')
+    E.flush(qc, id)
+  }
+  // The first send and five rebased ones, then nothing, however long the tab stays open: no timer
+  // (on main the 2 s retry had sent five more in this time). Only an event starts it again.
+  await wait(10_500)
+  for (const id of ids) {
+    assert.equal(calls.get(id), 6, id)
+    assert.equal(E.saveStateOf(id), 'refused', id)
+    assert.equal(qc.getQueryData<{tittel?: string}>(['doc', id])?.tittel, 'Om oss nå', id)
+    assert.equal((stored.get(id) as {tittel?: string}).tittel, 'Om oss', id)
+    const kept = [...idb].filter(([k]) => k.includes(`|${id}|`)).map(([, v]) => v) as {fields: [string, unknown][]}[]
+    assert.deepEqual(kept.flatMap((k) => k.fields), [['tittel', 'Om oss nå']], `${id} kept in this browser`)
+  }
+  // The answers are spent: the next send lands.
+  E.retrySave(qc, 'cap-retry')
+  E.edit(qc, qc.getQueryData(['doc', 'cap-typing']) as never, 'tittel', 'Om oss nå!')
+  E.flush(qc, 'cap-typing')
+  // A newer revision of theirs starts it again (sent at the page's own pace: flushed here); the
+  // revision it stopped on does not.
+  E.applyServer(qc, now('cap-read', {tittel: 'Om oss'}, 'r9') as never)
+  assert.equal(E.saveStateOf('cap-read'), 'saving')
+  E.flush(qc, 'cap-read')
+  E.applyServer(qc, now('cap-412', {tittel: 'Om oss'}, 'r0') as never)
+  assert.equal(E.saveStateOf('cap-412'), 'refused')
+  // One newer revision buys five rebases, not a timer: still in conflict, it stops again.
+  E.applyServer(qc, now('cap-again', {tittel: 'Om oss'}, 'r9') as never)
+  E.flush(qc, 'cap-again')
+  const saved = await Promise.race([Promise.all(['cap-retry', 'cap-typing', 'cap-read'].map((id) => E.whenSaved(id))).then(() => 'saved'), cap(4500)])
+  assert.equal(saved, 'saved', ids.map((id) => `${id} ${E.saveStateOf(id)}`).join(', '))
+  assert.deepEqual(['cap-retry', 'cap-typing', 'cap-read'].map((id) => [calls.get(id), (stored.get(id) as {tittel?: string}).tittel]), [[7, 'Om oss nå'], [7, 'Om oss nå!'], [7, 'Om oss nå']])
+  await wait(2500)
+  assert.deepEqual([calls.get('cap-again'), E.saveStateOf('cap-again')], [12, 'refused'])
+  assert.equal((stored.get('cap-again') as {tittel?: string}).tittel, 'Om oss')
+  // Left alone, it stays stopped.
+  assert.equal(calls.get('cap-412'), 6)
+  assert.equal(E.saveStateOf('cap-412'), 'refused')
 })
 })
