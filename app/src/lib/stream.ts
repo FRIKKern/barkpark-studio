@@ -79,8 +79,11 @@ let streamId: string | null = null
 let parked = false
 let retry: ReturnType<typeof setTimeout> | undefined
 let heard = 0
-let silentMs = 20_000
+const SILENT_MS = 20_000
 let muted: EventSource | null = null // e2e: __muteLive / __mutePresence
+let mutedMs = 0 // e2e: the muted stream's own quiet; gone with that stream
+/** Quiet this long, the stream is called dead: 20 s, or the e2e lever's window while its stream is the open one. */
+const silentMs = () => (es && es === muted ? mutedMs : SILENT_MS)
 let watchdog: ReturnType<typeof setInterval> | undefined
 let unhide = () => {}
 const parkers = new Set<(parked: boolean) => void>()
@@ -151,7 +154,7 @@ function start() {
   // A stream can die without a word (a Wi-Fi switch, a sleep, a proxy dropping an idle
   // connection): it stays open and hears nothing. The server pings every 10 s and
   // Barkpark's presence every 5 s; this long with no event at all, it opens again.
-  watchdog = setInterval(() => Date.now() - heard > silentMs && reopen(), 1000)
+  watchdog = setInterval(() => Date.now() - heard > silentMs() && reopen(), 1000)
   addEventListener('online', reopen)
   // Hidden a while, the tab lets the stream go (lib/hidden.ts); shown, it opens again.
   unhide = onLongHidden(
@@ -191,8 +194,10 @@ function stopLater() {
 if (typeof window !== 'undefined') {
   const w = window as {__muteLive?: (ms: number) => void; __mutePresence?: (ms: number) => void; __dropLive?: (ms: number) => void}
   // e2e probe: the stream goes quiet without closing (what a dropped network does), and
-  // the page calls it dead after `ms` of nothing.
-  w.__muteLive = w.__mutePresence = (ms) => ((muted = es), (silentMs = ms))
+  // the page calls it dead after `ms` of nothing. The window is that stream's: the one
+  // opened in its place has the 20 s again (a later stream on `ms` was reopened over and
+  // over before its first frame on a slow link: task-dfe7c5bfbaa1c3ca).
+  w.__muteLive = w.__mutePresence = (ms) => ((muted = es), (mutedMs = ms))
   // e2e probe: cut the stream for `ms`, as a dead network would.
   w.__dropLive = (ms) => {
     es?.close()
