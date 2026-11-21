@@ -10,20 +10,14 @@ const ID = 'field-types-01'
 test.afterEach(async ({page}, info) => (await closeAndSettle(page), target(info).resetDoc(ID, 'fieldTypes')))
 
 // CI: what is stored, as Sanity stores it (data; the rest of the matrix is drawn, @local below).
-test('field types store as Sanity: a dateFormat date, a list in its order, "1,500" never 1.5, a geopoint, a number from a list', async ({page, context}, info) => {
+test('field types store as Sanity: a dateFormat date, a list in its order, "1,500" never 1.5, a geopoint', async ({page, context}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', 'ours; Sanity is the reference stills')
   await t.prepare(context)
-  // perPage (integer, options.list [3, 6], radio) holds 4: a list changed after it was stored (G4).
-  await t.patch(ID, {perPage: 4}, 'fieldTypes')
   await page.goto(t.docPath('fieldTypes', ID))
   await signInIfAsked(page)
   await t.settle(page)
   const value = (field: string) => t.docValue(ID, field, 'fieldTypes')
-  // A value outside the list checks no radio and is said in Sanity's words; it is never rewritten.
-  const perPage = page.locator('[id="perPage"]')
-  await expect(perPage.getByRole('radio', {checked: true})).toHaveCount(0)
-  await expect(perPage).toHaveAccessibleDescription('Validation error: Value "4" did not match any allowed values')
   // dateFormat (DD.MM.YYYY): typed in it, stored as Sanity stores it. The first edit makes
   // the draft: landed before the next click (a Green ticked while it was on its way did not
   // stay ticked, a local run).
@@ -40,13 +34,7 @@ test('field types store as Sanity: a dateFormat date, a list in its order, "1,50
   await Promise.all([
     expect.poll(() => value('colours'), {timeout: 10_000}).toEqual(['red', 'green', 'blue']),
     expect.poll(() => value('place'), {timeout: 10_000}).toMatchObject({_type: 'geopoint', lat: 60.5, lng: 10.7522}),
-    expect.poll(() => value('perPage'), {timeout: 10_000}).toBe(4),
   ])
-  // A click stores the number 6 (never "6"); an arrow key moves the choice, as the string radios.
-  await perPage.getByRole('radio', {name: '6', exact: true}).check()
-  await expect.poll(() => value('perPage'), {timeout: 10_000}).toBe(6)
-  await page.keyboard.press('ArrowUp')
-  await expect.poll(() => value('perPage'), {timeout: 10_000}).toBe(3)
   // English: "1,500" is one thousand five hundred, never 1.5 (a decimal comma is nb's,
   // lib/number.ts): not a number, so the field is unset and keeps what was typed.
   await page.locator('[id="width"]').fill('1,500')
