@@ -74,7 +74,7 @@ const ALLOWED: Record<string, {why: string; exports?: string[]}> = {
   'components/OrderableRows.tsx': {why: 'a manual order’s rank, a field never in the form', exports: ['copyRank', 'useOrderableRows']},
   'routeTree.gen.ts': {why: 'the generated route list names the /api/mutate route', exports: ['routeTree']},
   'components/DocumentPane.tsx': {why: 'a new document’s initial values (draftNew, createDoc): code, the template’s', exports: ['DocumentPane']},
-  'lib/templates.ts': {why: 'a new document from a template (draftNew, createDoc): the template’s initial values', exports: ['choicesFor', 'templateChoice', 'choiceById', 'startNew']},
+  'lib/templates.ts': {why: 'a new document from a template (draftNew, createDoc): the template’s initial values', exports: ['choicesFor', 'templateChoice', 'choiceById', 'startNew', 'startFixed']},
   'components/RefInput.tsx': {why: 'a new document made from a reference field (createDoc): the template’s initial values', exports: ['RefInput', 'hasPublished', 'Unavailable', 'RefSearch']},
   'components/IncomingReferencesInput.tsx': {why: 'a new document made to refer here (createDoc): the template’s initial values', exports: ['IncomingReferencesInputs']},
   'components/HistoryPanel.tsx': {why: 'Restore of a deleted document puts back the edits the delete lost (reapply): a document action', exports: ['ago', 'HistoryPanel', 'Row', 'rangeDate', 'revisionDate', 'RevisionFooter']},
@@ -442,7 +442,7 @@ test('a new writer fails whatever its spelling: a .ts suffix, import * as, a dyn
     ['export async function* gen() {\n  yield pasteDocumentReading\n}', 'gen'],
     ['export let a = 1, b\n;[b] = [pasteDocumentReading]', 'b'],
   ])
-  planted('lib/templates.ts', 'choicesFor, templateChoice, choiceById, startNew', [
+  planted('lib/templates.ts', 'choicesFor, templateChoice, choiceById, startNew, startFixed', [
     ['const again = createDoc\nexport const make = again', 'make'],
     ['export const makeDoc = (...a: Parameters<typeof createDoc>) => createDoc(...a)', 'makeDoc'],
     ['export const writers = {make: createDoc}', 'writers'],
