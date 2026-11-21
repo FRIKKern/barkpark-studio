@@ -52,12 +52,15 @@ export function stickyToast(key: string, t: (Omit<Toast, 'id' | 'tone'> & {tone?
   emit()
 }
 
+const none: Toast[] = []
 export function ToastHost() {
   const t = useT()
   const list = useSyncExternalStore(
     (l) => (listeners.add(l), () => listeners.delete(l)),
     () => toasts,
-    () => toasts,
+    // The server drew none: a toast raised before hydration (a file dropped on a field while the page
+    // loads, DocEditors.tsx guardDrops) shows once hydrated, and never makes the page re-render from scratch.
+    () => none,
   )
   return (
     // Each toast is its own live region (status, or alert when critical), as Sanity's one
