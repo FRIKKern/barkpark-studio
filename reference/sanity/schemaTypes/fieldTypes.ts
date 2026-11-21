@@ -71,6 +71,7 @@ export const fieldTypes = defineType({
     defineField({name: 'width', type: 'number', fieldset: 'size', validation: (r) => r.precision(2).positive()}),
     defineField({name: 'height', type: 'number', fieldset: 'size', validation: (r) => r.greaterThan(0).lessThan(10000)}),
     defineField({name: 'count', type: 'number', validation: (r) => r.integer().min(0).max(10)}),
+    defineField({name: 'perPage', title: 'Per page', type: 'number', options: {list: [3, 6], layout: 'radio'}, validation: (r) => r.integer()}),
     defineField({name: 'hiddenNote', title: 'Shown when agreed', type: 'string', hidden: ({document}) => !document?.agree}),
     defineField({name: 'lockedNote', title: 'Locked when agreed', type: 'string', readOnly: ({document}) => !!document?.agree}),
     defineField({name: 'limit', type: 'number', fieldset: 'more', validation: (r) => r.max(10)}),
