@@ -13,14 +13,13 @@
 // translations.spec 2 s, recorded 0). With several runs each spec takes its median, and
 // one that did not run in a timed-out shard still counts from the others.
 import {execSync} from 'node:child_process'
-import {readdirSync, readFileSync, writeFileSync} from 'node:fs'
-
-const FILE = new URL('../e2e/durations.json', import.meta.url)
+import {writeFileSync} from 'node:fs'
+import {DURATIONS, plan, specFiles} from './lib/shard-plan.mjs'
 
 if (process.argv[2] === '--update') {
   const runs = process.argv.slice(3)
   // Every spec is recorded, 0 when CI runs none of its tests.
-  const secs = Object.fromEntries(readdirSync(new URL('../e2e/journeys/', import.meta.url)).filter((f) => f.endsWith('.spec.ts')).map((f) => [f, 0]))
+  const secs = Object.fromEntries(specFiles().map((f) => [f, 0]))
   const seen = {}
   for (const run of runs) {
     const inRun = {}
@@ -46,29 +45,13 @@ if (process.argv[2] === '--update') {
     const sorted = vs.sort((a, b) => a - b)
     secs[f] = Math.round(sorted[Math.floor((sorted.length - 1) / 2)] * 10) / 10
   }
-  writeFileSync(FILE, `${JSON.stringify(Object.fromEntries(Object.entries(secs).sort()), null, 2)}\n`)
+  writeFileSync(DURATIONS, `${JSON.stringify(Object.fromEntries(Object.entries(secs).sort()), null, 2)}\n`)
   console.log(`recorded ${Object.keys(secs).length} specs from run(s) ${runs.join(', ')}`)
   process.exit(0)
 }
 
 const [n, of] = process.argv.slice(2).map(Number)
 if (!(n >= 1 && n <= of)) throw new Error('usage: shard-files.mjs <shard> <shards> | --update <run id>')
-const secs = JSON.parse(readFileSync(FILE, 'utf8'))
-const specs = readdirSync(new URL('../e2e/journeys/', import.meta.url)).filter((f) => f.endsWith('.spec.ts'))
-const ran = Object.values(secs).filter((v) => v > 0).sort((a, b) => a - b)
-const UNKNOWN = ran.length ? ran[Math.floor(ran.length / 2)] : 3
-// A spec recorded as 0 s had no CI test then. One with a CI test now (a test whose title names
-// none of @local, @evidence, @baseline) counts as unrecorded until it is recorded: counted 0,
-// media-library.spec's first CI test (#1061) went to a full shard and ran it past the 60 s cap.
-const hasCiTest = (f) => [...readFileSync(new URL(`../e2e/journeys/${f}`, import.meta.url), 'utf8').matchAll(/^\s*test\(\s*(['"`])(.*?)\1/gm)].some((m) => !/@local|@evidence|@baseline/.test(m[2]))
-const timeOf = (f) => (secs[f] === 0 && hasCiTest(f) ? undefined : secs[f])
-const unknown = specs.filter((f) => timeOf(f) === undefined)
-if (unknown.length) console.error(`shard-files: not recorded yet (or recorded 0 s, with a CI test now), counted as ${UNKNOWN} s each: ${unknown.join(', ')}`)
-// Heaviest first, each onto the lightest shard so far (ties: the lower shard, then by name).
-const bins = Array.from({length: of}, () => ({secs: 0, files: []}))
-for (const f of specs.sort((a, b) => (timeOf(b) ?? UNKNOWN) - (timeOf(a) ?? UNKNOWN) || a.localeCompare(b))) {
-  const bin = bins.reduce((min, b) => (b.secs < min.secs ? b : min))
-  bin.secs += timeOf(f) ?? UNKNOWN
-  bin.files.push(`journeys/${f}`)
-}
-console.log(bins[n - 1].files.join(' '))
+const {groups, unknown, median} = plan(of)
+if (unknown.length) console.error(`shard-files: not recorded yet (or recorded 0 s, with a CI test now), counted as ${median} s each: ${unknown.join(', ')}`)
+console.log(groups[n - 1].files.join(' '))
