@@ -50,3 +50,11 @@ export function startNew(qc: QueryClient, schemas: Schema[], choice: Choice, id:
   draftNew(qc, choice.type, id, {schema: own ? choice.value : {}, local})
   return Promise.resolve()
 }
+
+/**
+ * A listed fixed page with no document yet (task-b3f4ccc4f9cfe129): opened as the + button
+ * opens its type, through the type's own choice, so its create sends the same body.
+ */
+export function startFixed(qc: QueryClient, schemas: Schema[], type: string, id: string): Promise<void> {
+  return startNew(qc, schemas, choicesFor(schemas, type)[0]!, id)
+}

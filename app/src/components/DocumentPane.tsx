@@ -18,7 +18,7 @@ import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flu
 import {fieldNames, keptText} from '../lib/kept-text'
 import '../kept-edits.css'
 import {openAfter, paneKey, panesPath, splitRight, withView, type Pane, withParams} from '../lib/panes'
-import {choiceById} from '../lib/templates'
+import {choiceById, startFixed} from '../lib/templates'
 import {reportFocus} from '../lib/presence'
 import {useRevealed} from '../lib/reveal'
 import {fieldState, groupShows, keptEditsWait, roleRuled} from '../lib/conditions'
@@ -152,8 +152,10 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // J32: a doc someone deleted keeps its pane, as Sanity's: the banner on top, "Untitled",
   // the form empty and read-only, its footer; the same stub stands in for it.
   const deleted = useDeleted(pane.type, pane.id, draftQ.data === null && !viewingPublished)
-  // Not a singleton's one doc: that opens empty and is created on its first edit (B13).
-  const gone = deleted === true && !viewingPublished && !(pane.id === pane.type && isSingleton(schemas, pane.type))
+  // A listed fixed page (task-b3f4ccc4f9cfe129) that has no document: Barkpark creates it on its first write.
+  const fixedNew = isFixed(schemas, pane.type) && offers(schemaOf(schemas, pane.type)?.fixedDocuments, 'create', pane.id)
+  // Not a singleton's one doc, nor a listed fixed page: those open empty and are created on their first edit (B13).
+  const gone = deleted === true && !viewingPublished && !(pane.id === pane.type && isSingleton(schemas, pane.type)) && !fixedNew
   const doc = noPublished || gone ? stub : shown
   // J16: an old revision (rev=… in the URL) shows in the form's place, read-only.
   const revQ = useQuery({...revisionQuery(pane.rev ?? ''), enabled: !!pane.rev})
@@ -444,6 +446,11 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   useEffect(() => {
     if (single && pane.id === pane.type && draftQ.data === null && !viewingPublished) draftNew(qc, pane.type, pane.id, {schema: schemaOf(schemas, pane.type)?.initialValues ?? {}})
   }, [single, pane.id, pane.type, draftQ.data, viewingPublished])
+  // A listed fixed page with no document opens empty the way the + button opens its type
+  // (startFixed: the type's own choice), so its first edit sends the same create.
+  useEffect(() => {
+    if (fixedNew && draftQ.data === null && !viewingPublished && !pane.template) startFixed(qc, schemas, pane.type, pane.id).catch((err) => toast({tone: 'critical', title: t('Could not create the document'), description: (err as Error).message}))
+  }, [fixedNew, pane.id, pane.type, pane.template, draftQ.data, viewingPublished])
   // J44: the form's fields are memoized, so what they get must hold still while
   // typing: one steady onEdit (it reads the latest doc), one onChange per field
   // name, and context values that change only when their content does.

@@ -29,7 +29,10 @@ const STUB = {
     export const readServerDoc = (...a) => globalThis.saveFlowServer.read(new URL(import.meta.url).search, ...a)
     export const schemasQuery = {queryKey: ['schemas']}
     export const docQuery = (id) => ({queryKey: ['doc', id]})
-    export const setUnsavedOverlay = () => {}`,
+    export const setUnsavedOverlay = () => {}
+    export const schemaOf = (schemas, type) => schemas.find((s) => s.name === type)`,
+  // lib/templates.ts's studio config (a .tsx node does not load): no templates of its own.
+  '/src/studio.config.tsx': `export default {templates: []}`,
 }
 const TRACE = `
 export function rebase(e, d, was) {
