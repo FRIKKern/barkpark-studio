@@ -6,6 +6,7 @@ import {firstMedia, formatPreview, mediaRefs, previewRefs, readPath, textRefs, t
 import {imageRef, pickedImage, type ImageValue} from '../lib/image'
 import {uploadFile, UploadError} from '../lib/upload'
 import {uploadMeta} from '../lib/image-meta'
+import {useFileInfo} from '../lib/file-info'
 import {toast} from './Toasts'
 import {Thumb, TypeIcon} from './Preview'
 import {copyItem, signature} from '../lib/clipboard'
@@ -367,12 +368,8 @@ export function useItemPreview(item: Item, of: Field, named = false) {
   const zone = useWorkspaceZone()
   // An array of images: titled by the picture's file name, as Sanity's.
   const picture = of.type === 'image' ? imageRef(item as ImageValue) : undefined
-  const {data: asset} = useQuery({
-    queryKey: ['media-info', picture],
-    enabled: !!picture,
-    staleTime: Infinity,
-    queryFn: () => fetch(`/api/media/${encodeURIComponent(picture!.replace(/^asset-/, ''))}/info`).then((r) => (r.ok ? (r.json() as Promise<{name?: string}>) : null)),
-  })
+  // The one media-info read (lib/file-info): a 404 is an error with no retry, so no name, as before.
+  const {data: asset} = useFileInfo(picture)
   // A code item (Sanity's code object): its first line, then its filename and language.
   // A table item (Sanity's table object): its first cells, then its size.
   const size = isTableField(of) ? tablePreview(item) : undefined

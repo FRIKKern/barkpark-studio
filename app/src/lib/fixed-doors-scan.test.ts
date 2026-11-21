@@ -6,7 +6,8 @@
 // - a door's guard taken out (any one of them) is red;
 // - nothing outside the rule decides on `fixedDocuments` by itself: a file that reads the list
 //   hands it to offers() (or is only its type or its docs).
-// The limit: a guard's words are checked, not that the button they stand in front of uses them.
+// The limit: a guard's words are checked, not that the button they stand in front of uses them;
+// an import is read by its spelling (named, `* as`, import()), not followed through a re-export.
 import assert from 'node:assert/strict'
 import {dirname, join, normalize} from 'node:path'
 import {test} from 'node:test'
@@ -52,11 +53,18 @@ const NAMES_ONLY: Record<string, string> = {
 }
 
 type Tree = Record<string, string>
-const importsOf = (file: string, text: string) =>
-  [...flat(text).matchAll(/import \{([^}]*)\} from '(\.[^']+)'/g)].map((m) => ({
-    from: normalize(join(dirname(file), m[2]!)).replace(/\.tsx?$/, ''),
+const where = (file: string, spec: string) => normalize(join(dirname(file), spec)).replace(/\.tsx?$/, '')
+/** What a file imports from where: named imports by name; `import * as`, a default import beside it or a dynamic import() as all of a writer module's writers. */
+const importsOf = (file: string, text: string) => [
+  ...[...flat(text).matchAll(/import \{([^}]*)\} from ["'](\.[^"']+)["']/g)].map((m) => ({
+    from: where(file, m[2]!),
     names: m[1]!.split(',').map((s) => s.trim().replace(/^type /, '').split(/ as /)[0]!),
-  }))
+  })),
+  ...[...flat(text).matchAll(/import (?:\w+ ?, ?)?\* as \w+ from ["'](\.[^"']+)["']|\bimport ?\( ?["'`](\.[^"'`]+)["'`] ?\)/g)].map((m) => {
+    const from = where(file, (m[1] ?? m[2])!)
+    return {from, names: WRITERS[from] ?? []}
+  }),
+]
 
 /** What breaks the rule in `src`, as sentences (empty: it holds). */
 function judge(src: Tree): string[] {
@@ -94,6 +102,10 @@ test('a door with any one guard taken out is red', () => {
 test('a new importer of a writer, or a file that decides on the list itself, is red', () => {
   assert.deepEqual(judge({...src, 'components/Quick.tsx': "import {createDoc as make} from '../lib/edits'\nmake()"}), ['components/Quick.tsx imports createDoc and is no listed door'])
   assert.deepEqual(judge({...src, 'lib/menu.ts': "import {startNew} from './templates'"}), ['lib/menu.ts imports startNew and is no listed door'])
+  // Any spelling of the import (review-56 on #1367): a namespace, a dynamic import, double quotes.
+  assert.deepEqual(judge({...src, 'components/Quick.tsx': "import * as E from '../lib/edits'\nE.createDoc()"}), ['components/Quick.tsx imports createDoc, draftNew, deleteDoc and is no listed door'])
+  assert.deepEqual(judge({...src, 'components/Quick.tsx': "const {startNew} = await import('../lib/templates.ts')"}), ['components/Quick.tsx imports startNew and is no listed door'])
+  assert.deepEqual(judge({...src, 'components/Quick.tsx': 'import {deleteDoc} from "../lib/edits"'}), ['components/Quick.tsx imports deleteDoc and is no listed door'])
   assert.deepEqual(judge({...src, 'lib/x.ts': 'export const can = (s: {fixedDocuments?: string[]}) => !s.fixedDocuments'}), ['lib/x.ts reads fixedDocuments without offers()', 'lib/x.ts decides on fixedDocuments itself'])
   assert.deepEqual(judge({...src, 'lib/creatable.ts': src['lib/creatable.ts']!.replace("offers(fixedList(schema.fixedDocuments), 'create', '')", '!schema.fixedDocuments')}), ['lib/creatable.ts reads fixedDocuments without offers()', 'lib/creatable.ts decides on fixedDocuments itself'])
   assert.deepEqual(judge({...src, 'lib/data.ts': src['lib/data.ts']!.replace("!offers(schemaOf(schemas, type)?.fixedDocuments, 'create', '')", '!!schemaOf(schemas, type)?.fixedDocuments')}), ['lib/data.ts reads fixedDocuments without offers()', 'lib/data.ts decides on fixedDocuments itself'])

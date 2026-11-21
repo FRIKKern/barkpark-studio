@@ -1,10 +1,10 @@
-import {useQuery} from '@tanstack/react-query'
+import {queryOptions, useQuery} from '@tanstack/react-query'
 import type {FileAsset} from './files'
 import type {ImageMeta} from './image-meta'
 
 /** An asset's name, size and type; for an image also its pixel size and blur placeholder (lib/image-meta.ts). */
-export const useFileInfo = (ref: string | undefined) =>
-  useQuery({
+export const fileInfoQuery = (ref: string | undefined) =>
+  queryOptions({
     queryKey: ['media-info', ref],
     enabled: !!ref,
     staleTime: Infinity,
@@ -12,3 +12,4 @@ export const useFileInfo = (ref: string | undefined) =>
     retry: (count, err) => !err.message.endsWith(' 404') && count < 3,
     queryFn: () => fetch(`/api/media/${encodeURIComponent(ref!.replace(/^asset-/, ''))}/info`).then((r) => (r.ok ? (r.json() as Promise<FileAsset & ImageMeta>) : Promise.reject(new Error(`file → ${r.status}`)))),
   })
+export const useFileInfo = (ref: string | undefined) => useQuery(fileInfoQuery(ref))

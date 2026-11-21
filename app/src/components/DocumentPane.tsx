@@ -5,6 +5,7 @@ import {NarrowContext, OpenedPanesContext} from '../lib/layout'
 import {AnchoredLayer, DialogBox, MenuPopover} from './FocusScopes'
 import {ConfirmDialog} from './ConfirmDialog'
 import {useSlugInUse} from '../lib/slug-unique'
+import {fileInfoQuery} from '../lib/file-info'
 import {useCustomRules} from '../lib/use-custom-rules'
 import {useParseErrors} from '../lib/parse-errors'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
@@ -195,7 +196,12 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const quiet = made?.id === pane.id && !made.acted
   // After the keystroke lands: re-rendering the form inside its input event drops it.
   const acted = () => quiet && setTimeout(() => setMade((m) => (m?.id === pane.id ? {...m, acted: true} : m)))
-  const checked = doc && schemaForPane && !viewingPublished && !gone && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t, (f, at) => shutHere(fieldState(schemaForPane.name, f, doc, user, studio.form?.conditions, at))) : []
+  // An image's width for options.minWidth (lib/image-min-width): what the media-info reads hold;
+  // the refs the check asked for are read below (one read each, kept), and it checks again then.
+  const askedWidths = new Set<string>()
+  const widthOf = (ref: string) => (askedWidths.add(ref), qcHere.getQueryData(fileInfoQuery(ref).queryKey))
+  const checked = doc && schemaForPane && !viewingPublished && !gone && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t, (f, at) => shutHere(fieldState(schemaForPane.name, f, doc, user, studio.form?.conditions, at)), widthOf) : []
+  useQueries({queries: [...askedWidths].map(fileInfoQuery)})
   // J28: a slug another document of this type has (a duplicate's copied slug) is taken, as Sanity says.
   const slugTaken = useSlugInUse(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !gone && !pristine, t)
   // The studio config's custom rules (Sanity's Rule.custom), sync and async; studio only.
