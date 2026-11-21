@@ -19,7 +19,7 @@
   "broken-values.spec.ts": 5.7,
   "bulk-delete.spec.ts": 7,
   "bulk.spec.ts": 0,
-  "clipboard.spec.ts": 5,
+  "clipboard.spec.ts": 5.3,
   "code-input.spec.ts": 4.1,
   "codelist.spec.ts": 3.2,
   "collab.spec.ts": 0,
