@@ -87,9 +87,13 @@ const levelOf = (level: unknown): Level => (level === 'warning' ? 'warning' : le
 // the form reads a finding's path (lib/findings.ts formPath): its advisory after a save is the same problem.
 const DOCUMENT = '_document'
 
+/** A rule's title or name as Barkpark reads it: non-empty text, else absent (a per-language map is not text). */
+const text = (s: unknown) => (typeof s === 'string' && s !== '' ? s : undefined)
+
 /**
  * The violated rules as problems: one under each field the rule names (a document problem
- * when it names none), the rule's title as the message, else its name, as Barkpark's findings.
+ * when it names none), the rule's title as the message, else its name, else "cross-field rule", as
+ * Barkpark's findings (fixtures/cross-title-cases.json).
  */
 export function crossProblems(doc: Doc, schema: Schema): Problem[] {
   const rules = schema.crossValidations
@@ -98,7 +102,7 @@ export function crossProblems(doc: Doc, schema: Schema): Problem[] {
   const describe = describeField(schema)
   return rules.flatMap((r) => {
     if (!isMap(r) || !shapeOk(r, names)) return []
-    const message = r.title || r.name || 'Cross-field rule'
+    const message = text(r.title) ?? text(r.name) ?? 'cross-field rule'
     const level = levelOf(r.level)
     const fields = Array.isArray(r.fields) ? r.fields.filter((f): f is string => typeof f === 'string' && f !== '') : []
     if (typeof r.each === 'string') return itemProblems(r, doc, schema, fields, message, level)
