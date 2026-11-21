@@ -396,6 +396,15 @@
       }
     },
     {
+      "name": "perPage",
+      "title": "Per page",
+      "type": "integer",
+      "options": {
+        "list": [3, 6]
+      },
+      "layout": "radio"
+    },
+    {
       "name": "hiddenNote",
       "title": "Shown when agreed",
       "type": "string",
