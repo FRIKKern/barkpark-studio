@@ -115,6 +115,7 @@ export function BulkDialog({action, docs, onClose}: {action: BulkAction; docs: D
         copyId: copyId(id),
         rank: (from) => copyRank(qc, from),
         retrying: failedBefore.has(id),
+        initialValues: schemaOf(schemas, doc._type)?.initialValues,
       }).catch((err: Error): RowResult => ({state: 'failed', reason: err.message}))
       set(id, r)
     }

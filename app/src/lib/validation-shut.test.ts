@@ -21,14 +21,17 @@ test("a role's readOnly or hidden callback: the person it shuts gets a warning; 
   const schema = {name: 'post', title: 'Post', fields: [
     {name: 'stage', title: 'Stage', type: 'select', options: ['idea', 'done']},
     {name: 'rating', title: 'Rating', type: 'integer', options: {list: [1, 2, 3]}},
+    {name: 'box', title: 'Box', type: 'composite', fields: [{name: 'inner', title: 'Inner', type: 'select', options: ['a', 'b']}]},
   ]} as never
-  const d = doc('post', {stage: 'gone', rating: 5})
-  const editor = validate(d, schema, undefined, undefined, shutFor('post', d, known('editor'), roleConditions))
-  assert.deepEqual(said(editor), ['warning stage', 'warning rating'])
+  // A role key on an object's field ('post.box.inner'): the rule is asked with the full path.
+  const rules = {...roleConditions, 'post.box.inner': roleConditions['post.stage']!}
+  const d = doc('post', {stage: 'gone', rating: 5, box: {inner: 'gone'}})
+  const editor = validate(d, schema, undefined, undefined, shutFor('post', d, known('editor'), rules))
+  assert.deepEqual(said(editor), ['warning stage', 'warning rating', 'warning box.inner'])
   assert.deepEqual(errorsOf(editor), [], 'Publish is not blocked for the editor')
   // Not known yet: a field with a callback is read-only until Barkpark says who (fieldState).
-  assert.deepEqual(errorsOf(validate(d, schema, undefined, undefined, shutFor('post', d, unknown, roleConditions))), [])
-  assert.deepEqual(said(validate(d, schema, undefined, undefined, shutFor('post', d, known('administrator'), roleConditions))), ['error stage', 'error rating'])
+  assert.deepEqual(errorsOf(validate(d, schema, undefined, undefined, shutFor('post', d, unknown, rules))), [])
+  assert.deepEqual(said(validate(d, schema, undefined, undefined, shutFor('post', d, known('administrator'), rules))), ['error stage', 'error rating', 'error box.inner'])
 })
 
 test("a readOnly array shuts its items' fields; an object's fields are judged with the object as parent (scope 'parent')", () => {

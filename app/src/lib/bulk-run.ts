@@ -5,6 +5,7 @@ import {readServerDoc, type Backlink, type Doc} from './data'
 import {deleteDoc, discardDraft, mutate, reasonOf, writeSlot} from './edits'
 import {unlinkTranslation} from './translations'
 import {METADATA_TYPE} from './translation-group'
+import {withCopyNulls} from './create-nulls'
 import {copyFields, onlyGroupLink, planRow, refusedReferrers, type BulkAction, type Hold, type Perms, type Referrer, type RowResult} from './bulk'
 
 // Bulk delete, duplicate and discard (task-22ce73ad72423b85), one row at a time through the
@@ -60,6 +61,8 @@ export type RowContext = {
   rank: (from: Doc) => Record<string, unknown>
   /** The row failed before: a write whose answer was lost may have landed, so "gone" or "no draft" now means it did. */
   retrying: boolean
+  /** The row's type's initial values: a copy sends null where the original has nothing (lib/create-nulls). */
+  initialValues?: Record<string, unknown>
 }
 
 const code = (msg: string) => /"code":"(\w+)"/.exec(msg)?.[1]
@@ -135,7 +138,7 @@ async function referrersNow(id: string, who: {id: string; type: string}[] | null
 async function duplicate(from: Doc, ctx: RowContext): Promise<RowResult> {
   await writeSlot()
   try {
-    await mutate({data: {mutations: [{create: {_id: ctx.copyId, _type: from._type, ...copyFields(from, ctx.rank(from))} as unknown as Json}]}})
+    await mutate({data: {mutations: [{create: {_id: ctx.copyId, _type: from._type, ...withCopyNulls(ctx.initialValues, copyFields(from, ctx.rank(from)))} as unknown as Json}]}})
     return {state: 'done', copy: ctx.copyId}
   } catch (err) {
     const msg = (err as Error).message

@@ -18,6 +18,7 @@ import {plainReason} from './plain-reason'
 import {onto, revertSteps} from './merge'
 import {answered, rebase, same, sentNotesOf, takeBase, unsent, type Spots} from './edit-bases'
 import {applyPaths, getPath, keyedRoots, setInside, setPath, within} from './paths'
+import {createBody} from './create-nulls'
 import {setTableKeptScope, takeTableKept} from './table-kept'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {spanAnswer, spanRoot, type Typed} from './pt-span'
@@ -145,6 +146,8 @@ type DocEdits = Spots & {
   timer?: ReturnType<typeof setTimeout>
   /** A new doc that exists only here: its first write creates it with these values. */
   pendingCreate?: Record<string, unknown>
+  /** The type's own initial values (Start's `schema`): where a cleared field goes as null (lib/create-nulls). */
+  initial?: Record<string, unknown>
   /** Create even without fields; untouched lazy drafts still cost no write. */
   createRequested?: boolean
   /** The server rev our unsent edits are made against (sent as ifRevisionID). */
@@ -565,7 +568,7 @@ export function flushOnUnload() {
     const fields = new Map([...going, ...e.dirty])
     if (fields.size === 0 && (!e.createRequested || e.inflight)) return []
     const {set, unset} = toPatch(fields)
-    return [e.pendingCreate ? {create: {_id: id, _type: e.type, ...applyPaths(e.pendingCreate as Record<string, Json>, e.dirty)}} : {patch: {id, type: e.type, set, unset}}]
+    return [e.pendingCreate ? {create: {_id: id, _type: e.type, ...createBody(e.pendingCreate as Record<string, Json>, e.dirty, e.initial)}} : {patch: {id, type: e.type, set, unset}}]
   })
   if (mutations.length) navigator.sendBeacon('/api/mutate', new Blob([JSON.stringify({mutations})], {type: 'application/json'}))
 }
@@ -719,7 +722,7 @@ async function send(qc: QueryClient, id: string) {
     // Span patches alone need no fence there: they merge into the draft another editor's
     // first key made a moment ago (fenced, the second editor's first word cost a 412).
     const mutations: Json[] = creating
-      ? [{create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}]
+      ? [{create: {_id: id, _type: e.type, ...createBody(creating as Record<string, Json>, e.inflight, e.initial)}}]
       : e.forks
         ? [{patch: {id, type: e.type, set: {}, ...(sets.size ? fence : {})}}, {patch: {id, type: e.type, set, unset, ...diffMatchPatch}}]
         : [{patch: {id, type: e.type, set, unset, ...diffMatchPatch, ...fence, ...(e.rev ? FIELDS_FENCE : {})}}]
@@ -967,6 +970,7 @@ export function draftNew(qc: QueryClient, type: string, id: string, start: Start
     const e = entry(id, type)
     if (qc.getQueryData(['doc', id])) return
     e.pendingCreate = values
+    e.initial = start.schema
     qc.setQueryData(['doc', id], {_id: `drafts.${id}`, _publishedId: id, _type: type, _draft: true, _hasPublished: false, _rev: '', _updatedAt: '', ...values} as Doc)
   })
 }
@@ -978,12 +982,13 @@ export function draftNew(qc: QueryClient, type: string, id: string, start: Start
  * resolved here (lib/today-start), never in its `asIs` part (typed text, a copy).
  */
 export function createDoc(qc: QueryClient, type: string, id: string, start: Start): Promise<void> {
-  return new Promise((resolve, reject) => startValues(qc, localeQuery, start, (values) => void createNow(qc, type, id, values).then(resolve, reject)))
+  return new Promise((resolve, reject) => startValues(qc, localeQuery, start, (values) => void createNow(qc, type, id, values, start.schema).then(resolve, reject)))
 }
 
-async function createNow(qc: QueryClient, type: string, id: string, fields: Record<string, unknown>) {
+async function createNow(qc: QueryClient, type: string, id: string, fields: Record<string, unknown>, initial?: Record<string, unknown>) {
   const e = entry(id, type)
   e.pendingCreate = fields
+  e.initial = initial
   e.createRequested = true
   e.dirty = new Map(Object.entries(fields))
   writeCache(qc, id, type, {_id: `drafts.${id}`, _publishedId: id, _type: type, _draft: true, _hasPublished: false, _rev: '', _updatedAt: '', ...fields} as Doc)
