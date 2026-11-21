@@ -21,6 +21,7 @@ const sent: {create?: Record<string, unknown> & {_id: string}; patch?: {id: stri
   },
 }
 const {createBody, withCopyNulls} = await import('./create-nulls.ts')
+const {copyFields} = await import('./bulk.ts')
 const E = await import('./edits.ts')
 after(() => E.forgetEdits())
 
@@ -83,6 +84,25 @@ test("a new document's first edit clears a prefilled date: the create sends null
   // A field with no initial value, emptied: "" as main sends it, never null.
   await write('sak-3', 'notat', '', {})
   assert.equal(sent.at(-1)!.create!.notat, '')
+})
+
+test("a start's values are never cleared: the pane Duplicate sends the bulk Duplicate's body; a {local} start's \"\" goes as \"\"", async () => {
+  const qc = new QueryClient()
+  const iv = {publisert: '$today', kind: 'nyhet', meta: {dato: '$today', sak: 'x'}}
+  const from = {_id: 'a', _type: 'sak', _rev: 'x', _updatedAt: 'u', title: 'Orig', tekst: '', meta: {sak: 's'}, kind: 'notis'}
+  const createdAs = async (id: string, start: Parameters<typeof E.createDoc>[3]) => {
+    await E.createDoc(qc, 'sak', id, start)
+    const {_id, _type, ...body} = sent.findLast((m) => m.create?._id === id)!.create!
+    return body
+  }
+  // The pane's own start (DocumentPane's Duplicate), read from its source and given its fields.
+  const pane = readFileSync(new URL('../components/DocumentPane.tsx', import.meta.url), 'utf8').match(/createDoc\(qc, from\._type, id, (\{[^}]*\})\)/)![1]!
+  const fields = withCopyNulls(iv, copyFields(from as never, {}))
+  const bulk = withCopyNulls(iv, copyFields(from as never, {}))
+  assert.equal(JSON.stringify(await createdAs('dup-pane', new Function('fields', `return ${pane}`)(fields))), JSON.stringify(bulk))
+  assert.equal(bulk.tekst, '')
+  // A template, RefInput or IncomingReferences start: its "" is the start's, not a clear.
+  assert.deepEqual(await createdAs('tpl', {local: {title: 'Mal', tekst: '', kind: 'nyhet'}}), {title: 'Mal', tekst: '', kind: 'nyhet'})
 })
 
 test('the doors, by text: both create sends ask createBody; both Duplicates send the nulls; a layout type\'s "" shows as empty', () => {
