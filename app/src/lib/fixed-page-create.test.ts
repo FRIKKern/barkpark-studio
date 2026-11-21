@@ -113,9 +113,12 @@ test("opening a listed page and editing it sends the create the + button sends f
 
 test('the pane opens a listed page through startFixed when there is no document, and the list shows the missing ones', () => {
   const pane = readFileSync(new URL('../components/DocumentPane.tsx', import.meta.url), 'utf8').replace(/\s+/g, ' ')
+  // A listed id with no document is a page to start, not "deleted".
+  assert.ok(pane.includes("const gone = deleted === true && !viewingPublished && !(pane.id === pane.type && isSingleton(schemas, pane.type)) && !fixedNew"))
   assert.ok(pane.includes("if (fixedNew && draftQ.data === null && !viewingPublished && !pane.template) startFixed(qc, schemas, pane.type, pane.id)"))
   const list = readFileSync(new URL('../components/Structure.tsx', import.meta.url), 'utf8').replace(/\s+/g, ' ')
-  assert.ok(list.includes("showsMissing({canWrite, published, filtered: !!filter, searching: !!query.trim(), tree: tree || !!treeParent, hasMore: !!page.hasMore}) ? missingFixed(schemaOf(schemas, type), page.docs.map((d) => d._publishedId))"))
+  // The whole guard: each flag can hide a page that exists (review-56 on ad302a0b).
+  assert.ok(list.includes("const notCreated = page && showsMissing({canWrite, published, filtered: !!filter, searching: !!query.trim(), tree: tree || !!treeParent, hasMore: !!page.hasMore}) ? missingFixed(schemaOf(schemas, type), page.docs.map((d) => d._publishedId))"))
   // canWrite there is the + button's: the same useCanWrite() the list's + reads.
   assert.ok(list.includes('const {canWrite, canPublish, createReason} = useCanWrite()'))
   assert.ok(list.includes('<MissingFixedRows type={type} ids={notCreated}'))
