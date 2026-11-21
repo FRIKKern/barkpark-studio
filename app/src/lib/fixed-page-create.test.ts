@@ -22,7 +22,7 @@ const sent: {create?: Record<string, unknown> & {_id: string; _type: string}; pa
 }
 const E = await import('./edits.ts')
 const {choicesFor, startNew, startFixed} = await import('./templates.ts')
-const {missingFixed, offers} = await import('./fixed-documents.ts')
+const {missingFixed, offers, showsMissing} = await import('./fixed-documents.ts')
 after(() => E.forgetEdits())
 
 const initialValues = {kind: 'side', ingress: 'Skriv en ingress', meta: {synlig: true}}
@@ -43,6 +43,30 @@ test("a listed page with no document is offered, and only that: the list's missi
   assert.equal(offers(side.fixedDocuments, 'create', 'drafts.side-om-oss'), true)
   assert.equal(offers(side.fixedDocuments, 'create', 'ny-side'), false)
   assert.equal(offers(side.fixedDocuments, 'create', ''), false, 'the + menus ask for a new id: none')
+})
+
+test('opening a listed page writes nothing; its first edit sends one create, with the listed id', async () => {
+  const qc = new QueryClient()
+  const before = sent.length
+  await startFixed(qc, schemas, 'side', 'side-hva-vi-jobber-med')
+  await new Promise((go) => setTimeout(go, 50))
+  assert.equal(sent.length, before, 'no write on open')
+  const doc = qc.getQueryData<Record<string, unknown>>(['doc', 'side-hva-vi-jobber-med'])!
+  E.edit(qc, doc as never, 'tittel', 'Hva vi jobber med')
+  E.flush(qc, 'side-hva-vi-jobber-med')
+  await E.whenSaved('side-hva-vi-jobber-med')
+  const writes = sent.slice(before)
+  assert.equal(writes.length, 1)
+  assert.equal(writes[0]!.create?._id, 'side-hva-vi-jobber-med')
+  assert.equal(writes[0]!.create?._type, 'side')
+})
+
+test('no ghost rows: a missing listed page shows only on the whole plain list, for one who may create', () => {
+  const plain = {canWrite: true, published: false, filtered: false, searching: false, tree: false, hasMore: false}
+  assert.equal(showsMissing(plain), true)
+  // Each of these can hide a page that exists, so none may show it as missing.
+  for (const k of ['published', 'filtered', 'searching', 'tree', 'hasMore'] as const) assert.equal(showsMissing({...plain, [k]: true}), false, k)
+  assert.equal(showsMissing({...plain, canWrite: false}), false, 'a person who may not create (the + button\'s rule)')
 })
 
 test("opening a listed page and editing it sends the create the + button sends for a type: same initial values, same null for a cleared field", async () => {
@@ -71,6 +95,8 @@ test('the pane opens a listed page through startFixed when there is no document,
   const pane = readFileSync(new URL('../components/DocumentPane.tsx', import.meta.url), 'utf8').replace(/\s+/g, ' ')
   assert.ok(pane.includes("if (fixedNew && draftQ.data === null && !viewingPublished && !pane.template) startFixed(qc, schemas, pane.type, pane.id)"))
   const list = readFileSync(new URL('../components/Structure.tsx', import.meta.url), 'utf8').replace(/\s+/g, ' ')
-  assert.ok(list.includes("missingFixed(schemaOf(schemas, type), page.docs.map((d) => d._publishedId))"))
+  assert.ok(list.includes("showsMissing({canWrite, published, filtered: !!filter, searching: !!query.trim(), tree: tree || !!treeParent, hasMore: !!page.hasMore}) ? missingFixed(schemaOf(schemas, type), page.docs.map((d) => d._publishedId))"))
+  // canWrite there is the + button's: the same useCanWrite() the list's + reads.
+  assert.ok(list.includes('const {canWrite, canPublish, createReason} = useCanWrite()'))
   assert.ok(list.includes('<MissingFixedRows type={type} ids={notCreated}'))
 })

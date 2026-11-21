@@ -28,7 +28,7 @@ import {usePrimed} from '../lib/prime'
 import {mediaRefs, textRefs} from '../lib/preview'
 import {BulkBar} from './BulkBar'
 import {MissingFixedRows} from './MissingFixedRows'
-import {missingFixed} from '../lib/fixed-documents'
+import {missingFixed, showsMissing} from '../lib/fixed-documents'
 import {useOrderableRows} from './OrderableRows'
 import {RANK_SORT} from '../lib/order-rank'
 import {MAX_SELECTED} from '../lib/bulk'
@@ -855,9 +855,9 @@ function ListPane({panes, index, type, node: nodeId, treeParent, selected}: {pan
   const manual = sort === RANK_SORT && !published
   const ord = useOrderableRows({on: manual && canWrite && !query.trim() && !shownQuery.trim() && !!page && !page.hasMore && !listQ.isPlaceholderData, capped: manual && canWrite && !!page?.hasMore && limit >= LIST_MAX && !listQ.isPlaceholderData ? LIST_MAX : undefined, type, shown, direct: canPublish})
   const rows = ord.rows
-  // A fixed type's listed pages with no document yet (task-b3f4ccc4f9cfe129): rows of their own, on the
-  // whole plain list only (no filter, tree, search, more pages or Published perspective), so "not there" is true.
-  const notCreated = page && !page.hasMore && !filter && !tree && !treeParent && !published && !query.trim() ? missingFixed(schemaOf(schemas, type), page.docs.map((d) => d._publishedId)) : []
+  // A fixed type's listed pages with no document yet (task-b3f4ccc4f9cfe129): rows of their own, after
+  // the documents, on the whole plain list only (lib/fixed-documents.ts showsMissing), so "not there" is true.
+  const notCreated = page && showsMissing({canWrite, published, filtered: !!filter, searching: !!query.trim(), tree: tree || !!treeParent, hasMore: !!page.hasMore}) ? missingFixed(schemaOf(schemas, type), page.docs.map((d) => d._publishedId)) : []
   const searching = !!shownQuery.trim() && rows.length > 0 // as drawn: the first key leaves the rows to the deferred redraw
   // B03: rows ticked for a bulk publish / unpublish (LiveView's multi-select), by id.
   const [picked, setPicked] = useState<Map<string, Doc>>(() => new Map())

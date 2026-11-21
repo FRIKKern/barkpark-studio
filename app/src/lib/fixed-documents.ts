@@ -33,3 +33,22 @@ export function missingFixed(schema: {fixedDocuments?: unknown} | undefined, hav
   const there = new Set([...have].map(publishedId))
   return [...new Set(fixed)].filter((id) => !there.has(id) && offers(fixed, 'create', id))
 }
+
+/**
+ * Whether the document pane opens `id` of a fixed type, which has no document there, as that new
+ * page: a listed id, for one who may create (the + button's rule: useCanWrite().canWrite). An
+ * unlisted id stays "not found". Opening writes nothing; the first edit creates it.
+ */
+export function opensFixedNew(schema: {fixedDocuments?: unknown} | undefined, id: string, canWrite: boolean): boolean {
+  const fixed = fixedList(schema?.fixedDocuments)
+  return !!fixed && canWrite && offers(fixed, 'create', id)
+}
+
+/**
+ * Whether a list shows its missing listed pages: only where "no document" is known, the whole
+ * plain list, for one who may create. Not in the Published perspective, under a filter, in a
+ * search, in a tree, or with more pages to load: there an existing page may just not be shown.
+ */
+export function showsMissing(list: {canWrite: boolean; published: boolean; filtered: boolean; searching: boolean; tree: boolean; hasMore: boolean}): boolean {
+  return list.canWrite && !list.published && !list.filtered && !list.searching && !list.tree && !list.hasMore
+}

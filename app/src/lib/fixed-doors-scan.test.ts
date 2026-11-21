@@ -33,7 +33,7 @@ const DOORS: Record<string, string[]> = {
     "const copyable = !single && offers(fixed, 'duplicate', doc._publishedId)", // the doc menu's Duplicate
     "const deletable = !single && offers(fixed, 'delete', doc._publishedId)", // its Delete, Ctrl+Alt+D
     '|| isFixed(schemas, pane.type)) return', // a new document's link (template=)
-    "const fixedNew = isFixed(schemas, pane.type) && offers(schemaOf(schemas, pane.type)?.fixedDocuments, 'create', pane.id)", // a listed fixed page with no document
+    'const fixedNew = isFixed(schemas, pane.type) && opensFixedNew(schemaOf(schemas, pane.type), pane.id, mayCreate)', // a listed fixed page with no document, for one who may create
     'if (fixedNew && draftQ.data === null', // opens it empty (startFixed)
   ],
   'components/BulkBar.tsx': ['offers(schemaOf(schemas, d._type)?.fixedDocuments, action, d._publishedId)', "{offered('duplicate') &&", "{offered('delete') &&"], // bulk Duplicate / Delete

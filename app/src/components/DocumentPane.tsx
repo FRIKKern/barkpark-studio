@@ -39,7 +39,7 @@ import {unknownFields} from '../lib/broken'
 import {ChangesContext, DocProvider, DocIdContext, DocTypeContext, EditPathContext, WriteUrlPathContext, FormDisabledContext, FreeformBodyContext, UrlPathContext, FieldView, Fieldset, inFieldsets, LevelIcon, OpenObjectsContext, ProblemsContext, fieldClipboard} from './Fields'
 import {changedFields} from '../lib/changes'
 import {DeleteDialog} from './DeleteDialog'
-import {offers} from '../lib/fixed-documents'
+import {offers, opensFixedNew} from '../lib/fixed-documents'
 import {TranslationsMenu} from './TranslationsMenu'
 import {UnpublishDialog} from './UnpublishDialog'
 import {setActiveDocument} from '../lib/tasks-ui'
@@ -152,8 +152,9 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // J32: a doc someone deleted keeps its pane, as Sanity's: the banner on top, "Untitled",
   // the form empty and read-only, its footer; the same stub stands in for it.
   const deleted = useDeleted(pane.type, pane.id, draftQ.data === null && !viewingPublished)
-  // A listed fixed page (task-b3f4ccc4f9cfe129) that has no document: Barkpark creates it on its first write.
-  const fixedNew = isFixed(schemas, pane.type) && offers(schemaOf(schemas, pane.type)?.fixedDocuments, 'create', pane.id)
+  // A listed fixed page (task-b3f4ccc4f9cfe129) that has no document, for one who may create: Barkpark creates it on its first write.
+  const mayCreate = useCanWrite().canWrite
+  const fixedNew = isFixed(schemas, pane.type) && opensFixedNew(schemaOf(schemas, pane.type), pane.id, mayCreate)
   // Not a singleton's one doc, nor a listed fixed page: those open empty and are created on their first edit (B13).
   const gone = deleted === true && !viewingPublished && !(pane.id === pane.type && isSingleton(schemas, pane.type)) && !fixedNew
   const doc = noPublished || gone ? stub : shown
