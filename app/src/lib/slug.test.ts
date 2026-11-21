@@ -43,6 +43,12 @@ test('no table, or one the studio does not know, is the default slug, said once 
   assert.deepEqual(warn.mock.calls.map((c) => String(c.arguments[0]).split(' ')[1]), ['xx', 'constructor', '7', '{"nb":true}'])
 })
 
+test('the slug field hands its options.slugify to Generate (components/Fields.tsx)', () => {
+  const fields = readFileSync(new URL('../components/Fields.tsx', import.meta.url), 'utf8').replace(/\s+/g, ' ')
+  assert.ok(fields.includes('table={(field.options as {slugify?: unknown})?.slugify}'), 'SlugInput gets the field\'s table')
+  assert.ok(fields.includes('slugify(from, maxLength, table)'), 'Generate slugs with it')
+})
+
 test('the studio reads options.slugify as Barkpark holds it (fieldIcons keeps the options)', () => {
   const fields = [{name: 'slug', type: 'slug', options: {source: 'tittel', slugify: 'nb', maxLength: 96}}]
   assert.deepEqual(withOptionIconBodies(fields, {}), fields)

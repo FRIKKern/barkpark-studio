@@ -1,5 +1,5 @@
 // Answers fixtures/slugify-nb-cases.json with HSO's own norskSlug, so options.slugify "nb"
-// (app/src/lib/slugify.ts) can be checked against it (slugify-nb-cases.test.ts):
+// (app/src/lib/slugify.ts) can be checked against it (app/src/lib/slug.test.ts):
 //   node scripts/slugify-nb-cases.mjs <hovinbyen-ny checkout>
 // then commit the rewritten fixture. norskSlug cuts at 96, so every case is at maxLength 96.
 // Only the answers and the "answeredBy" line move; add a case by adding {"in": "..."}.
