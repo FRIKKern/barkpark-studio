@@ -13,6 +13,7 @@ test('a save whose answer is lost says retrying, not offline, and lands once', a
   const fault = (kind: string, more: Record<string, unknown> = {}) => page.request.post('/api/e2e-listen', {data: {action: 'write-fault', id, kind, ...more}})
   try {
     await t.prepare(page.context())
+    await page.clock.install() // the retry's 2 s is passed on the page's clock, not sat out
     await page.goto(t.docPath('post', id))
     await signInIfAsked(page)
     await t.settle(page)
@@ -21,7 +22,11 @@ test('a save whose answer is lost says retrying, not offline, and lands once', a
     const status = page.locator('.doc-footer [role=status]').first()
     await expect(status).toHaveText(/Not saved — retrying/)
     await expect(status).not.toHaveText(/Offline/)
-    await expect.poll(() => t.docValue(id, 'title'), {timeout: 6_000}).toBe('Reset typed')
+    // Retrying is said as its timer is set (lib/edits.ts waitForNetwork: the state, then 2 s on a
+    // live connection): run past it on the page's clock.
+    await page.clock.fastForward(2_100)
+    // The 6 s it had, less the jump: a retry later than that is still late.
+    await expect.poll(() => t.docValue(id, 'title'), {timeout: 6_000 - 2_100}).toBe('Reset typed')
   } finally {
     await fault('none').catch(() => {})
     await closeAndSettle(page)
