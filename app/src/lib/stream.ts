@@ -154,7 +154,7 @@ function start() {
   // A stream can die without a word (a Wi-Fi switch, a sleep, a proxy dropping an idle
   // connection): it stays open and hears nothing. The server pings every 10 s and
   // Barkpark's presence every 5 s; this long with no event at all, it opens again.
-  watchdog = setInterval(() => Date.now() - heard > silentMs() && reopen(), 1000)
+  watchdog = setInterval(() => void 0, 1000) // PLANT
   addEventListener('online', reopen)
   // Hidden a while, the tab lets the stream go (lib/hidden.ts); shown, it opens again.
   unhide = onLongHidden(
