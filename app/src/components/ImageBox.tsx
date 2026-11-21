@@ -117,7 +117,7 @@ export function ImageBox({id, field, value, readOnly, live}: BoxProps) {
             <button type="button" className="btn" data-act="upload" disabled={readOnly} onClick={press('upload')}>
               <Upload /> {t('Upload')}
             </button>
-            <button type="button" hidden className="btn" data-act="select" disabled={readOnly} onPointerEnter={live?.onWarm} onFocus={live?.onWarm} onClick={press('select')}>
+            <button type="button" style={{display: 'none'}} className="btn" data-act="select" disabled={readOnly} onPointerEnter={live?.onWarm} onFocus={live?.onWarm} onClick={press('select')}>
               <SearchIcon /> {t('Select')}
             </button>
           </span>
