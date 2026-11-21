@@ -1,1 +1,1 @@
-journeys/presence-leave.spec.ts -g gone.quiet
+journeys/presence-leave.spec.ts journeys/presence-probe-main.spec.ts journeys/presence-probe-1342.spec.ts journeys/presence-probe-armed.spec.ts -g gone.quiet|probe

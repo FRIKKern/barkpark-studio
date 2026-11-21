@@ -83,7 +83,7 @@ const SILENT_MS = 20_000
 let muted: EventSource | null = null // e2e: __muteLive / __mutePresence
 let mutedMs = 0 // e2e: the muted stream's own quiet; gone with that stream
 /** Quiet this long, the stream is called dead: 20 s, or the e2e lever's window while its stream is the open one. */
-const silentMs = () => (muted ? mutedMs : SILENT_MS) // PLANT: the old leak
+const silentMs = () => (es && es === muted ? mutedMs : SILENT_MS)
 let watchdog: ReturnType<typeof setInterval> | undefined
 let unhide = () => {}
 const parkers = new Set<(parked: boolean) => void>()

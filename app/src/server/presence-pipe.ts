@@ -53,7 +53,8 @@ export async function pipePresence(sessionId: string | null, signal: AbortSignal
       const r = await reader.read().catch(() => null)
       if (!r || r.done) return end()
       if (opened <= presenceDeafSince) continue
-      send(dec.decode(r.value) === KEEPALIVE ? PING : r.value)
+      const bytes = dec.decode(r.value) === KEEPALIVE ? PING : r.value // PLANT
+      setTimeout(() => !signal.aborted && send(bytes), 2000) // PLANT
     }
   })()
   return null
