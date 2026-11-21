@@ -5,7 +5,7 @@ import {isTableField, tableBlank} from './table-input.ts'
 import {patternProblem, sanityRules} from './validation-rules.ts'
 import {crossProblems} from './cross-rules.ts'
 import {outsideList} from './list-options.ts'
-import {narrowImage, type WidthOf} from './image-min-width.ts'
+import {narrowImage, narrowInBlocks, type WidthOf} from './image-min-width.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -84,6 +84,10 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // An image narrower than options.minWidth: a warning only, its own words (lib/image-min-width).
   const narrow = narrowImage(field.type, field.options, value, at.widthOf, t)
   if (narrow) push({level: 'warning'}, narrow)
+  // An image in a rich-text block (HSO's «Bilde» gallery): the same warning, on the text field
+  // under the block's name, where Barkpark's findings inside rich text show (lib/findings).
+  if (field.type === 'richText')
+    for (const n of narrowInBlocks(field.blocks, value, at.widthOf, t)) out.push({path, title: n.title, message: n.message, level: 'warning', parents: [...parents, title, n.block], group})
   // Sanity: a strong reference must point at a published doc (a missing one fails the same
   // way), a bare id or Sanity's object alike. A weak field's may point anywhere (Sanity's).
   const ref = field.type === 'reference' && !field.weak ? refId(value) : undefined
