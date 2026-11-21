@@ -1,4 +1,4 @@
-import {expect, test} from '../rig/test'
+import {expect, test, type Page} from '../rig/test'
 import {target} from '../rig/targets'
 
 // J07 (task-936472b77285df5b): a closed tab leaves the room at once. Two browsers on
@@ -36,23 +36,65 @@ test('J07: a closed tab is gone from the other browser within 2 s', async ({brow
 // A dropped network that sends no reset (a Wi-Fi switch, a sleep): the tab's presence
 // stream stays open and hears nothing, so the room froze as it was (task-d9d63c42491b2637).
 // Now a stream quiet past Barkpark's pings is reopened: B, muted, still sees A arrive.
+// B's quiet is passed on its clock once it has really begun: A's arrival has reached B's
+// muted stream, or B's own clock reopened it already. Then the 20 s a real user's stream
+// has, on both pages: the lever's short window was its stream's, not the next one's (a later
+// stream reopened over and over before its first frame on a slow link: task-dfe7c5bfbaa1c3ca).
 test('J07: a presence stream gone quiet without closing is reopened, and a newcomer shows', async ({browser}, info) => {
   const t = target(info)
   test.skip(t.name === 'sanity', "Barkpark's presence room")
   const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()])
   await Promise.all([t.prepare(ctxA), t.prepare(ctxB)])
   const [a, b] = await Promise.all([ctxA.newPage(), ctxB.newPage()])
+  // Each page's streams as Chrome opens them (a reopen is a new GET) and the room lists each
+  // one hears, muted or not; `marks`: requests the test sends to see the page's queue through.
+  const watch = async (p: Page) => {
+    const s = {opened: [] as string[], rooms: new Map<string, string[]>(), marks: [] as string[]}
+    const cdp = await p.context().newCDPSession(p)
+    await cdp.send('Network.enable')
+    cdp.on('Network.requestWillBeSent', (e) => {
+      if (e.request.method === 'GET' && /\/api\/stream\?/.test(e.request.url)) s.opened.push(e.requestId)
+      const mark = /[?&]j07mark=(\w+)/.exec(e.request.url)?.[1]
+      if (mark) s.marks.push(mark)
+    })
+    cdp.on('Network.eventSourceMessageReceived', (e) => void (e.eventName === 'presence' && s.rooms.set(e.requestId, [...(s.rooms.get(e.requestId) ?? []), e.data])))
+    return s
+  }
+  // Every stream the page has opened so far, counted once its requests up to now have left.
+  const opens = async (p: Page, s: Awaited<ReturnType<typeof watch>>) => {
+    const mark = Math.random().toString(36).slice(2)
+    await p.evaluate((mark) => void fetch(`/favicon.ico?j07mark=${mark}`).catch(() => {}), mark)
+    await expect.poll(() => s.marks.includes(mark), {intervals: [10]}).toBe(true)
+    return s.opened.length
+  }
   try {
     type Probe = {__presence?: {self: string | null; others: string[]}; __mutePresence?: (ms: number) => void}
+    const [sa, sb] = await Promise.all([watch(a), watch(b)])
+    await Promise.all([a.clock.install(), b.clock.install()])
     await b.goto(t.docPath('post', 'post-03'))
     await t.settle(b)
     await b.waitForFunction(() => !!(window as unknown as Probe).__presence?.self)
+    const muted = sb.opened.at(-1)!
     await b.evaluate(() => (window as unknown as Probe).__mutePresence!(1500))
     await a.goto(t.docPath('post', 'post-03'))
     await t.settle(a)
     await a.waitForFunction(() => !!(window as unknown as Probe).__presence?.self)
     const id = await a.evaluate(() => (window as unknown as Probe).__presence!.self!)
+    const begun = () => (sb.rooms.get(muted) ?? []).some((r) => r.includes(id)) || sb.opened.at(-1) !== muted
+    await expect.poll(begun, {message: "A's arrival reached B's muted stream, or B reopened it", intervals: [25], timeout: 8_000}).toBe(true)
+    // Past the quiet B's page calls dead (lib/stream.ts: its 1 s watchdog, the mute's 1.5 s).
+    if (sb.opened.at(-1) === muted) await b.clock.fastForward(2_600)
     await expect.poll(() => b.evaluate((id) => !!(window as unknown as Probe).__presence?.others.includes(id), id), {intervals: [50], timeout: 8_000}).toBe(true)
+    // A real user's 20 s: on B, whose lever was used, and on A, whose never was. Quiet 12 s
+    // (plus up to 5 s since Barkpark's last beat), the stream is kept; 21 s more, quiet past
+    // 20 s whatever came between, it is opened again, once.
+    for (const [p, s] of [[b, sb], [a, sa]] as const) {
+      const before = await opens(p, s)
+      await p.clock.fastForward(12_000)
+      expect(await opens(p, s), 'quiet 12 s: kept').toBe(before)
+      await p.clock.fastForward(21_000)
+      await expect.poll(() => s.opened.length, {message: 'quiet past 20 s: opened again', intervals: [25]}).toBe(before + 1)
+    }
   } finally {
     await Promise.all([ctxA.close(), ctxB.close()])
   }
