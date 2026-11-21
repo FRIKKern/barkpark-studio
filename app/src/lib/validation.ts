@@ -5,7 +5,7 @@ import {isTableField, tableBlank} from './table-input.ts'
 import {patternProblem, sanityRules} from './validation-rules.ts'
 import {crossProblems} from './cross-rules.ts'
 import {outsideList} from './list-options.ts'
-import {isHidden, isReadOnly} from './conditions.ts'
+import {shutByDoc} from './conditions.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -40,7 +40,7 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // So is a table with no text in any cell.
   if (required && (blank(value) || (isCodeField(field) && blank((value as {code?: unknown}).code)) || (isTableField(field) && tableBlank(value)))) return push(required, t('Required'))
   if (blank(value)) return
-  const shut = at.shut || isHidden(field, at.doc, at.parent) || isReadOnly(field, at.doc, at.parent)
+  const shut = at.shut || shutByDoc(field, at.doc, at.parent)
   // A slug's text is its `current` when Sanity-shaped.
   const text = typeof value === 'string' ? value : field.type === 'slug' && typeof (value as {current?: unknown})?.current === 'string' ? (value as {current: string}).current : undefined
   for (const r of rules) {
