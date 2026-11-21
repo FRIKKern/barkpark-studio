@@ -1,1 +1,1 @@
-journeys/presence-leave.spec.ts -g "gone quiet"
+journeys/presence-leave.spec.ts -g gone.quiet
