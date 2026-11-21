@@ -5,7 +5,6 @@ import {isTableField, tableBlank} from './table-input.ts'
 import {patternProblem, sanityRules} from './validation-rules.ts'
 import {crossProblems} from './cross-rules.ts'
 import {outsideList} from './list-options.ts'
-import {shutByDoc} from './conditions.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -28,8 +27,15 @@ const blank = (v: unknown) => v === undefined || v === null || v === '' || (Arra
 const levelOf = (r: Rule): Level => (r.level === 'warning' || r.level === 'warn' ? 'warning' : r.level === 'info' ? 'info' : 'error')
 const rulesOf = (field: Field): Rule[] => (Array.isArray(field.validation) ? field.validation : field.validation ? [field.validation] : [])
 
-/** Where a field sits: the document, the object around it, and whether the editor can change it here (shut: readOnly or hidden, its own or an object's around it). */
-type Scope = {doc: Doc; parent?: Record<string, unknown>; shut: boolean}
+/**
+ * Whether this person cannot change the field at `at` here (hidden or read-only): the form's
+ * rule, conditions.ts fieldState, as the pane asks it with the person and the studio config.
+ */
+export type Shut = (f: Field, at: {path: string; value: unknown; parent?: Record<string, unknown>}) => boolean
+const open: Shut = () => false
+
+/** Where a field sits: the object around it, the rule to ask, and whether an object around it is shut already (readOnly or hidden for this person). */
+type Scope = {ask: Shut; parent?: Record<string, unknown>; shut: boolean}
 
 function check(field: Field, value: unknown, path: string, parents: string[], group: string | undefined, out: Problem[], target: RefTarget | undefined, t: T, at: Scope) {
   const title = field.title ?? field.name
@@ -40,7 +46,7 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // So is a table with no text in any cell.
   if (required && (blank(value) || (isCodeField(field) && blank((value as {code?: unknown}).code)) || (isTableField(field) && tableBlank(value)))) return push(required, t('Required'))
   if (blank(value)) return
-  const shut = at.shut || shutByDoc(field, at.doc, at.parent)
+  const shut = at.shut || at.ask(field, {path, value, parent: at.parent})
   // A slug's text is its `current` when Sanity-shaped.
   const text = typeof value === 'string' ? value : field.type === 'slug' && typeof (value as {current?: unknown})?.current === 'string' ? (value as {current: string}).current : undefined
   for (const r of rules) {
@@ -85,7 +91,7 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   if (field.of?.type === 'reference' && Array.isArray(value))
     value.forEach((it, i) => refId(it) || out.push({path: itemPath(path, it, i), title, message: t('Must be a reference to a document'), level: 'error', ...(parents.length ? {parents} : {}), group}))
   if (field.type === 'composite' && !isCodeField(field) && !isTableField(field))
-    for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t, {doc: at.doc, parent: value as Record<string, unknown>, shut})
+    for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t, {ask: at.ask, parent: value as Record<string, unknown>, shut})
   // An array's items are checked too (Sanity's "Links / External link / URL"): an object
   // item's fields under the item's kind, a plain item by its type's own rule.
   const of = field.of
@@ -99,7 +105,7 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
         const kindTitle = typeof kind === 'string' ? ((kindField?.options as {value: string; title?: string}[] | undefined)?.find((o) => o.value === kind)?.title ?? kind) : undefined
         const shown = typeof kind === 'string' && opts.fieldsByType?.[kind]
         for (const f of of.fields ?? [])
-          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${item}.${f.name}`, [...parents, title, ...(kindTitle ? [kindTitle] : [])], group, out, target, t, {doc: at.doc, parent: it as Record<string, unknown>, shut})
+          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${item}.${f.name}`, [...parents, title, ...(kindTitle ? [kindTitle] : [])], group, out, target, t, {ask: at.ask, parent: it as Record<string, unknown>, shut})
       } else {
         const shape = typeRule(of.type, it, t)
         if (shape) out.push({path: item, title, message: shape, level: 'error', ...(parents.length ? {parents} : {}), group})
@@ -128,10 +134,14 @@ function notAllowed(value: unknown, t: T): string {
   return text ? t('Value "{value}" did not match any allowed values', {value: text.length > 30 ? `${text.slice(0, 30)}…` : text}) : t('Value did not match any allowed values')
 }
 
-/** `t`: the render's translate (useT), so the messages are in the Studio's language. */
-export function validate(doc: Doc, schema: Schema, target?: RefTarget, t: T = english): Problem[] {
+/**
+ * `t`: the render's translate (useT), so the messages are in the Studio's language. `shut`: the
+ * field rule for this person (fieldState, as the pane asks it); without one no field is shut,
+ * so a value outside its list is an error everywhere (Sanity's).
+ */
+export function validate(doc: Doc, schema: Schema, target?: RefTarget, t: T = english, shut: Shut = open): Problem[] {
   const out: Problem[] = []
-  for (const f of schema.fields) check(f, doc[f.name], f.name, [], f.group, out, target, t, {doc, shut: false})
+  for (const f of schema.fields) check(f, doc[f.name], f.name, [], f.group, out, target, t, {ask: shut, shut: false})
   // The schema's cross-field rules (lib/cross-rules), as Barkpark checks them on write.
   out.push(...crossProblems(doc, schema))
   return out
