@@ -23,7 +23,7 @@ test('J20: the editors chunk failing to load waits, and lands once it can', asyn
 // J36: a click on a server-drawn image field before its chunk lands is held, then made
 // once the input is live. The page marks itself interactive first (React hydrates these
 // inputs later), and releasing at that mark clicked the inert button: lost (task-63978ba572421248).
-test('J36: the first click on Select, before the editors chunk lands, still opens it', async ({page, testStart}, info) => {
+test('J36: the first click on Select, before the editors chunk lands, still opens it', async ({page}, info) => {
   const t = target(info)
   test.skip(t.name !== 'studio', "ours: the chunk is this studio's")
   // On CI this flaked about 1 run in 6 from 2026-10-14 23:52 UTC and never locally
@@ -64,7 +64,7 @@ test('J36: the first click on Select, before the editors chunk lands, still open
     // Icons drawn as <svg/>, so the 2,000 characters reach the image box.
     const markup = await image.evaluate((el) => el.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>')).catch((err: Error) => `(no fieldset: ${err.message.split('\n')[0]})`)
     console.log(`J36 click still waiting at ${at()}; editors chunk: ${chunk.join('; ') || 'never asked'}\nMain image fieldset (${markup.length} chars): ${markup.slice(0, 2_000)}`)
-  }, Math.max(0, testStart + test.info().timeout - 1_500 - Date.now()))
+  }, Math.max(0, test.info().timeout - (Date.now() - started) - 1_500))
   await image.getByRole('button', {name: 'Select'}).click().finally(() => clearTimeout(waiting))
   await expect(page.getByRole('dialog'))
     .toBeVisible({timeout: 5_000})

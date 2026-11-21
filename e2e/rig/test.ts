@@ -56,9 +56,7 @@ async function deskSignIn(browser: Browser, baseURL: string | undefined) {
   return deskSession
 }
 
-export const test = base.extend<{errorWatch: void; testStart: number}>({
-  // When this test's timeout began counting (fixtures included): set up first, it only reads the clock.
-  testStart: [async ({}, use) => use(Date.now()), {auto: true}],
+export const test = base.extend<{errorWatch: void}>({
   errorWatch: [
     async ({context, browser}, use, info) => {
       const problems: string[] = []
@@ -86,7 +84,7 @@ export const test = base.extend<{errorWatch: void; testStart: number}>({
         watched.push(c)
         return c
       }
-      await new Promise((r) => setTimeout(r, 1_500)) // PLANT 2 (never merged): setup held back 1.5 s
+      await new Promise((r) => setTimeout(r, 1_500)) // PLANT 3 (never merged): setup held back 1.5 s, on main's print timing
       try {
         await use()
       } finally {
