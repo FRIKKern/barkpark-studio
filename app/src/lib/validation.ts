@@ -6,6 +6,7 @@ import {patternProblem, sanityRules} from './validation-rules.ts'
 import {crossProblems} from './cross-rules.ts'
 import {outsideList} from './list-options.ts'
 import {narrowImage, type WidthOf} from './image-min-width.ts'
+import {memberFor, memberName, membersOf} from './array-members.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -97,11 +98,16 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   if (field.type === 'composite' && !isCodeField(field) && !isTableField(field))
     for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t, {ask: at.ask, parent: value as Record<string, unknown>, shut, widthOf: at.widthOf})
   // An array's items are checked too (Sanity's "Links / External link / URL"): an object
-  // item's fields under the item's kind, a plain item by its type's own rule.
-  const of = field.of
-  if (of && of.type !== 'reference' && Array.isArray(value))
+  // item's fields under the item's kind, a plain item by its type's own rule. A page builder's
+  // (several members, HSO's innhold): each item under the member its _type names, that member's
+  // title in its parents; an item no member names is not judged (lib/array-members).
+  const members = Array.isArray(value) ? membersOf(field) : []
+  if (members.length && Array.isArray(value))
     value.forEach((it, i) => {
+      const of = memberFor(members, it)
+      if (!of || of.type === 'reference') return
       const item = itemPath(path, it, i)
+      const own = members.length > 1 ? [of.title ?? memberName(of)] : []
       if (of.type === 'composite' && it && typeof it === 'object') {
         const opts = (of.options ?? {}) as {typeField?: string; fieldsByType?: Record<string, string[]>}
         const kind = opts.typeField ? (it as Record<string, unknown>)[opts.typeField] : undefined
@@ -109,7 +115,7 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
         const kindTitle = typeof kind === 'string' ? ((kindField?.options as {value: string; title?: string}[] | undefined)?.find((o) => o.value === kind)?.title ?? kind) : undefined
         const shown = typeof kind === 'string' && opts.fieldsByType?.[kind]
         for (const f of of.fields ?? [])
-          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${item}.${f.name}`, [...parents, title, ...(kindTitle ? [kindTitle] : [])], group, out, target, t, {ask: at.ask, parent: it as Record<string, unknown>, shut, widthOf: at.widthOf})
+          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${item}.${f.name}`, [...parents, title, ...own, ...(kindTitle ? [kindTitle] : [])], group, out, target, t, {ask: at.ask, parent: it as Record<string, unknown>, shut, widthOf: at.widthOf})
       } else {
         const shape = typeRule(of.type, it, t)
         if (shape) out.push({path: item, title, message: shape, level: 'error', ...(parents.length ? {parents} : {}), group})
