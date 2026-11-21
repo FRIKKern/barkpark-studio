@@ -10,7 +10,8 @@ import {useCustomRules} from '../lib/use-custom-rules'
 import {useParseErrors} from '../lib/parse-errors'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
-import {errorsOf, formOrder, validate, worst, type Problem} from '../lib/validation'
+import {errorsOf, formOrder, worst, type Problem} from '../lib/validation'
+import {formCheck, refFieldsOf} from '../lib/publish-check'
 import {advisoryProblems} from '../lib/findings'
 import {docQuery, docTitle, isFixed, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
@@ -99,9 +100,6 @@ const fieldEl = (root: HTMLElement | null, path: string) => {
   return el && !el.matches(TAKES_FOCUS) ? (el.querySelector<HTMLElement>(TAKES_FOCUS) ?? el) : el
 }
 
-/** A field this person cannot change here: a value outside its list warns there, never blocks Publish (lib/validation). */
-const shutHere = (state: {hidden: boolean; readOnly: boolean}) => state.hidden || state.readOnly
-
 export function DocumentPane({panes, index, split, closeHref, header, closeIcon}: Props) {
   const t = useT()
   const locale = useLocale()
@@ -177,7 +175,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const schemaForPane = schemaOf(schemas, pane.type)
   // The docs this one's reference fields point at (cached already for their previews).
   // A bare id or Sanity's {_ref} alike (an import, a weak reference).
-  const refFields = (schemaForPane?.fields ?? []).filter((f) => f.type === 'reference' && refId(doc?.[f.name]))
+  const refFields = refFieldsOf(schemaForPane, doc)
   const targets = useQueries({queries: refFields.map((f) => docQuery(refTypesOf(f), refId(doc![f.name])!))})
   const byId = new Map(refFields.map((f, i) => [refId(doc![f.name])!, targets[i].data]))
   // J18: a new doc nobody has typed in yet exists only here; Sanity checks nothing until the first edit.
@@ -200,7 +198,7 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   // the refs the check asked for are read below (one read each, kept), and it checks again then.
   const askedWidths = new Set<string>()
   const widthOf = (ref: string) => (askedWidths.add(ref), qcHere.getQueryData(fileInfoQuery(ref).queryKey))
-  const checked = doc && schemaForPane && !viewingPublished && !gone && !pristine ? validate(doc, schemaForPane, (id) => byId.get(id), t, (f, at) => shutHere(fieldState(schemaForPane.name, f, doc, user, studio.form?.conditions, at)), widthOf) : []
+  const checked = doc && schemaForPane && !viewingPublished && !gone && !pristine ? formCheck(doc, schemaForPane, user, studio.form?.conditions, {target: (id) => byId.get(id), t, widthOf}) : []
   useQueries({queries: [...askedWidths].map(fileInfoQuery)})
   // J28: a slug another document of this type has (a duplicate's copied slug) is taken, as Sanity says.
   const slugTaken = useSlugInUse(doc, schemaForPane, !!doc && !!schemaForPane && !viewingPublished && !gone && !pristine, t)

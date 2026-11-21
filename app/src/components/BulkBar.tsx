@@ -1,9 +1,13 @@
 import {useState} from 'react'
 import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {schemaOf, schemasQuery, type Doc} from '../lib/data'
+import {docQuery, docTitle, refTypesOf, schemaOf, schemasQuery, type Doc} from '../lib/data'
 import {offers, type FixedAction} from '../lib/fixed-documents'
-import {publish, reasonOf, unpublish} from '../lib/edits'
-import {bulkResultSummary, bulkSummary, isWall, type BulkAction, type Outcome, type RowResult} from '../lib/bulk'
+import {bulkResultSummary, bulkSummary, type BulkAction, type RowResult} from '../lib/bulk'
+import {runBulk, type Judge} from '../lib/bulk-publish'
+import {rulesFor} from '../lib/use-custom-rules'
+import {fileInfoQuery} from '../lib/file-info'
+import {useCurrentUser} from '../lib/person-source'
+import studio from '../studio.config'
 import {useCanWrite} from '../lib/session'
 import {slugsTakenAmong} from '../lib/slug-unique'
 import {UnpublishDialog} from './UnpublishDialog'
@@ -20,6 +24,7 @@ export function BulkBar({picked, onClear, onKeep}: {picked: Doc[]; onClear: () =
   const t = useT()
   const qc = useQueryClient()
   const {canWrite, publishReason} = useCanWrite()
+  const user = useCurrentUser()
   const [running, setRunning] = useState<{action: 'publish' | 'unpublish'; at: number} | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [bulk, setBulk] = useState<BulkAction | null>(null)
@@ -32,32 +37,22 @@ export function BulkBar({picked, onClear, onKeep}: {picked: Doc[]; onClear: () =
     onKeep([...results].filter(([, r]) => r.state === 'failed' || (r.state === 'skipped' && r.why !== 'gone')).map(([id]) => id))
   }
   const run = async (action: 'publish' | 'unpublish') => {
-    const outcomes: Outcome[] = []
-    // Slugs in use, asked once for all of them (publish asks per doc otherwise). Can't tell: none.
     setRunning({action, at: 1})
-    const schemas = qc.getQueryData(schemasQuery.queryKey)
-    const latest = picked.filter((d) => d._draft).map((d) => qc.getQueryData<Doc>(['doc', d._publishedId]) ?? d)
-    const taken = action === 'publish' ? await slugsTakenAmong(qc, latest, (type) => schemas?.find((x) => x.name === type)).catch(() => new Map<string, string[]>()) : new Map<string, string[]>()
-    for (const [i, doc] of picked.entries()) {
-      setRunning({action, at: i + 1})
-      // Nothing to do: publishing a doc with no draft, unpublishing one never published.
-      if (action === 'publish' ? !doc._draft : doc._hasPublished === false) {
-        outcomes.push({kind: 'skipped'})
-        continue
-      }
-      const slugs = action === 'publish' && taken.get(doc._publishedId)
-      if (slugs) {
-        outcomes.push({kind: 'failed', reason: `${slugs.join(', ')}: ${t('Slug is already in use')}`})
-        continue
-      }
-      try {
-        await (action === 'publish' ? publish(qc, doc, {slugsChecked: true}) : unpublish(qc, doc))
-        outcomes.push({kind: 'done'})
-      } catch (e) {
-        const msg = (e as Error).message
-        outcomes.push({kind: isWall(msg) ? 'walled' : 'failed', reason: reasonOf(msg) ?? msg})
-      }
+    const schemas = qc.getQueryData(schemasQuery.queryKey) ?? []
+    // A publish asks what the document's own Publish asks, for this person (lib/publish-check.ts), with
+    // the pane's reads: the whole draft read fresh (a list row may be a projection), each reference's target.
+    const judge: Judge = {
+      conditions: studio.form?.conditions,
+      schemaFor: (type) => schemaOf(schemas, type),
+      rulesFor,
+      nameOf: (d, s) => (s ? docTitle(d, s, t) : d._publishedId),
+      t,
+      widthOf: (ref) => qc.getQueryData(fileInfoQuery(ref).queryKey),
+      readDoc: (type, id) => qc.fetchQuery({...docQuery(type, id), staleTime: 0}),
+      readRef: (f, id) => qc.fetchQuery(docQuery(refTypesOf(f), id)),
+      slugsAmong: (docs) => slugsTakenAmong(qc, docs, (type) => schemaOf(schemas, type)),
     }
+    const outcomes = await runBulk(qc, action, picked, user, {judge, at: (i) => setRunning({action, at: i}), t})
     setRunning(null)
     toast(bulkSummary(action, outcomes, tBrowser), 8000)
     onClear()
