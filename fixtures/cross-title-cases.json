@@ -1,0 +1,650 @@
+{
+ "about": "Cases for a cross rule's message (cross_validator.ex findings, task-57d0947d4a29a073, task-e4af1e37066bfb66): the rule's title when it is non-empty text, else its name when that is, else \"cross-field rule\". 'server' per case is the messages of the findings Barkpark gives for the one rule on a schema with fields meny innhold tittel innstillinger. app/src/lib/cross-title-server.test.ts checks the studio's problems say the same. Regenerate: elixir scripts/field-visibility-cases.exs <barkpark checkout>.",
+ "server": "barkpark 32ac9ec317",
+ "cases": [
+  {
+   "name": "plain rule, a per-language map title: the name",
+   "rule": {
+    "name": "r",
+    "title": {
+     "nb": "Velg side",
+     "en": "Pick a page"
+    },
+    "level": "error",
+    "fields": [
+     "tittel"
+    ],
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "",
+    "meny": []
+   },
+   "server": [
+    "r"
+   ]
+  },
+  {
+   "name": "plain rule, an empty title: the name",
+   "rule": {
+    "name": "r",
+    "title": "",
+    "level": "error",
+    "fields": [
+     "tittel"
+    ],
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "",
+    "meny": []
+   },
+   "server": [
+    "r"
+   ]
+  },
+  {
+   "name": "plain rule, no title: the name",
+   "rule": {
+    "name": "r",
+    "level": "error",
+    "fields": [
+     "tittel"
+    ],
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "",
+    "meny": []
+   },
+   "server": [
+    "r"
+   ]
+  },
+  {
+   "name": "plain rule, a number title and an empty name: the default",
+   "rule": {
+    "name": "",
+    "title": 7,
+    "level": "error",
+    "fields": [
+     "tittel"
+    ],
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "",
+    "meny": []
+   },
+   "server": [
+    "cross-field rule"
+   ]
+  },
+  {
+   "name": "plain rule, no title and no name: the default",
+   "rule": {
+    "level": "error",
+    "fields": [
+     "tittel"
+    ],
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "",
+    "meny": []
+   },
+   "server": [
+    "cross-field rule"
+   ]
+  },
+  {
+   "name": "plain rule, a text title: the title",
+   "rule": {
+    "name": "r",
+    "title": "Tittel mangler",
+    "level": "error",
+    "fields": [
+     "tittel"
+    ],
+    "rule": {
+     "field": "tittel",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "",
+    "meny": []
+   },
+   "server": [
+    "Tittel mangler"
+   ]
+  },
+  {
+   "name": "item rule, a map title, one broken item: the name",
+   "rule": {
+    "name": "r",
+    "title": {
+     "nb": "Velg side"
+    },
+    "level": "error",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "field": "side",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "T",
+    "meny": [
+     {
+      "_key": "a"
+     }
+    ]
+   },
+   "server": [
+    "r"
+   ]
+  },
+  {
+   "name": "item rule, a map title, 51 broken items: the name, and the summary line",
+   "rule": {
+    "name": "r",
+    "title": {
+     "nb": "Velg side"
+    },
+    "level": "error",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "field": "side",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "T",
+    "meny": [
+     {
+      "_key": "k1"
+     },
+     {
+      "_key": "k2"
+     },
+     {
+      "_key": "k3"
+     },
+     {
+      "_key": "k4"
+     },
+     {
+      "_key": "k5"
+     },
+     {
+      "_key": "k6"
+     },
+     {
+      "_key": "k7"
+     },
+     {
+      "_key": "k8"
+     },
+     {
+      "_key": "k9"
+     },
+     {
+      "_key": "k10"
+     },
+     {
+      "_key": "k11"
+     },
+     {
+      "_key": "k12"
+     },
+     {
+      "_key": "k13"
+     },
+     {
+      "_key": "k14"
+     },
+     {
+      "_key": "k15"
+     },
+     {
+      "_key": "k16"
+     },
+     {
+      "_key": "k17"
+     },
+     {
+      "_key": "k18"
+     },
+     {
+      "_key": "k19"
+     },
+     {
+      "_key": "k20"
+     },
+     {
+      "_key": "k21"
+     },
+     {
+      "_key": "k22"
+     },
+     {
+      "_key": "k23"
+     },
+     {
+      "_key": "k24"
+     },
+     {
+      "_key": "k25"
+     },
+     {
+      "_key": "k26"
+     },
+     {
+      "_key": "k27"
+     },
+     {
+      "_key": "k28"
+     },
+     {
+      "_key": "k29"
+     },
+     {
+      "_key": "k30"
+     },
+     {
+      "_key": "k31"
+     },
+     {
+      "_key": "k32"
+     },
+     {
+      "_key": "k33"
+     },
+     {
+      "_key": "k34"
+     },
+     {
+      "_key": "k35"
+     },
+     {
+      "_key": "k36"
+     },
+     {
+      "_key": "k37"
+     },
+     {
+      "_key": "k38"
+     },
+     {
+      "_key": "k39"
+     },
+     {
+      "_key": "k40"
+     },
+     {
+      "_key": "k41"
+     },
+     {
+      "_key": "k42"
+     },
+     {
+      "_key": "k43"
+     },
+     {
+      "_key": "k44"
+     },
+     {
+      "_key": "k45"
+     },
+     {
+      "_key": "k46"
+     },
+     {
+      "_key": "k47"
+     },
+     {
+      "_key": "k48"
+     },
+     {
+      "_key": "k49"
+     },
+     {
+      "_key": "k50"
+     },
+     {
+      "_key": "k51"
+     }
+    ]
+   },
+   "server": [
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r",
+    "r (1 more item)"
+   ]
+  },
+  {
+   "name": "item rule, an empty title, one broken item: the name",
+   "rule": {
+    "name": "r",
+    "title": "",
+    "level": "error",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "field": "side",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "T",
+    "meny": [
+     {
+      "_key": "a"
+     }
+    ]
+   },
+   "server": [
+    "r"
+   ]
+  },
+  {
+   "name": "item rule, a text title, 51 broken items: the title, and the summary line",
+   "rule": {
+    "name": "r",
+    "title": "Velg side",
+    "level": "error",
+    "each": "meny",
+    "fields": [
+     "side"
+    ],
+    "rule": {
+     "field": "side",
+     "operator": "non_empty"
+    }
+   },
+   "doc": {
+    "tittel": "T",
+    "meny": [
+     {
+      "_key": "k1"
+     },
+     {
+      "_key": "k2"
+     },
+     {
+      "_key": "k3"
+     },
+     {
+      "_key": "k4"
+     },
+     {
+      "_key": "k5"
+     },
+     {
+      "_key": "k6"
+     },
+     {
+      "_key": "k7"
+     },
+     {
+      "_key": "k8"
+     },
+     {
+      "_key": "k9"
+     },
+     {
+      "_key": "k10"
+     },
+     {
+      "_key": "k11"
+     },
+     {
+      "_key": "k12"
+     },
+     {
+      "_key": "k13"
+     },
+     {
+      "_key": "k14"
+     },
+     {
+      "_key": "k15"
+     },
+     {
+      "_key": "k16"
+     },
+     {
+      "_key": "k17"
+     },
+     {
+      "_key": "k18"
+     },
+     {
+      "_key": "k19"
+     },
+     {
+      "_key": "k20"
+     },
+     {
+      "_key": "k21"
+     },
+     {
+      "_key": "k22"
+     },
+     {
+      "_key": "k23"
+     },
+     {
+      "_key": "k24"
+     },
+     {
+      "_key": "k25"
+     },
+     {
+      "_key": "k26"
+     },
+     {
+      "_key": "k27"
+     },
+     {
+      "_key": "k28"
+     },
+     {
+      "_key": "k29"
+     },
+     {
+      "_key": "k30"
+     },
+     {
+      "_key": "k31"
+     },
+     {
+      "_key": "k32"
+     },
+     {
+      "_key": "k33"
+     },
+     {
+      "_key": "k34"
+     },
+     {
+      "_key": "k35"
+     },
+     {
+      "_key": "k36"
+     },
+     {
+      "_key": "k37"
+     },
+     {
+      "_key": "k38"
+     },
+     {
+      "_key": "k39"
+     },
+     {
+      "_key": "k40"
+     },
+     {
+      "_key": "k41"
+     },
+     {
+      "_key": "k42"
+     },
+     {
+      "_key": "k43"
+     },
+     {
+      "_key": "k44"
+     },
+     {
+      "_key": "k45"
+     },
+     {
+      "_key": "k46"
+     },
+     {
+      "_key": "k47"
+     },
+     {
+      "_key": "k48"
+     },
+     {
+      "_key": "k49"
+     },
+     {
+      "_key": "k50"
+     },
+     {
+      "_key": "k51"
+     }
+    ]
+   },
+   "server": [
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side",
+    "Velg side (1 more item)"
+   ]
+  }
+ ]
+}
