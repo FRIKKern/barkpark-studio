@@ -54,6 +54,7 @@ test('J31 datetime zones: displayTimeZone shows New York, a switch to Oslo moves
 // reader, validation, paste and every write path are node tests (app/src/lib/list-options.test.ts).
 test('J31 an integer list as radios: 4 outside the list stays, is said and can be cleared; a click stores 6, ArrowUp 3', async ({page}, info) => {
   const t = target(info)
+  test.skip(!(await schemaHasField('fieldTypes', 'perPage')), "this dataset's fieldTypes schema has no perPage yet (reseed with --schemas)")
   // Published, as a document whose list changed later is: a draft never edited stays quiet (D04).
   await Promise.all([t.draftOnly(ID, 'fieldTypes', {title: 'Per page', perPage: 4}).then(() => t.patch(ID, {title: 'Per page'}, 'fieldTypes')), t.prepare(page.context())])
   await page.goto(t.docPath('fieldTypes', ID))
