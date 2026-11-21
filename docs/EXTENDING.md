@@ -96,7 +96,8 @@ No known width (not read, or none stored) and an SVG give nothing. The width is 
 
 A slug's Generate is Sanity's default (speakingurl) unless `options.slugify` names a built-in
 table: `"nb"` is HSO's Norwegian rule (æ → ae, ø → o, å → a, other accents dropped, anything
-else one hyphen), still cut at `maxLength`. Barkpark stores the option as it is. A name the
+else one hyphen), still cut at `maxLength`, its own option: HSO's rule cut at 96, so give it
+`maxLength: 96` (unset, it is 200). Barkpark stores the option as it is. A name the
 studio does not know is the default slug, with one console warning. The tables are data in
 `app/src/lib/slugify.ts`; `"nb"` is pinned against HSO's own code by
 `fixtures/slugify-nb-cases.json` (`node scripts/slugify-nb-cases.mjs <hovinbyen-ny checkout>`).
