@@ -18,6 +18,7 @@ import {plainReason} from './plain-reason'
 import {onto, revertSteps} from './merge'
 import {answered, rebase, same, sentNotesOf, takeBase, unsent, type Spots} from './edit-bases'
 import {applyPaths, getPath, keyedRoots, setInside, setPath, within} from './paths'
+import {createBody} from './create-nulls'
 import {setTableKeptScope, takeTableKept} from './table-kept'
 import {askUntilAnswered, carriesPatch, DMP_TTL_MS, landingUnsure, patchMayGo, settledAt, settleDmp, SPAN_TEXT, splitDmp} from './pt-dmp'
 import {spanAnswer, spanRoot, type Typed} from './pt-span'
@@ -567,7 +568,7 @@ export function flushOnUnload() {
     const fields = new Map([...going, ...e.dirty])
     if (fields.size === 0 && (!e.createRequested || e.inflight)) return []
     const {set, unset} = toPatch(fields)
-    return [e.pendingCreate ? {create: {_id: id, _type: e.type, ...applyPaths(e.pendingCreate as Record<string, Json>, e.dirty)}} : {patch: {id, type: e.type, set, unset}}]
+    return [e.pendingCreate ? {create: {_id: id, _type: e.type, ...createBody(e.pendingCreate as Record<string, Json>, e.dirty)}} : {patch: {id, type: e.type, set, unset}}]
   })
   if (mutations.length) navigator.sendBeacon('/api/mutate', new Blob([JSON.stringify({mutations})], {type: 'application/json'}))
 }
@@ -730,7 +731,7 @@ async function send(qc: QueryClient, id: string) {
     // Span patches alone need no fence there: they merge into the draft another editor's
     // first key made a moment ago (fenced, the second editor's first word cost a 412).
     const mutations: Json[] = creating
-      ? [{create: {_id: id, _type: e.type, ...applyPaths(creating as Record<string, Json>, e.inflight)}}]
+      ? [{create: {_id: id, _type: e.type, ...createBody(creating as Record<string, Json>, e.inflight)}}]
       : e.forks
         ? [{patch: {id, type: e.type, set: {}, ...(sets.size ? fence : {})}}, {patch: {id, type: e.type, set, unset, ...diffMatchPatch}}]
         : [{patch: {id, type: e.type, set, unset, ...diffMatchPatch, ...fence, ...(e.rev ? FIELDS_FENCE : {})}}]

@@ -26,6 +26,7 @@ import {SignInAgain} from './SignInAgain'
 import {useTip} from './Tip'
 import {copyRank} from './OrderableRows'
 import {copyFields} from '../lib/bulk'
+import {withCopyNulls} from '../lib/create-nulls'
 import {PersonCheckBanner} from './PersonCheckBanner'
 import {meQuery, useBoundElsewhere, useCanWrite, useStudioTokenRefused} from '../lib/session'
 import {useCurrentUser} from '../lib/person-source'
@@ -488,7 +489,8 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const metaButton = useRef<HTMLButtonElement>(null)
   const duplicate = (from: Doc) => {
     const id = crypto.randomUUID()
-    const fields = copyFields(from, copyRank(qc, from))
+    // What the original left empty stays empty: a null where Barkpark would fill an initial value.
+    const fields = withCopyNulls(schema?.initialValues, copyFields(from, copyRank(qc, from)))
     // A copy as it is: a "$today" typed into a field stays text.
     const created = createDoc(qc, from._type, id, {asIs: fields})
     navigate({href: panesPath([...panes.slice(0, index), {...pane, id, view: undefined, path: undefined, rev: undefined}])})
