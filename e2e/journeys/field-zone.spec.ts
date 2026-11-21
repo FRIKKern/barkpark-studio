@@ -52,6 +52,7 @@ test('J31 datetime zones: displayTimeZone shows New York, a switch to Oslo moves
 // options.list [3, 6] as radios. Only what a browser shows: a stored 4 (outside the list) checks no
 // radio, is said, stays and can be cleared; a click stores the number 6; ArrowUp moves to 3. The
 // reader, validation, paste and every write path are node tests (app/src/lib/list-options.test.ts).
+// perPage reaches the fixture schema in its own PR (G4 follow-up); until then this skips.
 test('J31 an integer list as radios: 4 outside the list stays, is said and can be cleared; a click stores 6, ArrowUp 3', async ({page}, info) => {
   const t = target(info)
   test.skip(!(await schemaHasField('fieldTypes', 'perPage')), "this dataset's fieldTypes schema has no perPage yet (reseed with --schemas)")
