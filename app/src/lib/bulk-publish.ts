@@ -49,6 +49,31 @@ async function publishHold(doc: Doc, who: Person, judge: Judge, t: T): Promise<s
   return first ? heldReason(first) : null
 }
 
+/** How many times more a draft changed while it was checked is checked again, before it is held. */
+const REJUDGES = 2
+
+/**
+ * The draft judged as Barkpark has it when its turn comes, and published only as judged
+ * (task-bc49c598e05b1fbf): read fresh, judged, read again. Changed meanwhile (another editor,
+ * or a custom rule's wait), it is judged again, at most REJUDGES times more, then held. The
+ * window left is the footer's own: the last read to the publish (Barkpark's publish takes no
+ * revision yet, task-bda8661555dfd481).
+ */
+async function judgedNow(qc: QueryClient, row: Doc, who: Person, judge: Judge, t: T): Promise<{ready: Doc} | {outcome: Outcome}> {
+  const name = (d: Doc | null | undefined) => judge.nameOf(d ?? row, judge.schemaFor(row._type))
+  let now = await fullDraft(qc, row, judge)
+  for (let round = 0; ; round++) {
+    if (now === null || (now && !now._draft)) return {outcome: {kind: 'skipped'}}
+    if (!now) return {outcome: {kind: 'held', doc: name(now), reason: t('It could not be read: open it to check')}}
+    const held = await publishHold(now, who, judge, t)
+    if (held) return {outcome: {kind: 'held', doc: name(now), reason: held}}
+    const again = await fullDraft(qc, row, judge)
+    if (again && again._draft && again._rev === now._rev) return {ready: again}
+    if (again && again._draft && round === REJUDGES) return {outcome: {kind: 'held', doc: name(again), reason: t('It changed while it was checked: open it to check')}}
+    now = again
+  }
+}
+
 async function send(write: () => Promise<unknown>): Promise<Outcome> {
   try {
     await write()
@@ -97,12 +122,14 @@ export async function runBulk(qc: QueryClient, action: 'publish' | 'unpublish', 
       outcomes.push({kind: 'failed', reason: `${slugs.join(', ')}: ${t('Slug is already in use')}`})
       continue
     }
-    const held = await publishHold(now, who, judge, t)
-    if (held) {
-      outcomes.push({kind: 'held', doc: name(), reason: held})
+    const judged = await judgedNow(qc, row, who, judge, t)
+    if ('outcome' in judged) {
+      outcomes.push(judged.outcome)
       continue
     }
-    outcomes.push(await send(() => publish(qc, now, {slugsChecked: taken !== null})))
+    // The slugs were asked of the draft as first read: changed since, its publish asks its own.
+    const same = judged.ready._rev === now._rev
+    outcomes.push(await send(() => publish(qc, judged.ready, {slugsChecked: same && taken !== null})))
   }
   return outcomes
 }

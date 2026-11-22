@@ -183,6 +183,38 @@ test('a strong reference inside an object or an array item is judged as a top-le
   ])
 })
 
+test('publish selected never publishes a draft someone changed after it was judged: the next draft is read when its turn comes (task-bc49c598e05b1fbf)', async () => {
+  // While the first draft's custom rule is awaited, someone empties the second one's required title.
+  const en = draft('en', {tittel: 'Første'})
+  const to = draft('to', {tittel: 'Andre'})
+  const rules = [{path: 'tittel', validate: async (v: unknown) => (v === 'Første' && server.set('to', {...to, tittel: '', _rev: 'r2'} as Draft), true)}]
+  const {outcomes, published} = await run([en, to], {rulesFor: () => rules})
+  assert.deepEqual(published, ['en'])
+  assert.deepEqual(outcomes, [{kind: 'done'}, {kind: 'held', doc: 'to', reason: 'Tittel: Required'}])
+})
+
+test('publish selected reads a draft again after judging it: changed during its own check, it is judged again; still changing after two more checks, it is held', async () => {
+  // Emptied while its own check is awaited: judged again on what Barkpark has now, and held by it.
+  const selv = draft('selv', {tittel: 'Selv'})
+  const once = [{path: 'tittel', validate: async (v: unknown) => (v === 'Selv' && server.set('selv', {...selv, tittel: '', _rev: 'r2'} as Draft), true)}]
+  const first = await run([selv], {rulesFor: () => once})
+  assert.deepEqual(first.published, [])
+  assert.deepEqual(first.outcomes, [{kind: 'held', doc: 'selv', reason: 'Tittel: Required'}])
+  // Changed (still valid) during every check: three checks, then held, and no publish is sent.
+  let checks = 0
+  const uro = draft('uro', {tittel: 'Uro'})
+  const always = [{path: 'tittel', validate: async () => (server.set('uro', {...uro, _rev: `u${++checks}`}), true)}]
+  const busy = await run([uro], {rulesFor: () => always})
+  assert.equal(checks, 3)
+  assert.deepEqual(busy.published, [])
+  assert.deepEqual(busy.outcomes, [{kind: 'held', doc: 'Uro', reason: 'It changed while it was checked: open it to check'}])
+  // Not changed: judged once and published as judged.
+  checks = 0
+  const still = [{path: 'tittel', validate: async () => (++checks, true)}]
+  assert.deepEqual((await run([draft('ro', {tittel: 'Ro'})], {rulesFor: () => still})).published, ['ro'])
+  assert.equal(checks, 1)
+})
+
 test('one reader: the pane and Publish selected ask lib/publish-check.ts with the same reads, and the bar sends every publish through runBulk', () => {
   const src = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8')
   const pane = src('../components/DocumentPane.tsx')
