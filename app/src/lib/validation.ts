@@ -121,8 +121,11 @@ const inText = (p: Problem) => (textWarnings.add(p), p)
 /** Whether a problem on a rich-text field is about an image in its blocks (lib/findings: no stand-in for the field's own). */
 export const aboutBlocks = (p: Problem) => textWarnings.has(p)
 
-/** The problems a field's mark shows (components/Fields ProblemMark): its own; `within`, a hidden child's too. */
-export const markedAt = (p: Problem, path: string, within?: boolean) => p.path === path || (!!within && p.path.startsWith(`${path}.`))
+/**
+ * The problems a field's mark shows (components/Fields ProblemMark): its own and its items' (an
+ * array's label lights for any row under it, as Sanity's); `within`, a hidden child's too.
+ */
+export const markedAt = (p: Problem, path: string, within?: boolean) => p.path === path || p.path.startsWith(`${path}[`) || (!!within && p.path.startsWith(`${path}.`))
 
 /** A rich-text field's declared block types as members: an object block (its fields) or an image block. */
 function blockMembers(field: Field): Field[] {
