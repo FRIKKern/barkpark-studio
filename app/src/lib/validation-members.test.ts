@@ -64,6 +64,15 @@ test("after a save, Barkpark's finding on a page-builder item is the Studio's ow
   ])
 })
 
+test('a rich-text block finding arrives keyed too, and still shows on the text field under its block (Body / Callout / Tone)', () => {
+  const text = {name: 'post', title: 'Post', fields: [{name: 'body', title: 'Body', type: 'richText', blocks: {of: [{name: 'callout', title: 'Callout', fields: [{name: 'tone', title: 'Tone', type: 'string', validation: {required: true}}]}]}}]} as never
+  const saved = {body: [{_key: 'p', _type: 'block'}, {_key: 'c', _type: 'callout'}]}
+  const keyed = keyedAt([{path: '/body/1/tone', code: 'required', message: 'Required'}], saved)
+  assert.equal(keyed[0]!.at, 'body[_key=="c"].tone')
+  const [p] = advisoryProblems(keyed, text, [], (en) => en)
+  assert.deepEqual([p!.path, p!.parents, p!.title, p!.level], ['body', ['Body', 'Callout'], 'Tone', 'error'])
+})
+
 // One member (`of` a single field): every problem as on main c7ab09c5 (the table's answers are
 // main's, read there), so only a page builder's items are newly judged.
 const one = {
