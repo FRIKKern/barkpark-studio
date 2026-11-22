@@ -239,8 +239,10 @@ const fetchListSearch = createServerFn({method: 'GET'})
   })
 
 // A reference with several target types names them all; the doc is whichever has the id.
+// `fresh`: Barkpark's answer now, never the read the studio server shares for 0.5 s (bpFetch):
+// Publish selected's reads, which a publish must not trust from before an edit (task-bc49c598e05b1fbf).
 const fetchDoc = createServerFn({method: 'GET'})
-  .validator((d: {type: string | string[]; id: string}) => d)
+  .validator((d: {type: string | string[]; id: string; fresh?: boolean}) => d)
   .handler(async ({data}) =>
     // An id any of several types may hold (presence names a doc by id only): one read names
     // its type. Asking each type in turn was a read per type, 64 in a row for a 64-type model.
@@ -248,7 +250,7 @@ const fetchDoc = createServerFn({method: 'GET'})
       typeOf: async (id) => (await typesOf([id]))[id],
       read: async (type, id) => {
         const path = `/v1/data/doc/${dataset()}/${encodeURIComponent(type)}/${encodeURIComponent(id)}?perspective=drafts`
-        const res = await bpFetch(path)
+        const res = await bpFetch(path, {}, undefined, {fresh: data.fresh})
         if (res.status === 404) return null
         if (!res.ok) throw new Error(`Barkpark ${path} → ${res.status}`)
         const [doc] = await withHasPublished(type, [((await res.json()) as {result: Doc}).result])
@@ -643,13 +645,13 @@ let withUnsaved = (doc: Doc) => doc
 export const readServerDoc = async (type: string | string[], id: string) => (await fetchDoc({data: {type, id}})) as unknown as Doc | null
 export const setUnsavedOverlay = (f: (doc: Doc) => Doc) => void (withUnsaved = f)
 
-export const docQuery = (type: string | string[], id: string) =>
+export const docQuery = (type: string | string[], id: string, {fresh = false}: {fresh?: boolean} = {}) =>
   queryOptions({
     queryKey: ['doc', id],
     staleTime: 30_000,
     ...paneRetry,
     queryFn: async () => {
-      const doc = (await fetchDoc({data: {type, id}})) as unknown as Doc | null
+      const doc = (await fetchDoc({data: {type, id, ...(fresh ? {fresh} : {})}})) as unknown as Doc | null
       return doc && withUnsaved(doc)
     },
   })

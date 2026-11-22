@@ -20,7 +20,7 @@ export type Judge = Omit<Ask, 'target'> & {
   schemaFor: (type: string) => Schema | undefined
   rulesFor: (type: string) => CustomRule[]
   nameOf: (doc: Doc, schema: Schema | undefined) => string
-  /** The whole draft, read fresh (the pane's docQuery, never the list's row); null: not there. */
+  /** The whole draft, read fresh: Barkpark's answer now (docQuery's `fresh`), never the list's row nor a shared read; null: not there. */
   readDoc: (type: string, id: string) => Promise<Doc | null>
   /** A document a reference field points at, read as the pane reads it (docQuery). */
   readRef: (field: Field, id: string) => Promise<Doc | null>
@@ -53,15 +53,16 @@ async function publishHold(doc: Doc, who: Person, judge: Judge, t: T): Promise<s
 const REJUDGES = 2
 
 /**
- * The draft judged as Barkpark has it when its turn comes, and published only as judged
- * (task-bc49c598e05b1fbf): read fresh, judged, read again. Changed meanwhile (another editor,
- * or a custom rule's wait), it is judged again, at most REJUDGES times more, then held. The
- * window left is the footer's own: the last read to the publish (Barkpark's publish takes no
- * revision yet, task-bda8661555dfd481).
+ * The draft published only as judged (task-bc49c598e05b1fbf): `first`, as read before the slug
+ * ask, is judged, then read again when its check is done. Changed meanwhile (another editor
+ * while earlier drafts went, or during its own check), it is judged again, at most REJUDGES
+ * times more, then held. A re-read that fails holds it, as a first read that fails does. An
+ * unchanged draft costs two reads. The window left is the footer's own: the last read to the
+ * publish (Barkpark's publish takes no revision yet, task-bda8661555dfd481).
  */
-async function judgedNow(qc: QueryClient, row: Doc, who: Person, judge: Judge, t: T): Promise<{ready: Doc} | {outcome: Outcome}> {
+async function judgedNow(qc: QueryClient, row: Doc, first: Doc, who: Person, judge: Judge, t: T): Promise<{ready: Doc} | {outcome: Outcome}> {
   const name = (d: Doc | null | undefined) => judge.nameOf(d ?? row, judge.schemaFor(row._type))
-  let now = await fullDraft(qc, row, judge)
+  let now: Doc | null | undefined = first
   for (let round = 0; ; round++) {
     if (now === null || (now && !now._draft)) return {outcome: {kind: 'skipped'}}
     if (!now) return {outcome: {kind: 'held', doc: name(now), reason: t('It could not be read: open it to check')}}
@@ -122,7 +123,7 @@ export async function runBulk(qc: QueryClient, action: 'publish' | 'unpublish', 
       outcomes.push({kind: 'failed', reason: `${slugs.join(', ')}: ${t('Slug is already in use')}`})
       continue
     }
-    const judged = await judgedNow(qc, row, who, judge, t)
+    const judged = await judgedNow(qc, row, now, who, judge, t)
     if ('outcome' in judged) {
       outcomes.push(judged.outcome)
       continue
