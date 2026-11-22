@@ -63,8 +63,11 @@ export function RefArrayInput({id, field, value, onChange, readOnly, openRef}: {
         const ref = refId(it)
         const link = (target: string, type: string) => openRef(type, target, itemPath(id, it, i))
         return ref ? (
-          <div className="ref-row-preview">
+          // A filled row's own problem (a target not published, task-e65341609dbe504b): its mark, and
+          // the id the validation panel's jump focuses (DocumentPane fieldEl), as an empty row's.
+          <div className="ref-row-preview" id={itemPath(id, it, i)} tabIndex={-1}>
             <RefRow types={types} id={ref} link={(type) => link(ref, type)} />
+            <ProblemMark path={itemPath(id, it, i)} />
             {/* Sanity's strip on the row; a read-only array's button is disabled (nothing written by looking). */}
             <RefRowStrength types={types} id={ref} stored={it} weak={weak} readOnly={readOnly} onConvert={(v) => setRow(i, v)} />
           </div>

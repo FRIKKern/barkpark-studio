@@ -64,6 +64,9 @@ const schema = {
     {name: 'slutt', title: 'Siste dag', type: 'date'},
     {name: 'sted', title: 'Sted', type: 'reference', to: [{type: 'sted'}]},
     {name: 'lenke', title: 'Lenke', type: 'slug'},
+    // task-e65341609dbe504b: arrays of references, strong and weak.
+    {name: 'steder', title: 'Steder', type: 'arrayOf', of: {type: 'reference', to: [{type: 'sted'}]}},
+    {name: 'svake', title: 'Svake', type: 'arrayOf', of: {type: 'reference', weak: true, to: [{type: 'sted'}]}},
     // task-7e422a2d785b5a17: strong references below the top level, in an object and in an array's items.
     {name: 'vert', title: 'Vert', type: 'composite', fields: [{name: 'sted', title: 'Sted', type: 'reference', to: [{type: 'sted'}]}]},
     {name: 'program', title: 'Program', type: 'arrayOf', of: {type: 'composite', title: 'Post', fields: [{name: 'sted', title: 'Sted', type: 'reference', to: [{type: 'sted'}]}]}},
@@ -85,6 +88,8 @@ const places = new Map<string, {_id: string; _hasPublished: boolean} | null | Er
 ])
 /** The draft reads Publish selected made, per document, and the ones Barkpark refuses. */
 const reads = new Map<string, number>()
+/** The reference targets read, in order. */
+const refReads: string[] = []
 const refused = new Set<string>()
 const answer = <V,>(v: V | Error | undefined) => (v instanceof Error ? Promise.reject(v) : Promise.resolve(v ?? null))
 const judge = (qc: QueryClient, over: Record<string, unknown> = {}) => ({
@@ -100,7 +105,7 @@ const judge = (qc: QueryClient, over: Record<string, unknown> = {}) => ({
     if (refused.has(`${id} ${n}`)) return Promise.reject(new Error(`Barkpark /v1/data/doc/${id} → 429`))
     return answer(server.get(id)).then((d) => (qc.setQueryData(['doc', id], d), d))
   },
-  readRef: (_f: unknown, id: string) => answer(places.get(id)),
+  readRef: (_f: unknown, id: string) => (refReads.push(id), answer(places.get(id))),
   slugsAmong: async () => new Map(),
   ...over,
 })
@@ -110,6 +115,7 @@ async function run(rows: Draft[], over: Record<string, unknown> = {}, whole: (Dr
   qc.setQueryData(['schemas'], [schema]) // the schemas a publish's own slug ask reads
   server.clear()
   reads.clear()
+  refReads.length = 0
   whole.forEach((d, i) => server.set(rows[i]!._publishedId, d))
   sent.length = 0
   const outcomes = await runBulk(qc, 'publish', rows as never, who, {judge: judge(qc, over) as never, at: () => {}, t: (s) => s})
@@ -252,6 +258,24 @@ test('publish selected: a draft whose slug changed after the one slug ask has it
   const {outcomes, published} = await run([lenke], {rulesFor: () => rules})
   assert.deepEqual(published, [])
   assert.deepEqual(outcomes, [{kind: 'failed', reason: 'Lenke: Slug is already in use'}])
+})
+
+test('publish selected holds a draft whose array of references points at an unpublished, gone or unreadable document; each target is read once, a weak member\'s never (task-e65341609dbe504b)', async () => {
+  const item = (key: string, id: string) => ({_key: key, _type: 'reference', _ref: id})
+  const ny = draft('ny', {tittel: 'ny', steder: [item('a', 'sted-pub'), item('b', 'sted-pub'), item('c', 'sted-ny')]})
+  const borte = draft('borte', {tittel: 'borte', steder: [item('a', 'sted-borte')]})
+  const feil = draft('feil', {tittel: 'feil', steder: [item('a', 'sted-feil')]})
+  const ok = draft('ok', {tittel: 'ok', steder: [item('a', 'sted-pub')], svake: [item('a', 'sted-feil'), item('b', 'sted-borte')]})
+  const {outcomes, published} = await run([ny, borte, feil, ok])
+  assert.deepEqual(published, ['ok'])
+  assert.deepEqual(outcomes, [
+    {kind: 'held', doc: 'ny', reason: 'Steder: Referenced document must be published'},
+    {kind: 'held', doc: 'borte', reason: 'Steder: Referenced document must be published'},
+    {kind: 'held', doc: 'feil', reason: 'A document it refers to could not be read: open it to check'},
+    {kind: 'done'},
+  ])
+  // One read per distinct target per draft (each draft is judged once here); the weak items are not read.
+  assert.deepEqual(refReads, ['sted-pub', 'sted-ny', 'sted-borte', 'sted-feil', 'sted-pub'])
 })
 
 test('one reader: the pane and Publish selected ask lib/publish-check.ts with the same reads, and the bar sends every publish through runBulk', () => {
