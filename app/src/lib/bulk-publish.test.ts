@@ -34,7 +34,9 @@ Object.assign(globalThis, {
 const sent: Record<string, {id: string}>[] = []
 ;(globalThis as Record<string, unknown>).saveFlowServer = {
   read: async () => null,
-  fetch: async (_page: string, _url: string, init: {body: string}) => {
+  fetch: async (_page: string, url: string, init: {body?: string}) => {
+    // A publish's own slug ask (lib/slug-unique.ts), a GET: "tatt" is another document's slug.
+    if (!init.body) return Response.json({result: {documents: url.includes('tatt') ? [{_id: 'annen', _publishedId: 'annen'}] : []}})
     const ms = JSON.parse(init.body).mutations as Record<string, {id: string}>[]
     sent.push(...ms)
     // An edit's save lands as sent; a publish makes the published version.
@@ -61,6 +63,7 @@ const schema = {
     {name: 'start', title: 'Første dag', type: 'date'},
     {name: 'slutt', title: 'Siste dag', type: 'date'},
     {name: 'sted', title: 'Sted', type: 'reference', to: [{type: 'sted'}]},
+    {name: 'lenke', title: 'Lenke', type: 'slug'},
     // task-7e422a2d785b5a17: strong references below the top level, in an object and in an array's items.
     {name: 'vert', title: 'Vert', type: 'composite', fields: [{name: 'sted', title: 'Sted', type: 'reference', to: [{type: 'sted'}]}]},
     {name: 'program', title: 'Program', type: 'arrayOf', of: {type: 'composite', title: 'Post', fields: [{name: 'sted', title: 'Sted', type: 'reference', to: [{type: 'sted'}]}]}},
@@ -80,6 +83,9 @@ const places = new Map<string, {_id: string; _hasPublished: boolean} | null | Er
   ['sted-borte', null],
   ['sted-feil', new Error('read 503')],
 ])
+/** The draft reads Publish selected made, per document, and the ones Barkpark refuses. */
+const reads = new Map<string, number>()
+const refused = new Set<string>()
 const answer = <V,>(v: V | Error | undefined) => (v instanceof Error ? Promise.reject(v) : Promise.resolve(v ?? null))
 const judge = (qc: QueryClient, over: Record<string, unknown> = {}) => ({
   conditions: undefined,
@@ -87,7 +93,13 @@ const judge = (qc: QueryClient, over: Record<string, unknown> = {}) => ({
   rulesFor: () => [],
   nameOf: (d: {tittel?: string; _publishedId: string}) => d.tittel || d._publishedId,
   // As qc.fetchQuery(docQuery) does: the answer lands in the doc's cache, which publish() reads.
-  readDoc: (_type: string, id: string) => answer(server.get(id)).then((d) => (qc.setQueryData(['doc', id], d), d)),
+  // Each read counted; one named in `refused` (`<id> <n>`, its n-th read) is refused, as a 429.
+  readDoc: (_type: string, id: string) => {
+    const n = (reads.get(id) ?? 0) + 1
+    reads.set(id, n)
+    if (refused.has(`${id} ${n}`)) return Promise.reject(new Error(`Barkpark /v1/data/doc/${id} → 429`))
+    return answer(server.get(id)).then((d) => (qc.setQueryData(['doc', id], d), d))
+  },
   readRef: (_f: unknown, id: string) => answer(places.get(id)),
   slugsAmong: async () => new Map(),
   ...over,
@@ -95,7 +107,9 @@ const judge = (qc: QueryClient, over: Record<string, unknown> = {}) => ({
 /** Publish selected on these list rows; Barkpark holds `whole` (default: the rows themselves). */
 async function run(rows: Draft[], over: Record<string, unknown> = {}, whole: (Draft | Error)[] = rows) {
   const qc = new QueryClient()
+  qc.setQueryData(['schemas'], [schema]) // the schemas a publish's own slug ask reads
   server.clear()
+  reads.clear()
   whole.forEach((d, i) => server.set(rows[i]!._publishedId, d))
   sent.length = 0
   const outcomes = await runBulk(qc, 'publish', rows as never, who, {judge: judge(qc, over) as never, at: () => {}, t: (s) => s})
@@ -183,6 +197,63 @@ test('a strong reference inside an object or an array item is judged as a top-le
   ])
 })
 
+test('publish selected never publishes a draft someone changed after it was judged: the next draft is read when its turn comes (task-bc49c598e05b1fbf)', async () => {
+  // While the first draft's custom rule is awaited, someone empties the second one's required title.
+  const en = draft('en', {tittel: 'Første'})
+  const to = draft('to', {tittel: 'Andre'})
+  const rules = [{path: 'tittel', validate: async (v: unknown) => (v === 'Første' && server.set('to', {...to, tittel: '', _rev: 'r2'} as Draft), true)}]
+  const {outcomes, published} = await run([en, to], {rulesFor: () => rules})
+  assert.deepEqual(published, ['en'])
+  assert.deepEqual(outcomes, [{kind: 'done'}, {kind: 'held', doc: 'to', reason: 'Tittel: Required'}])
+})
+
+test('publish selected reads a draft again after judging it: changed during its own check, it is judged again; still changing after two more checks, it is held', async () => {
+  // Emptied while its own check is awaited: judged again on what Barkpark has now, and held by it.
+  const selv = draft('selv', {tittel: 'Selv'})
+  const once = [{path: 'tittel', validate: async (v: unknown) => (v === 'Selv' && server.set('selv', {...selv, tittel: '', _rev: 'r2'} as Draft), true)}]
+  const first = await run([selv], {rulesFor: () => once})
+  assert.deepEqual(first.published, [])
+  assert.deepEqual(first.outcomes, [{kind: 'held', doc: 'selv', reason: 'Tittel: Required'}])
+  // Changed (still valid) during every check: three checks, then held, and no publish is sent.
+  let checks = 0
+  const uro = draft('uro', {tittel: 'Uro'})
+  const always = [{path: 'tittel', validate: async () => (server.set('uro', {...uro, _rev: `u${++checks}`}), true)}]
+  const busy = await run([uro], {rulesFor: () => always})
+  assert.equal(checks, 3)
+  assert.deepEqual(busy.published, [])
+  assert.deepEqual(busy.outcomes, [{kind: 'held', doc: 'Uro', reason: 'It changed while it was checked: open it to check'}])
+  // Not changed: judged once and published as judged.
+  checks = 0
+  const still = [{path: 'tittel', validate: async () => (++checks, true)}]
+  assert.deepEqual((await run([draft('ro', {tittel: 'Ro'})], {rulesFor: () => still})).published, ['ro'])
+  assert.equal(checks, 1)
+})
+
+test('publish selected reads an unchanged draft twice, before and after its check; a re-read Barkpark refuses holds that draft and the others go on', async () => {
+  const {outcomes, published} = await run([draft('en', {tittel: 'En'}), draft('to', {tittel: 'To'})])
+  assert.deepEqual(published, ['en', 'to'])
+  assert.deepEqual(outcomes, [{kind: 'done'}, {kind: 'done'}])
+  assert.deepEqual([...reads], [['en', 2], ['to', 2]])
+  // The re-read after the first draft's check answers 429: that draft is held, never published.
+  refused.add('en 2')
+  try {
+    const after = await run([draft('en', {tittel: 'En'}), draft('to', {tittel: 'To'})])
+    assert.deepEqual(after.published, ['to'])
+    assert.deepEqual(after.outcomes, [{kind: 'held', doc: 'En', reason: 'It could not be read: open it to check'}, {kind: 'done'}])
+  } finally {
+    refused.clear()
+  }
+})
+
+test('publish selected: a draft whose slug changed after the one slug ask has its publish ask its own', async () => {
+  // The slug ask, made on the first read, found nothing taken; during the check the slug becomes one that is.
+  const lenke = draft('lenke', {tittel: 'Lenke', lenke: {current: 'ledig'}})
+  const rules = [{path: 'tittel', validate: async () => (server.set('lenke', {...lenke, lenke: {current: 'tatt'}, _rev: 'r2'} as Draft), true)}]
+  const {outcomes, published} = await run([lenke], {rulesFor: () => rules})
+  assert.deepEqual(published, [])
+  assert.deepEqual(outcomes, [{kind: 'failed', reason: 'Lenke: Slug is already in use'}])
+})
+
 test('one reader: the pane and Publish selected ask lib/publish-check.ts with the same reads, and the bar sends every publish through runBulk', () => {
   const src = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8')
   const pane = src('../components/DocumentPane.tsx')
@@ -191,7 +262,7 @@ test('one reader: the pane and Publish selected ask lib/publish-check.ts with th
   assert.doesNotMatch(pane, /\bvalidate\(/)
   const bar = src('../components/BulkBar.tsx')
   assert.match(bar, /await runBulk\(qc, action, picked, user, /)
-  assert.match(bar, /readDoc: \(type, id\) => qc\.fetchQuery\(\{\.\.\.docQuery\(type, id\), staleTime: 0\}\),/)
+  assert.match(bar, /readDoc: \(type, id\) => qc\.fetchQuery\(\{\.\.\.docQuery\(type, id, \{fresh: true\}\), staleTime: 0\}\),/)
   assert.match(bar, /readRef: \(f, id\) => qc\.fetchQuery\(docQuery\(refTypesOf\(f\), id\)\),/)
   assert.doesNotMatch(bar, /\b(publish|unpublish)\(qc/)
   const bulk = src('./bulk-publish.ts')
