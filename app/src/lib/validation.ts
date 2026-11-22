@@ -5,7 +5,8 @@ import {isTableField, tableBlank} from './table-input.ts'
 import {patternProblem, sanityRules} from './validation-rules.ts'
 import {crossProblems} from './cross-rules.ts'
 import {outsideList} from './list-options.ts'
-import {narrowImage, narrowInBlocks, type WidthOf} from './image-min-width.ts'
+import {narrowImage, type WidthOf} from './image-min-width.ts'
+import {memberFor, memberName, membersOf} from './array-members.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -83,11 +84,7 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   if (outsideList(field, value)) push({level: shut ? 'warning' : 'error'}, notAllowed(value, t))
   // An image narrower than options.minWidth: a warning only, its own words (lib/image-min-width).
   const narrow = narrowImage(field.type, field.options, value, at.widthOf, t)
-  if (narrow) push({level: 'warning'}, narrow)
-  // An image in a rich-text block (HSO's «Bilde» gallery): the same warning, on the text field
-  // under the block's name, where Barkpark's findings inside rich text show (lib/findings).
-  if (field.type === 'richText')
-    for (const n of narrowInBlocks(field.blocks, value, at.widthOf, t)) out.push({path, title: n.title, message: n.message, level: 'warning', parents: [...parents, title, n.block], group})
+  if (narrow) out.push(narrowWarning({path, title, message: narrow, level: 'warning', ...(parents.length ? {parents} : {}), group}))
   // Sanity: a strong reference must point at a published doc (a missing one fails the same
   // way), a bare id or Sanity's object alike. A weak field's may point anywhere (Sanity's).
   const ref = field.type === 'reference' && !field.weak ? refId(value) : undefined
@@ -101,11 +98,42 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   if (field.type === 'composite' && !isCodeField(field) && !isTableField(field))
     for (const f of field.fields ?? []) check(f, (value as Record<string, unknown>)?.[f.name], `${path}.${f.name}`, [...parents, title], group, out, target, t, {ask: at.ask, parent: value as Record<string, unknown>, shut, widthOf: at.widthOf})
   // An array's items are checked too (Sanity's "Links / External link / URL"): an object
-  // item's fields under the item's kind, a plain item by its type's own rule.
-  const of = field.of
-  if (of && of.type !== 'reference' && Array.isArray(value))
+  // item's fields under the item's kind, a plain item by its type's own rule. A page builder's
+  // (several members, HSO's innhold): each item under the member its _type names, that member's
+  // title in its parents; an item no member names is not judged (lib/array-members).
+  if (Array.isArray(value)) checkItems(membersOf(field), false, value, path, [...parents], title, group, out, target, t, {...at, shut})
+  // A rich-text field's blocks are items of its declared block types (blocks.of), walked the same
+  // way. Only the image minWidth warning is kept there (HSO's «Bilde» gallery, at the image); the
+  // other rules inside rich text stay Barkpark's findings (lib/findings).
+  if (field.type === 'richText' && Array.isArray(value)) {
+    const found: Problem[] = []
+    checkItems(blockMembers(field), true, value, path, [...parents], title, group, found, target, t, {...at, shut})
+    out.push(...found.filter((p) => narrowWarnings.has(p)))
+  }
+}
+
+/** Problems that are an image's minWidth warning: what a rich-text field keeps of its blocks' walk. */
+const narrowWarnings = new WeakSet<Problem>()
+
+/** A rich-text field's declared block types as members: an object block (its fields) or an image block. */
+function blockMembers(field: Field): Field[] {
+  const of = (field.blocks as {of?: unknown} | undefined)?.of
+  return (Array.isArray(of) ? of : []).flatMap((d) => (d && typeof d === 'object' && typeof (d as Field).name === 'string' ? (Array.isArray((d as Field).fields) ? [{...(d as Field), type: 'composite'}] : (d as Field).type === 'image' ? [d as Field] : []) : []))
+}
+
+/**
+ * The items of an array (or a rich-text field's blocks, `typed`: by _type only, every member
+ * titled): each under its member, at its _key path. One walk for both.
+ */
+function checkItems(members: Field[], typed: boolean, value: unknown[], path: string, parents: string[], title: string, group: string | undefined, out: Problem[], target: RefTarget | undefined, t: T, at: Scope) {
+  const shut = at.shut
+  if (members.length)
     value.forEach((it, i) => {
+      const type = it && typeof it === 'object' ? (it as {_type?: unknown})._type : undefined
+      const of = typed ? members.find((m) => memberName(m) === type || m.namedType === type) : memberFor(members, it)
+      if (!of || of.type === 'reference') return
       const item = itemPath(path, it, i)
+      const own = typed || members.length > 1 ? [of.title ?? memberName(of)] : []
       if (of.type === 'composite' && it && typeof it === 'object') {
         const opts = (of.options ?? {}) as {typeField?: string; fieldsByType?: Record<string, string[]>}
         const kind = opts.typeField ? (it as Record<string, unknown>)[opts.typeField] : undefined
@@ -113,16 +141,18 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
         const kindTitle = typeof kind === 'string' ? ((kindField?.options as {value: string; title?: string}[] | undefined)?.find((o) => o.value === kind)?.title ?? kind) : undefined
         const shown = typeof kind === 'string' && opts.fieldsByType?.[kind]
         for (const f of of.fields ?? [])
-          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${item}.${f.name}`, [...parents, title, ...(kindTitle ? [kindTitle] : [])], group, out, target, t, {ask: at.ask, parent: it as Record<string, unknown>, shut, widthOf: at.widthOf})
+          if (!shown || shown.includes(f.name)) check(f, (it as Record<string, unknown>)[f.name], `${item}.${f.name}`, [...parents, title, ...own, ...(kindTitle ? [kindTitle] : [])], group, out, target, t, {ask: at.ask, parent: it as Record<string, unknown>, shut, widthOf: at.widthOf})
       } else {
         const shape = typeRule(of.type, it, t)
         if (shape) out.push({path: item, title, message: shape, level: 'error', ...(parents.length ? {parents} : {}), group})
         // An image member narrower than the member's options.minWidth (a gallery's): a warning on the item.
         const narrow = narrowImage(of.type, of.options, it, at.widthOf, t)
-        if (narrow) out.push({path: item, title, message: narrow, level: 'warning', ...(parents.length ? {parents} : {}), group})
+        if (narrow) out.push(narrowWarning({path: item, title, message: narrow, level: 'warning', ...(typed ? {parents: [...parents, title, ...own]} : parents.length ? {parents} : {}), group}))
       }
     })
 }
+
+const narrowWarning = (p: Problem) => (narrowWarnings.add(p), p)
 
 /** A value of the wrong shape for its type, in Sanity's words (its url, email, number and date validators). */
 function typeRule(type: string, value: unknown, t: T): string | undefined {

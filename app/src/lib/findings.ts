@@ -108,15 +108,16 @@ export function formPathIn(path: string, doc: unknown): string {
 }
 
 /**
- * A cross rule's findings on list items, named as the form keys those items in the document they
- * were found in (lib/cross-rules). Past the cap, Barkpark's one finding is at the rule's `each`
- * ("/meny/under"): a label, not a pointer, so it lands on the outer field (`meny`), never resolved.
+ * Findings on list items, named as the form keys those items in the document they were found in,
+ * so a finding the studio already flags there (a page builder's item, lib/validation) is the same
+ * problem. A cross rule's (lib/cross-rules) past the cap is at the rule's `each` ("/meny/under"):
+ * a label, not a pointer, so it lands on the outer field (`meny`), never resolved.
  * A plain rule's finding is one step ("/side"), so it is neither.
  */
 export const keyedAt = (findings: Finding[], saved: unknown): Finding[] =>
   findings.map((f) => {
-    if (f.code !== 'cross_validation') return f
     if (/\/\d+(\/|$)/.test(f.path)) return {...f, at: formPathIn(f.path, saved)}
+    if (f.code !== 'cross_validation') return f
     const [outer, ...rest] = f.path.replace(/^\/+/, '').split('/')
     return rest.length ? {...f, at: outer!} : f
   })
@@ -137,18 +138,23 @@ export function advisoryProblems(findings: Finding[], schema: Schema, known: Pro
     let field: Field | undefined
     // A field inside a rich-text block (body.1.tone): the block types the field declares
     // (blocks.of {name, fields}) name it, "Body / Callout / Tone", and it shows on the body.
+    // A keyed step (`kort[_key=="k2"]`, keyedAt) names its field as a bare one does.
     let at = path
-    for (const name of path.split('.').filter((p) => p && !/^\d+$|^\[/.test(p))) {
+    const steps = path.split('.')
+    const bare = (p: string) => p.replace(/\[[^\]]*\]$/, '')
+    for (const [i, step] of steps.entries()) {
+      const name = bare(step)
+      if (!name || /^\d+$|^\[/.test(name)) continue
       field = fields?.find((x) => x.name === name)
       if (!field) break
       if (field.type === 'richText') {
         const blocks = ((field as {blocks?: {of?: unknown[]}}).blocks?.of ?? []).filter((o): o is {name: string; title?: string; fields?: Field[]} => !!o && typeof o === 'object' && Array.isArray((o as {fields?: unknown}).fields))
-        const rest = path.split('.').slice(path.split('.').indexOf(name) + 1).filter((p) => p && !/^\d+$/.test(p))
+        const rest = steps.slice(i + 1).map(bare).filter((p) => p && !/^\d+$/.test(p))
         const block = blocks.find((b) => b.fields!.some((x) => x.name === rest[0]))
         const inner = block?.fields!.find((x) => x.name === rest[0])
         if (block && inner) {
           parents.push(field.title ?? field.name, block.title ?? block.name)
-          at = path.split('.').slice(0, path.split('.').indexOf(name) + 1).join('.')
+          at = [...steps.slice(0, i), name].join('.')
           const level = levelOfField(inner)
           return [{path: at, title: inner.title ?? inner.name, message: findingSentence(f, t), level, parents, group: field.group}]
         }

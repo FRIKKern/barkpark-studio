@@ -703,6 +703,8 @@ async function send(qc: QueryClient, id: string) {
   if (e.snap.state === 'signedOut') return
   // A clash waits for the editor (no retry, no blur flush sends it over theirs).
   if (e.held) return
+  // Stopped at the rebase cap: nothing goes, not even a flush on blur, until restart (Retry, typing on, a newer read).
+  if (e.stoppedAt !== undefined) return
   if (e.pendingCreate) e.createRequested = true
   if (!online()) return waitForNetwork(qc, id, e)
   const hold = (e.holdUntil ?? 0) - Date.now()

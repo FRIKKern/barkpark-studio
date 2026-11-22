@@ -21,7 +21,9 @@ test("the studio offers a write on a fixed type only where Barkpark allows it (f
     // Hidden though Barkpark allows it: only the known gap, with its task.
     else assert.equal(c.server === 'ok', !!c.gap, `${c.name}: hidden ${c.server === 'ok' ? 'with no task for it' : ''}`)
   }
-  assert.deepEqual(cases.filter((c) => c.gap).map((c) => c.name), ['listed: create side-om-oss, which does not exist yet'])
+  // task-b3f4ccc4f9cfe129: the listed page that does not exist yet is offered (its list's row makes it); no gap is left.
+  assert.deepEqual(cases.filter((c) => c.gap).map((c) => c.name), [])
+  assert.ok(studio(cases.find((c) => c.name === 'listed: create side-om-oss, which does not exist yet')!))
 })
 
 test('no list or a malformed one is no rule; a list of ids is', () => {

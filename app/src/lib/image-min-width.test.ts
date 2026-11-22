@@ -35,6 +35,9 @@ const schema = {
     {name: 'innhold', title: 'Innhold', type: 'richText', blocks: {of: [
       {name: 'bildeblokk', title: 'Bilde', fields: [{name: 'bilder', title: 'Bilder', type: 'arrayOf', of: {name: 'bildeMedAlt', type: 'image', options: opts}}, {name: 'stort', title: 'Stort bilde', type: 'image', options: {minWidth: 1200}}]},
       {name: 'faktaboks', title: 'Faktaboks', fields: [{name: 'tittel', title: 'Tittel', type: 'string', validation: {required: true}}, {name: 'lenke', title: 'Lenke', type: 'url'}]},
+      // An image inside an object inside a block, and an image block of its own.
+      {name: 'kortblokk', title: 'Kort', fields: [{name: 'kort', title: 'Kortet', type: 'composite', fields: [{name: 'bilde', title: 'Kortbilde', type: 'image', options: {minWidth: 1200}}, {name: 'tekst', title: 'Tekst', type: 'string', validation: {required: true}}]}]},
+      {name: 'image', title: 'Bilde i teksten', type: 'image', options: {minWidth: 1200}},
     ]}},
   ],
 } as never
@@ -52,19 +55,25 @@ test("an 800 px image under minWidth 1200 warns, in the field's words; 1200 give
   assert.deepEqual(said({bilde: img('image-wide'), kort: cards}), [`warning kort[_key=="k2"].bilde: ${HSO}`])
 })
 
-test('an image in a rich-text block warns the same, on the text field under the block; no other rule looks inside the text', () => {
+test('an image in a rich-text block warns the same, at the image, at any depth in the block; no other rule looks inside the text', () => {
   const quiet = {bilde: img('image-wide')}
   const text = {_type: 'block', _key: 't', children: [{_type: 'span', text: 'Hei'}]}
   const gallery = {_type: 'bildeblokk', _key: 'b', bilder: [{_key: 'k1', ...img('image-wide')}, {_key: 'k2', ...img('image-small')}], stort: img('image-small')}
   const found = validate(doc({...quiet, innhold: [text, gallery]}), schema, undefined, undefined, undefined, widthOf)
   assert.deepEqual(found.map((p) => [p.level, p.path, p.parents, p.title, p.message]), [
-    ['warning', 'innhold', ['Innhold', 'Bilde'], 'Bilder', HSO],
-    ['warning', 'innhold', ['Innhold', 'Bilde'], 'Stort bilde', 'The image is under 1200 pixels wide. It may look blurry.'],
+    ['warning', 'innhold[_key=="b"].bilder[_key=="k2"]', ['Innhold', 'Bilde'], 'Bilder', HSO],
+    ['warning', 'innhold[_key=="b"].stort', ['Innhold', 'Bilde'], 'Stort bilde', 'The image is under 1200 pixels wide. It may look blurry.'],
   ])
   assert.deepEqual(errorsOf(found), [], 'never blocks Publish')
   assert.deepEqual(said({...quiet, innhold: [{...gallery, bilder: [], stort: img('image-wide')}]}), [])
   // A required field and a URL in a block are Barkpark's findings, not this check's: nothing new here.
   assert.deepEqual(said({...quiet, innhold: [{_type: 'faktaboks', _key: 'f', lenke: 'not a url'}]}), [])
+  // Deeper: an object in a block (its required text stays unchecked here), and an image block.
+  const deep = [{_type: 'kortblokk', _key: 'c', kort: {bilde: img('image-small'), tekst: ''}}, {_key: 'i', ...img('image-small')}]
+  assert.deepEqual(said({...quiet, innhold: deep}), [
+    'warning innhold[_key=="c"].kort.bilde: The image is under 1200 pixels wide. It may look blurry.',
+    'warning innhold[_key=="i"]: The image is under 1200 pixels wide. It may look blurry.',
+  ])
 })
 
 test('a warning, never an error: a required field with minWidth reports each with its own words, and Publish is not blocked by the width', () => {

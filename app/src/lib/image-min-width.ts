@@ -28,25 +28,3 @@ export function narrowImage(type: string | undefined, options: unknown, value: u
   const own = (options as Opts).minWidthMessage
   return typeof own === 'string' && own ? own : t('The image is under {minWidth} pixels wide. It may look blurry.', {minWidth: min!})
 }
-
-type BlockField = {name: string; title?: string; type: string; options?: unknown; of?: {type: string; options?: unknown}}
-type BlockDecl = {name: string; title?: string; fields?: BlockField[]}
-
-/**
- * The same warning for each image inside a rich-text field's blocks (HSO's «Bilde» block,
- * bildeblokk.bilder): a block whose `_type` names a declared `blocks.of` entry, its image fields
- * and its arrays of images. `block` is the block type's title, `title` its field's. Only this rule
- * looks inside rich text here; the rest stay Barkpark's findings there (lib/findings).
- */
-export function narrowInBlocks(blocks: unknown, value: unknown, widthOf: WidthOf | undefined, t: T): {block: string; title: string; message: string}[] {
-  const decls = ((blocks as {of?: unknown} | undefined)?.of ?? []) as BlockDecl[]
-  if (!widthOf || !Array.isArray(value) || !Array.isArray(decls)) return []
-  return value.flatMap((b) => {
-    const decl = b && typeof b === 'object' ? decls.find((d) => d && d.name === (b as {_type?: unknown})._type && Array.isArray(d.fields)) : undefined
-    return (decl?.fields ?? []).flatMap((f) => {
-      const v = (b as Record<string, unknown>)[f.name]
-      const said = f.of && Array.isArray(v) ? v.map((it) => narrowImage(f.of!.type, f.of!.options, it, widthOf, t)) : [narrowImage(f.type, f.options, v, widthOf, t)]
-      return said.filter((m): m is string => !!m).map((message) => ({block: decl!.title ?? decl!.name, title: f.title ?? f.name, message}))
-    })
-  })
-}
