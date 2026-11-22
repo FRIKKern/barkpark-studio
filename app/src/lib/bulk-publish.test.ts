@@ -61,6 +61,9 @@ const schema = {
     {name: 'start', title: 'Første dag', type: 'date'},
     {name: 'slutt', title: 'Siste dag', type: 'date'},
     {name: 'sted', title: 'Sted', type: 'reference', to: [{type: 'sted'}]},
+    // task-7e422a2d785b5a17: strong references below the top level, in an object and in an array's items.
+    {name: 'vert', title: 'Vert', type: 'composite', fields: [{name: 'sted', title: 'Sted', type: 'reference', to: [{type: 'sted'}]}]},
+    {name: 'program', title: 'Program', type: 'arrayOf', of: {type: 'composite', title: 'Post', fields: [{name: 'sted', title: 'Sted', type: 'reference', to: [{type: 'sted'}]}]}},
   ],
   // HSO #58: the last day before the first is an error (lib/cross-rules.ts, #1373).
   crossValidations: [{name: 'slutt_etter_start', title: 'Siste dag kan ikke være før første dag', rule: {field: 'slutt', operator: 'gte', valueField: 'start'}, fields: ['slutt']}],
@@ -156,11 +159,35 @@ test('publish selected never publishes on unknown: a reference is judged by the 
   assert.deepEqual((await run([draft('slug', {tittel: 'Kurs'})], {slugsAmong: () => Promise.reject(new Error('query 503'))})).published, ['slug'])
 })
 
+test('a strong reference inside an object or an array item is judged as a top-level one: the pane\'s reads give the error on its path, and Publish selected holds the draft (task-7e422a2d785b5a17)', async () => {
+  const {formCheck, refsToRead} = await import('./publish-check.ts')
+  const inObject = draft('vert', {tittel: 'vert', vert: {sted: {_ref: 'sted-ny'}}})
+  const inItem = draft('post', {tittel: 'post', program: [{_key: 'a', sted: {_ref: 'sted-pub'}}, {_key: 'b', sted: {_ref: 'sted-borte'}}]})
+  // The pane: each reference read as the pane reads it (here from the same documents), then the form's check.
+  const paneErrors = (d: Draft) => {
+    const byId = new Map(refsToRead(schema, d as never).map((r) => [r.id, places.get(r.id) as never]))
+    return formCheck(d as never, schema, who, undefined, {target: (id) => byId.get(id)}).map((p) => [p.path, p.message])
+  }
+  assert.deepEqual(paneErrors(inObject), [['vert.sted', 'Referenced document must be published']])
+  assert.deepEqual(paneErrors(inItem), [['program[_key=="b"].sted', 'Referenced document must be published']])
+  // Publish selected: both held, named by the nested field; a nested target that cannot be read holds too.
+  const unread = draft('feil', {tittel: 'feil', program: [{_key: 'a', sted: {_ref: 'sted-feil'}}]})
+  const ok = draft('ok', {tittel: 'ok', vert: {sted: {_ref: 'sted-pub'}}, program: [{_key: 'a', sted: 'sted-pub'}]})
+  const {outcomes, published} = await run([inObject, inItem, unread, ok])
+  assert.deepEqual(published, ['ok'])
+  assert.deepEqual(outcomes, [
+    {kind: 'held', doc: 'vert', reason: 'Vert / Sted: Referenced document must be published'},
+    {kind: 'held', doc: 'post', reason: 'Program / Sted: Referenced document must be published'},
+    {kind: 'held', doc: 'feil', reason: 'A document it refers to could not be read: open it to check'},
+    {kind: 'done'},
+  ])
+})
+
 test('one reader: the pane and Publish selected ask lib/publish-check.ts with the same reads, and the bar sends every publish through runBulk', () => {
   const src = (f: string) => readFileSync(new URL(f, import.meta.url), 'utf8')
   const pane = src('../components/DocumentPane.tsx')
   assert.match(pane, /formCheck\(doc, schemaForPane, user, studio\.form\?\.conditions, \{target: \(id\) => byId\.get\(id\), t, widthOf\}\)/)
-  assert.match(pane, /const refFields = refFieldsOf\(schemaForPane, doc\)\n  const targets = useQueries\(\{queries: refFields\.map\(\(f\) => docQuery\(refTypesOf\(f\), refId\(doc!\[f\.name\]\)!\)\)\}\)/)
+  assert.match(pane, /const refs = useMemo\(\(\) => refsToRead\(schemaForPane, doc\), \[schemaForPane, doc\]\)\n  const targets = useQueries\(\{queries: refs\.map\(\(r\) => docQuery\(refTypesOf\(r\.field\), r\.id\)\)\}\)/)
   assert.doesNotMatch(pane, /\bvalidate\(/)
   const bar = src('../components/BulkBar.tsx')
   assert.match(bar, /await runBulk\(qc, action, picked, user, /)
@@ -169,5 +196,5 @@ test('one reader: the pane and Publish selected ask lib/publish-check.ts with th
   assert.doesNotMatch(bar, /\b(publish|unpublish)\(qc/)
   const bulk = src('./bulk-publish.ts')
   assert.match(bulk, /const held = await publishHold\(now, who, judge, t\)/)
-  assert.match(bulk, /const refs = refFieldsOf\(schema, doc\)/)
+  assert.match(bulk, /const refs = refsToRead\(schema, doc\)/)
 })

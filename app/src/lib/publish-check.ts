@@ -3,7 +3,6 @@ import {fieldState, type FieldConditions, type Person} from './conditions.ts'
 import {describeField, runCustomRules, type CustomRule} from './custom-rules.ts'
 import {advisoryProblems, type Finding} from './findings.ts'
 import {errorsOf, formOrder, validate, type Problem, type RefTarget} from './validation.ts'
-import {refId} from './refs.ts'
 import type {WidthOf} from './image-min-width.ts'
 import type {T} from './i18n'
 
@@ -24,8 +23,18 @@ export function shutFor(schema: Schema, doc: Doc, who: Person, conditions: Condi
   }
 }
 
-/** The reference fields whose target the reference check needs: the pane reads each (docQuery), Publish selected too. */
-export const refFieldsOf = (schema: Schema | undefined, doc: Doc | null | undefined) => (schema?.fields ?? []).filter((f) => f.type === 'reference' && refId(doc?.[f.name]))
+/**
+ * The references whose target the check judges, each with its field: the pane reads each
+ * (docQuery), Publish selected too. At any depth, an object's field or an array item's
+ * (task-7e422a2d785b5a17): validate's own walk, asked with a target that only notes them,
+ * so what is read is what is judged. A weak reference is never judged, so never read here.
+ */
+export function refsToRead(schema: Schema | undefined, doc: Doc | null | undefined): {id: string; field: Field}[] {
+  if (!schema || !doc) return []
+  const seen = new Map<string, Field>()
+  validate(doc, schema, (id, field) => void (seen.has(id) || seen.set(id, field)))
+  return [...seen].map(([id, field]) => ({id, field}))
+}
 
 /** The form's own check of a document for this person: what the pane marks. */
 export function formCheck(doc: Doc, schema: Schema, who: Person, conditions: Conditions, {target, t, widthOf}: Ask = {}): Problem[] {

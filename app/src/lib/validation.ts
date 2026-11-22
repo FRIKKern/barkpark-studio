@@ -18,8 +18,8 @@ export type Level = 'error' | 'warning' | 'info'
 /** `parents`: the titles of the objects the field sits in (Sanity's "Seo / Meta Title"). */
 /** `parse`: an input's unreadable text (lib/parse-errors), shown as an error but, as Sanity's, not blocking Publish. */
 export type Problem = {path: string; title: string; message: string; level: Level; parents?: string[]; group?: string; parse?: true}
-/** A referenced doc as the cache has it: null = no such doc, undefined = still loading. */
-export type RefTarget = (id: string) => Doc | null | undefined
+/** A referenced doc as the cache has it: null = no such doc, undefined = still loading. `field`: the reference field it was asked for, at any depth. */
+export type RefTarget = (id: string, field: Field) => Doc | null | undefined
 
 // The messages are English keys; `validate` takes the render's translate (B01).
 const english: T = (en, vars) => (vars ? en.replace(/\{(\w+)\}/g, (all, k: string) => (k in vars ? String(vars[k]) : all)) : en)
@@ -89,7 +89,7 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // way), a bare id or Sanity's object alike. A weak field's may point anywhere (Sanity's).
   const ref = field.type === 'reference' && !field.weak ? refId(value) : undefined
   if (ref && target) {
-    const doc = target(ref)
+    const doc = target(ref, field)
     if (doc === null || doc?._hasPublished === false) push({}, t('Referenced document must be published'))
   }
   // Sanity: an empty row in an array of references is an error on that row.
