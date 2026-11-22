@@ -1057,8 +1057,10 @@ export async function publish(qc: QueryClient, doc: Doc, {slugsChecked = false} 
   if (!now?._draft) return // nothing to publish
   // A slug someone else took since the form last asked is refused here, as Sanity's publish does.
   // (A bulk publish asked for all its docs at once: slugsTakenAmong.)
-  const taken = slugsChecked ? [] : await slugsTakenNow(qc, now, qc.getQueryData(schemasQuery.queryKey)?.find((x) => x.name === doc._type))
+  const {taken, unknown} = slugsChecked ? {taken: [], unknown: []} : await slugsTakenNow(qc, now, qc.getQueryData(schemasQuery.queryKey)?.find((x) => x.name === doc._type))
   if (taken.length) throw new Error(`${taken.join(', ')}: ${t('Slug is already in use')}`)
+  // Barkpark could not answer: never published on "can't tell" (task-eee5e04cf67a1b23).
+  if (unknown.length) throw new Error(`${unknown.join(', ')}: ${t('Slug could not be checked. Try again.')}`)
   // Sanity's strengthen-on-publish, in the same transaction as the publish (lib/ref-publish.ts).
   const strengthen = await strengthenPatch(now)
   const r = (await mutate({data: {mutations: [...strengthen, {publish: {id, type: doc._type}}]}})) as {results: {document: Doc}[]}

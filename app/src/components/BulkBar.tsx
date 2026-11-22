@@ -48,7 +48,7 @@ export function BulkBar({picked, onClear, onKeep}: {picked: Doc[]; onClear: () =
       nameOf: (d, s) => (s ? docTitle(d, s, t) : d._publishedId),
       t,
       widthOf: (ref) => qc.getQueryData(fileInfoQuery(ref).queryKey),
-      readDoc: (type, id) => qc.fetchQuery({...docQuery(type, id), staleTime: 0}),
+      readDoc: (type, id) => qc.fetchQuery({...docQuery(type, id, {fresh: true}), staleTime: 0}),
       readRef: (f, id) => qc.fetchQuery(docQuery(refTypesOf(f), id)),
       slugsAmong: (docs) => slugsTakenAmong(qc, docs, (type) => schemaOf(schemas, type)),
     }

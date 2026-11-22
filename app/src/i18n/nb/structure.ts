@@ -251,6 +251,7 @@ export default {
   'It could not be read: open it to check': 'Den kunne ikke leses: åpne den for å sjekke',
   'A document it refers to could not be read: open it to check': 'Et dokument den viser til kunne ikke leses: åpne den for å sjekke',
   'Its type could not be read: open it to check': 'Typen kunne ikke leses: åpne den for å sjekke',
+  'It changed while it was checked: open it to check': 'Den ble endret mens den ble sjekket: åpne den for å sjekke',
 
   // Dev sign-in
   'Dev sign-in — no password. Never enabled in a production build.': 'Utviklerinnlogging — uten passord. Aldri slått på i en produksjonsversjon.',

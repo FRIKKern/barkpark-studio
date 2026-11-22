@@ -11,9 +11,9 @@ import {useParseErrors} from '../lib/parse-errors'
 import {useQueries, useQuery, useQueryClient, type QueryClient} from '@tanstack/react-query'
 import {useInlineChanges, usePublishedPerspective} from '../lib/perspective'
 import {errorsOf, formOrder, worst, type Problem} from '../lib/validation'
-import {formCheck, refFieldsOf} from '../lib/publish-check'
+import {formCheck, refsToRead} from '../lib/publish-check'
 import {advisoryProblems} from '../lib/findings'
-import {docQuery, docTitle, isFixed, isSingleton, previewTitle, publishedQuery, refId, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
+import {docQuery, docTitle, isFixed, isSingleton, previewTitle, publishedQuery, refTypesOf, relatedQuery, schemaOf, schemasQuery, type DeskView, type Doc, type Field, type Schema} from '../lib/data'
 import {DocPreview} from './Preview'
 import {createDoc, discardDraft, discardPending, draftNew, edit, fieldTitle, flush, publish, reasonOf, recoverPending, restorePending, retrySave, setByAction, setKeepScope, undo, unpublish, useAdvisories, useSaveState, type Recovered} from '../lib/edits'
 import {fieldNames, keptText} from '../lib/kept-text'
@@ -176,11 +176,11 @@ export function DocumentPane({panes, index, split, closeHref, header, closeIcon}
   const group = reviewing ? '' : (chosenGroup ?? defaultGroup)
   // J13: the schema's rules, checked as you type (the draft only; published is what it is).
   const schemaForPane = schemaOf(schemas, pane.type)
-  // The docs this one's reference fields point at (cached already for their previews).
-  // A bare id or Sanity's {_ref} alike (an import, a weak reference).
-  const refFields = refFieldsOf(schemaForPane, doc)
-  const targets = useQueries({queries: refFields.map((f) => docQuery(refTypesOf(f), refId(doc![f.name])!))})
-  const byId = new Map(refFields.map((f, i) => [refId(doc![f.name])!, targets[i].data]))
+  // The docs this one's strong references point at, at any depth (cached already for their
+  // previews). A bare id or Sanity's {_ref} alike (an import).
+  const refs = useMemo(() => refsToRead(schemaForPane, doc), [schemaForPane, doc])
+  const targets = useQueries({queries: refs.map((r) => docQuery(refTypesOf(r.field), r.id))})
+  const byId = new Map(refs.map((r, i) => [r.id, targets[i].data]))
   // J18: a new doc nobody has typed in yet exists only here; Sanity checks nothing until the first edit.
   const pristine = isPristine(doc, useSaveState(pane.id).state)
   // D04: on a doc made here, fields stay quiet until someone types (its initial values or an
