@@ -103,17 +103,26 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // title in its parents; an item no member names is not judged (lib/array-members).
   if (Array.isArray(value)) checkItems(membersOf(field), false, value, path, [...parents], title, group, out, target, t, {...at, shut})
   // A rich-text field's blocks are items of its declared block types (blocks.of), walked the same
-  // way. Only the image minWidth warning is kept there (HSO's «Bilde» gallery, at the image); the
-  // other rules inside rich text stay Barkpark's findings (lib/findings).
+  // way. Only the image minWidth warning is kept there (HSO's «Bilde» gallery); the other rules
+  // inside rich text stay Barkpark's findings (lib/findings). It sits on the text field, as those
+  // do, its row naming the block and the image: no block opens from a path yet (task-69bfa4a2531a2e47).
   if (field.type === 'richText' && Array.isArray(value)) {
     const found: Problem[] = []
     checkItems(blockMembers(field), true, value, path, [...parents], title, group, found, target, t, {...at, shut})
-    out.push(...found.filter((p) => narrowWarnings.has(p)))
+    for (const p of found) if (narrowWarnings.has(p)) out.push(inText({...p, path}))
   }
 }
 
 /** Problems that are an image's minWidth warning: what a rich-text field keeps of its blocks' walk. */
 const narrowWarnings = new WeakSet<Problem>()
+/** Those, on their text field: about an image in a block, never the text field's own rules. */
+const textWarnings = new WeakSet<Problem>()
+const inText = (p: Problem) => (textWarnings.add(p), p)
+/** Whether a problem on a rich-text field is about an image in its blocks (lib/findings: no stand-in for the field's own). */
+export const aboutBlocks = (p: Problem) => textWarnings.has(p)
+
+/** The problems a field's mark shows (components/Fields ProblemMark): its own; `within`, a hidden child's too. */
+export const markedAt = (p: Problem, path: string, within?: boolean) => p.path === path || (!!within && p.path.startsWith(`${path}.`))
 
 /** A rich-text field's declared block types as members: an object block (its fields) or an image block. */
 function blockMembers(field: Field): Field[] {
@@ -147,7 +156,8 @@ function checkItems(members: Field[], typed: boolean, value: unknown[], path: st
         if (shape) out.push({path: item, title, message: shape, level: 'error', ...(parents.length ? {parents} : {}), group})
         // An image member narrower than the member's options.minWidth (a gallery's): a warning on the item.
         const narrow = narrowImage(of.type, of.options, it, at.widthOf, t)
-        if (narrow) out.push(narrowWarning({path: item, title, message: narrow, level: 'warning', ...(typed ? {parents: [...parents, title, ...own]} : parents.length ? {parents} : {}), group}))
+        // In rich text an image block is the image: the row names it under the text field.
+        if (narrow) out.push(narrowWarning({path: item, message: narrow, level: 'warning', ...(typed ? {title: own[0]!, parents: [...parents, title]} : {title, ...(parents.length ? {parents} : {})}), group}))
       }
     })
 }

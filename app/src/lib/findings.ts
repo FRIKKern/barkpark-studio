@@ -6,7 +6,7 @@
 // `custom` is the schema author's own text: shown as written.
 
 import type {Field, Schema} from './data'
-import type {Level, Problem} from './validation'
+import {aboutBlocks, type Level, type Problem} from './validation.ts'
 import {itemPath} from './refs.ts'
 
 /** `at`: the form's path for it, when the studio named it from the saved document (keyedAt). */
@@ -129,7 +129,8 @@ export const keyedAt = (findings: Finding[], saved: unknown): Finding[] =>
  * the studio already flags is left to it.
  */
 export function advisoryProblems(findings: Finding[], schema: Schema, known: Problem[], t: Translate): Problem[] {
-  const flagged = new Set(known.map((p) => p.path))
+  // A minWidth warning on a rich-text field is about an image in a block: the field's own findings still show.
+  const flagged = new Set(known.filter((p) => !aboutBlocks(p)).map((p) => p.path))
   return findings.flatMap((f) => {
     const path = f.at ?? formPath(f.path)
     if (flagged.has(path)) return []
