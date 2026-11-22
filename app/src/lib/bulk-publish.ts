@@ -4,8 +4,7 @@ import {advisoriesOf, flush, publish, reasonOf, unpublish, whenSaved} from './ed
 import {isWall, type Outcome} from './bulk.ts'
 import type {CustomRule} from './custom-rules.ts'
 import type {Person} from './conditions.ts'
-import {refId} from './refs.ts'
-import {heldReason, publishErrors, refFieldsOf, type Ask, type Conditions} from './publish-check.ts'
+import {heldReason, publishErrors, refsToRead, type Ask, type Conditions} from './publish-check.ts'
 import type {T} from './i18n'
 
 // B03's Publish selected and Unpublish selected (components/BulkBar.tsx), one document at a
@@ -42,10 +41,10 @@ async function publishHold(doc: Doc, who: Person, judge: Judge, t: T): Promise<s
   const schema = judge.schemaFor(doc._type)
   if (!schema) return t('Its type could not be read: open it to check')
   // The pane's reads for its reference check (a strong reference must point at a published document).
-  const refs = refFieldsOf(schema, doc)
-  const targets = await Promise.all(refs.map((f) => judge.readRef(f, refId(doc[f.name])!))).catch(() => undefined)
+  const refs = refsToRead(schema, doc)
+  const targets = await Promise.all(refs.map((r) => judge.readRef(r.field, r.id))).catch(() => undefined)
   if (!targets) return t('A document it refers to could not be read: open it to check')
-  const byId = new Map(refs.map((f, i) => [refId(doc[f.name])!, targets[i]]))
+  const byId = new Map(refs.map((r, i) => [r.id, targets[i]]))
   const [first] = await publishErrors(doc, schema, who, judge.conditions, {...judge, target: (id) => byId.get(id), rules: judge.rulesFor(doc._type), findings: advisoriesOf(doc._publishedId)})
   return first ? heldReason(first) : null
 }
