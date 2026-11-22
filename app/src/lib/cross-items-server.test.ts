@@ -53,8 +53,9 @@ test("after a save, Barkpark's item finding is the problem the studio already sh
   assert.equal(keyedAt([finding], saved)[0]!.at, 'meny[_key=="b"].side')
   const [moved] = advisoryProblems(keyedAt([finding], saved), schemaOf(c.rule), [], (s) => s)
   assert.equal(moved!.path, 'meny[_key=="b"].side')
-  // Other findings keep their own path.
-  assert.equal(keyedAt([{path: '/meny/1/tittel', message: 'Required', code: 'required'}], saved)[0]!.at, undefined)
+  // Every item finding is keyed the same way (task-be64491431695cfe: a page builder's, #1379); a one-step one keeps its path.
+  assert.equal(keyedAt([{path: '/meny/1/tittel', message: 'Required', code: 'required'}], saved)[0]!.at, 'meny[_key=="b"].tittel')
+  assert.equal(keyedAt([{path: '/tittel', message: 'Required', code: 'required'}], saved)[0]!.at, undefined)
   assert.equal(formPathIn('/meny/0/under/1/side', {meny: [{_key: 'a', under: [{}, {}]}]}), 'meny[_key=="a"].under[1].side')
   assert.equal(formPathIn('/seo/metaTitle', {}), 'seo.metaTitle')
 })
