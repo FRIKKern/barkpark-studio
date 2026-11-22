@@ -1121,8 +1121,9 @@ function ValidationPanel({problems, onPick, onClose}: {problems: Problem[]; onPi
         <p className="muted">{t('No validation errors')}</p>
       ) : (
         <ul className="problems">
-          {problems.map((p) => (
-            <li key={`${p.path} ${p.message}`}>
+          {/* One row each: two narrow images in one text field share its path and words. */}
+          {problems.map((p, i) => (
+            <li key={`${p.path} ${p.message} ${i}`}>
               <button type="button" className="problem" data-level={p.level} onClick={() => onPick(p)}>
                 <LevelIcon level={p.level} label="" />
                 <span>

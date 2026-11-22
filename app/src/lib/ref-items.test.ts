@@ -23,6 +23,8 @@ const schema = {
     {name: 'kort', title: 'Kort', type: 'arrayOf', of: {type: 'composite', title: 'Kort', fields: [{name: 'medlem', title: 'Medlem', type: 'reference', to}]}},
     {name: 'inni', title: 'Inni', type: 'composite', fields: [{name: 'refs', title: 'Medlemmer', type: 'arrayOf', of: ref}]},
     {name: 'tekster', title: 'Tekster', type: 'arrayOf', of: {type: 'string'}},
+    // Rich text (#1378): its blocks keep only an image's minWidth warning; references there are not judged.
+    {name: 'tekst', title: 'Tekst', type: 'richText', blocks: {of: [{name: 'personblokk', title: 'Personer', fields: [{name: 'personer', title: 'Personer', type: 'arrayOf', of: ref}, {name: 'person', title: 'Person', type: 'reference', to}]}]}},
   ],
 } as never
 
@@ -49,6 +51,7 @@ const cases: [string, Record<string, unknown>, object[], object[]][] = [
   ['object items holding a reference (#1381)', {kort: [{_key: 'a', medlem: {_ref: 'ny'}}]}, [err('kort[_key=="a"].medlem', 'Medlem', MUST, ['Kort'])], []],
   ['an array of references inside an object', {inni: {refs: [r('a', 'ny')]}}, [], [err('inni.refs[_key=="a"]', 'Medlemmer', MUST, ['Inni'])]],
   ['an array of strings', {tekster: ['x']}, [], []],
+  ['references in a rich-text block', {tekst: [{_key: 'p', _type: 'personblokk', personer: [r('a', 'ny')], person: {_ref: 'borte'}}]}, [], []],
 ]
 // The required array holds one published item unless a case leaves it empty.
 const draft = (fields: Record<string, unknown>) => ({_id: 'drafts.s', _publishedId: 's', _type: 'sak', _draft: true, paakrevd: [r('z', 'pub')], ...fields}) as never
@@ -63,6 +66,8 @@ test('a strong reference item must point at a published document: added on the i
 test('what is read is what is judged: each strong item\'s target once per draft, a weak member\'s never', () => {
   const reads = refsToRead(schema, draft({refs: [r('a', 'ny'), r('b', 'ny'), r('c', 'pub')], svake: [r('d', 'borte')], flere: [r('e', 'pub')], inni: {refs: [r('f', 'x')]}}))
   assert.deepEqual(reads.map((x) => x.id), ['ny', 'pub', 'x'])
+  // A rich-text block's references are not judged (#1378 keeps only image warnings there), so not read.
+  assert.deepEqual(refsToRead(schema, draft({tekst: [{_key: 'p', _type: 'personblokk', personer: [r('a', 'ny')], person: {_ref: 'borte'}}]})).map((x) => x.id), ['pub'], 'only the required array\'s own item')
   // Each read asks the member's own target types (several members: all of them).
   const flere = refsToRead(schema, draft({flere: [r('e', 'pub')]}))
   assert.deepEqual(flere.map((x) => x.field.to), [[{type: 'medlem'}, {type: 'sak'}]])

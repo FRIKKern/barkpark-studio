@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {test} from 'node:test'
-import {validate, errorsOf} from './validation.ts'
+import {validate, errorsOf, markedAt} from './validation.ts'
+import {heldReason} from './publish-check.ts'
+import {advisoryProblems} from './findings.ts'
 import type {WidthOf} from './image-min-width.ts'
 
 const HSO = 'Bildet er lite (under 1200 piksler bredt). Det kan bli uskarpt i toppen av siden.'
@@ -31,6 +33,14 @@ const schema = {
     {name: 'kort', title: 'Kort', type: 'arrayOf', of: {name: 'kortet', type: 'composite', fields: [{name: 'bilde', title: 'Bilde', type: 'image', options: opts}]}},
     {name: 'fil', title: 'Fil', type: 'file', options: {minWidth: 1200}},
     {name: 'fritt', title: 'Fritt', type: 'image'},
+    // HSO's body text (blokker.ts): a «Bilde» block holding a gallery, and one other rule in a block.
+    {name: 'innhold', title: 'Innhold', type: 'richText', blocks: {of: [
+      {name: 'bildeblokk', title: 'Bilde', fields: [{name: 'bilder', title: 'Bilder', type: 'arrayOf', of: {name: 'bildeMedAlt', type: 'image', options: opts}}, {name: 'stort', title: 'Stort bilde', type: 'image', options: {minWidth: 1200}}]},
+      {name: 'faktaboks', title: 'Faktaboks', fields: [{name: 'tittel', title: 'Tittel', type: 'string', validation: {required: true}}, {name: 'lenke', title: 'Lenke', type: 'url'}]},
+      // An image inside an object inside a block, and an image block of its own.
+      {name: 'kortblokk', title: 'Kort', fields: [{name: 'kort', title: 'Kortet', type: 'composite', fields: [{name: 'bilde', title: 'Kortbilde', type: 'image', options: {minWidth: 1200}}, {name: 'tekst', title: 'Tekst', type: 'string', validation: {required: true}}]}]},
+      {name: 'image', title: 'Bilde i teksten', type: 'image', options: {minWidth: 1200}},
+    ]}},
   ],
 } as never
 const doc = (fields: Record<string, unknown>) => ({_id: 's', _publishedId: 's', _type: 'side', _draft: true, _rev: 'r', _updatedAt: '', ...fields}) as never
@@ -45,6 +55,55 @@ test("an 800 px image under minWidth 1200 warns, in the field's words; 1200 give
   // An image field inside an array's object item: the warning on that item's field.
   const cards = [{_key: 'k1', bilde: img('image-wide')}, {_key: 'k2', bilde: img('image-small')}]
   assert.deepEqual(said({bilde: img('image-wide'), kort: cards}), [`warning kort[_key=="k2"].bilde: ${HSO}`])
+})
+
+// The lead's ruling on #1378 (option a): on the text field, the row naming the block and the image.
+const BLURRY = 'The image is under 1200 pixels wide. It may look blurry.'
+const quiet = {bilde: img('image-wide')}
+const gallery = {_type: 'bildeblokk', _key: 'b', bilder: [{_key: 'k1', ...img('image-wide')}, {_key: 'k2', ...img('image-small')}], stort: img('image-small')}
+const deep = [{_type: 'kortblokk', _key: 'c', kort: {bilde: img('image-small'), tekst: ''}}, {_key: 'i', ...img('image-small')}]
+const inText = (innhold: unknown[]) => validate(doc({...quiet, innhold}), schema, undefined, undefined, undefined, widthOf)
+
+test('an image in a rich-text block warns the same, at any depth in the block; no other rule looks inside the text', () => {
+  const text = {_type: 'block', _key: 't', children: [{_type: 'span', text: 'Hei'}]}
+  const found = inText([text, gallery, ...deep])
+  assert.deepEqual(found.map((p) => [p.level, p.path, p.parents, p.title, p.message]), [
+    ['warning', 'innhold', ['Innhold', 'Bilde'], 'Bilder', HSO],
+    ['warning', 'innhold', ['Innhold', 'Bilde'], 'Stort bilde', BLURRY],
+    ['warning', 'innhold', ['Innhold', 'Kort', 'Kortet'], 'Kortbilde', BLURRY],
+    ['warning', 'innhold', ['Innhold'], 'Bilde i teksten', BLURRY],
+  ])
+  assert.deepEqual(errorsOf(found), [], 'never blocks Publish')
+  assert.deepEqual(said({...quiet, innhold: [{...gallery, bilder: [], stort: img('image-wide')}]}), [])
+  // A required field and a URL in a block are Barkpark's findings, not this check's: nothing new here.
+  assert.deepEqual(said({...quiet, innhold: [{_type: 'faktaboks', _key: 'f', lenke: 'not a url'}]}), [])
+})
+
+test("pin 1: the text field's mark is on for an image in a block, in an object in a block, and an image block", () => {
+  for (const innhold of [[{...gallery, stort: undefined}], [deep[0]], [deep[1]]]) {
+    const found = inText(innhold)
+    assert.equal(found.length, 1, JSON.stringify(innhold))
+    assert.ok(markedAt(found[0]!, 'innhold'), `the mark on Innhold shows ${found[0]!.path}`)
+  }
+  assert.match(readFileSync(new URL('../components/Fields.tsx', import.meta.url), 'utf8'), /const all = useProblems\(\)\.filter\(\(p\) => markedAt\(p, path, within\)\)/, 'ProblemMark reads markedAt')
+})
+
+test('pin 2: each row names the block and the image field, and jumps to the text field', () => {
+  const rows = inText([gallery, ...deep])
+  assert.deepEqual(rows.map(heldReason), [`Innhold / Bilde / Bilder: ${HSO}`, `Innhold / Bilde / Stort bilde: ${BLURRY}`, `Innhold / Kort / Kortet / Kortbilde: ${BLURRY}`, `Innhold / Bilde i teksten: ${BLURRY}`])
+  // The panel's jump (DocumentPane goTo) is the problem's path: the text field, opened in place.
+  assert.deepEqual([...new Set(rows.map((p) => p.path))], ['innhold'])
+})
+
+test('pin 3: two narrow images in one text field are two rows, not one', () => {
+  const two = {...gallery, bilder: [{_key: 'k1', ...img('image-small')}, {_key: 'k2', ...img('image-small')}], stort: undefined}
+  assert.deepEqual(inText([two]).map(heldReason), [`Innhold / Bilde / Bilder: ${HSO}`, `Innhold / Bilde / Bilder: ${HSO}`])
+  // Same path and words: the panel keys its rows by place too, so React draws both.
+  assert.match(readFileSync(new URL('../components/DocumentPane.tsx', import.meta.url), 'utf8'), /problems\.map\(\(p, i\) => \(\n\s*<li key=\{`\$\{p\.path\} \$\{p\.message\} \$\{i\}`\}>/)
+  // The Barkpark findings on the text field itself still show beside them (one flagged path is not one problem).
+  const known = inText([two])
+  const extra = advisoryProblems([{path: '/innhold', code: 'list_too_long', message: '', params: {max: 1}}], schema, known, (en, v = {}) => en.replace(/\{(\w+)\}/g, (_, k) => String(v[k])))
+  assert.deepEqual(extra.map(heldReason), ['Innhold: Must have at most 1 items'])
 })
 
 test('a warning, never an error: a required field with minWidth reports each with its own words, and Publish is not blocked by the width', () => {

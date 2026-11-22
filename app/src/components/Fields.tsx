@@ -16,7 +16,7 @@ import {useCurrentUser} from '../lib/person-source'
 import {mapCaret} from '../lib/merge'
 import {textDiff} from '../lib/changes'
 import {FieldClashCard} from './FieldClash'
-import {worst, type Level, type Problem} from '../lib/validation'
+import {markedAt, worst, type Level, type Problem} from '../lib/validation'
 import {RefInput} from './RefInput'
 import {ChevronDown, ResetCircle, ClipboardIcon, Copy, Ellipsis, ErrorOutline, Collapse, Expand, InfoOutline, ToggleArrowRight, WarningOutline} from './icons'
 import {copy, isEmpty, read, signature, transfer} from '../lib/clipboard'
@@ -157,7 +157,7 @@ export function LevelIcon({level, label}: {level: Level; label?: string}) {
 /** The mark beside a field label; `within`: also what a collapsed object hides. */
 export function ProblemMark({path, within, id}: {path: string; within?: boolean; id?: string}) {
   const t = useT()
-  const all = useProblems().filter((p) => p.path === path || (within && p.path.startsWith(`${path}.`)))
+  const all = useProblems().filter((p) => markedAt(p, path, within))
   const level = worst(all)
   // Sanity's: under the pointer the mark lists every message, each with its level's icon, above it.
   const {anchor, tip} = useTip(() => (
