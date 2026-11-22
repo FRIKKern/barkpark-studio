@@ -189,4 +189,37 @@ test('past five rebases a 409/412 stops: no more sends, values kept, Retry offer
   assert.equal(calls.get('cap-412'), 6)
   assert.equal(E.saveStateOf('cap-412'), 'refused')
 })
+
+// task-1c4d6cf5812b2e19: a stopped save stays quiet on blur or pane close (a flush), and Retry and
+// typing on each start it again with five fresh rebases: still in conflict, it stops again at 12.
+test('a stopped save sends nothing on a flush; Retry and typing on each restart it with five fresh rebases', async () => {
+  const qc = new QueryClient()
+  const ids = ['quiet-blur', 'quiet-retry', 'quiet-typing']
+  const conflict = {status: 409, body: refusal('conflict', 'revision conflict')}
+  const until = async (ok: () => boolean) => {
+    for (let i = 0; i < 40 && !ok(); i++) await wait(50)
+  }
+  for (const id of ids) {
+    stored.set(id, now(id, {tittel: 'Om oss'}, 'r0'))
+    qc.setQueryData(['doc', id], stored.get(id))
+    answers.set(id, Array(12).fill(conflict))
+    E.edit(qc, stored.get(id) as never, 'tittel', 'Om oss nå')
+    E.flush(qc, id)
+  }
+  await until(() => ids.every((id) => E.saveStateOf(id) === 'refused'))
+  assert.deepEqual(ids.map((id) => calls.get(id)), [6, 6, 6])
+  // Three blurs: no write, and the footer never says Saving.
+  // (A send says Saving as it starts, in the flush's own call: read right after it.)
+  const said: string[] = []
+  for (let i = 0; i < 3; i++) (E.flush(qc, 'quiet-blur'), said.push(E.saveStateOf('quiet-blur')), await wait(100))
+  assert.equal(calls.get('quiet-blur'), 6)
+  assert.deepEqual([...said, E.saveStateOf('quiet-blur')], ['refused', 'refused', 'refused', 'refused'])
+  // Retry, and typing on: each gets five rebases anew (1 + 5 more calls), then stops again.
+  E.retrySave(qc, 'quiet-retry')
+  E.edit(qc, qc.getQueryData(['doc', 'quiet-typing']) as never, 'tittel', 'Om oss nå!')
+  E.flush(qc, 'quiet-typing')
+  await until(() => calls.get('quiet-retry') === 12 && calls.get('quiet-typing') === 12 && E.saveStateOf('quiet-retry') === 'refused' && E.saveStateOf('quiet-typing') === 'refused')
+  assert.deepEqual([calls.get('quiet-retry'), E.saveStateOf('quiet-retry'), calls.get('quiet-typing'), E.saveStateOf('quiet-typing')], [12, 'refused', 12, 'refused'])
+  assert.deepEqual(ids.map((id) => (stored.get(id) as {tittel?: string}).tittel), ['Om oss', 'Om oss', 'Om oss'])
+})
 })

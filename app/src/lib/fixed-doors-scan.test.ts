@@ -18,7 +18,7 @@ const flat = (text: string) => text.replace(/(^|[\s{(;,])\/\*[\s\S]*?\*\//gm, '$
 /** The writers that make a new document or delete one, by the module that defines them. */
 const WRITERS: Record<string, string[]> = {
   'lib/edits': ['createDoc', 'draftNew', 'deleteDoc'],
-  'lib/templates': ['startNew'],
+  'lib/templates': ['startNew', 'startFixed'],
   'lib/translations': ['createTranslation', 'deleteTranslated'],
   'lib/bulk-run': ['runBulkRow'],
 }
@@ -33,13 +33,15 @@ const DOORS: Record<string, string[]> = {
     "const copyable = !single && offers(fixed, 'duplicate', doc._publishedId)", // the doc menu's Duplicate
     "const deletable = !single && offers(fixed, 'delete', doc._publishedId)", // its Delete, Ctrl+Alt+D
     '|| isFixed(schemas, pane.type)) return', // a new document's link (template=)
+    'const fixedNew = isFixed(schemas, pane.type) && opensFixedNew(schemaOf(schemas, pane.type), pane.id, mayCreate)', // a listed fixed page with no document, for one who may create
+    'if (fixedNew && draftQ.data === null', // opens it empty (startFixed)
   ],
   'components/BulkBar.tsx': ['offers(schemaOf(schemas, d._type)?.fixedDocuments, action, d._publishedId)', "{offered('duplicate') &&", "{offered('delete') &&"], // bulk Duplicate / Delete
   'components/TranslationsMenu.tsx': ['const fixed = isFixed(schemas, doc._type)', 'if (fixed) return', '|| !!fixed}'], // Create new … translation
 }
 /** Importers of a writer that are no door: why only a door reaches them. */
 const PASS_ON: Record<string, string> = {
-  'lib/templates.ts': 'startNew: called by the + menus and the intent page, which ask first',
+  'lib/templates.ts': 'startNew: called by the + menus and the intent page, which ask first; startFixed by DocumentPane, which asks offers()',
   'lib/translations.ts': 'createTranslation, deleteTranslated: called by TranslationsMenu and DeleteDialog',
   'lib/bulk-run.ts': 'runBulkRow: called by BulkDialog',
   'components/BulkDialog.tsx': "opened only with an action BulkBar offered",
@@ -104,7 +106,7 @@ test('a new importer of a writer, or a file that decides on the list itself, is 
   assert.deepEqual(judge({...src, 'lib/menu.ts': "import {startNew} from './templates'"}), ['lib/menu.ts imports startNew and is no listed door'])
   // Any spelling of the import (review-56 on #1367): a namespace, a dynamic import, double quotes.
   assert.deepEqual(judge({...src, 'components/Quick.tsx': "import * as E from '../lib/edits'\nE.createDoc()"}), ['components/Quick.tsx imports createDoc, draftNew, deleteDoc and is no listed door'])
-  assert.deepEqual(judge({...src, 'components/Quick.tsx': "const {startNew} = await import('../lib/templates.ts')"}), ['components/Quick.tsx imports startNew and is no listed door'])
+  assert.deepEqual(judge({...src, 'components/Quick.tsx': "const {startNew} = await import('../lib/templates.ts')"}), ['components/Quick.tsx imports startNew, startFixed and is no listed door'])
   assert.deepEqual(judge({...src, 'components/Quick.tsx': 'import {deleteDoc} from "../lib/edits"'}), ['components/Quick.tsx imports deleteDoc and is no listed door'])
   assert.deepEqual(judge({...src, 'lib/x.ts': 'export const can = (s: {fixedDocuments?: string[]}) => !s.fixedDocuments'}), ['lib/x.ts reads fixedDocuments without offers()', 'lib/x.ts decides on fixedDocuments itself'])
   assert.deepEqual(judge({...src, 'lib/creatable.ts': src['lib/creatable.ts']!.replace("offers(fixedList(schema.fixedDocuments), 'create', '')", '!schema.fixedDocuments')}), ['lib/creatable.ts reads fixedDocuments without offers()', 'lib/creatable.ts decides on fixedDocuments itself'])

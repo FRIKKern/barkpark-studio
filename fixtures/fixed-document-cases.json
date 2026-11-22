@@ -20,7 +20,7 @@
     {"name": "empty list: delete a document from before the list", "fixed": [], "action": "delete", "id": "gammel", "exists": true, "server": "ok"},
     {"name": "listed: a new document", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "create", "id": "ny-side", "exists": false, "server": "refused"},
     {"name": "listed: a duplicate (a new random id)", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "duplicate", "id": "6f0c2b1e-0d1a-4c3e-9a57-3f1d2e4b5c6d", "exists": false, "server": "refused"},
-    {"name": "listed: create side-om-oss, which does not exist yet", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "create", "id": "side-om-oss", "exists": false, "server": "ok", "gap": "task-b3f4ccc4f9cfe129"},
+    {"name": "listed: create side-om-oss, which does not exist yet", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "create", "id": "side-om-oss", "exists": false, "server": "ok"},
     {"name": "listed: edit side-om-oss", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "edit", "id": "side-om-oss", "exists": true, "server": "ok"},
     {"name": "listed: edit a document from before the list", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "edit", "id": "gammel", "exists": true, "server": "ok"},
     {"name": "listed: delete side-om-oss", "fixed": ["side-om-oss","side-hva-vi-jobber-med"], "action": "delete", "id": "side-om-oss", "exists": true, "server": "refused"},
