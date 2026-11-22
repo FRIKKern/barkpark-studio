@@ -6,7 +6,7 @@ import {patternProblem, sanityRules} from './validation-rules.ts'
 import {crossProblems} from './cross-rules.ts'
 import {outsideList} from './list-options.ts'
 import {narrowImage, type WidthOf} from './image-min-width.ts'
-import {memberFor, memberName, membersOf} from './array-members.ts'
+import {isReferenceMembers, memberFor, memberName, membersOf, mergedReference} from './array-members.ts'
 import type {T} from './i18n'
 
 // The schema's validation rules, checked as you type, with Sanity's wording.
@@ -108,7 +108,8 @@ function check(field: Field, value: unknown, path: string, parents: string[], gr
   // do, its row naming the block and the image: no block opens from a path yet (task-69bfa4a2531a2e47).
   if (field.type === 'richText' && Array.isArray(value)) {
     const found: Problem[] = []
-    checkItems(blockMembers(field), true, value, path, [...parents], title, group, found, target, t, {...at, shut})
+    // No reference target is asked there: nothing in it is judged by one, so nothing is read for it (refsToRead).
+    checkItems(blockMembers(field), true, value, path, [...parents], title, group, found, undefined, t, {...at, shut})
     for (const p of found) if (narrowWarnings.has(p)) out.push(inText({...p, path}))
   }
 }
@@ -139,11 +140,23 @@ function blockMembers(field: Field): Field[] {
  */
 function checkItems(members: Field[], typed: boolean, value: unknown[], path: string, parents: string[], title: string, group: string | undefined, out: Problem[], target: RefTarget | undefined, t: T, at: Scope) {
   const shut = at.shut
+  // Several reference members (Sanity's `of: [{type: 'reference', to: a}, …]`) are one reference to all their types.
+  const refMember = !typed && isReferenceMembers(members) ? mergedReference(members) : undefined
   if (members.length)
     value.forEach((it, i) => {
       const type = it && typeof it === 'object' ? (it as {_type?: unknown})._type : undefined
-      const of = typed ? members.find((m) => memberName(m) === type || m.namedType === type) : memberFor(members, it)
-      if (!of || of.type === 'reference') return
+      const of = refMember ?? (typed ? members.find((m) => memberName(m) === type || m.namedType === type) : memberFor(members, it))
+      // Sanity: a strong reference item must point at a published doc, as a reference field
+      // must, in its words, on the item (task-e65341609dbe504b). A weak member's may point
+      // anywhere and is never asked; an empty row is the rule above's.
+      if (of?.type === 'reference') {
+        const ref = !of.weak ? refId(it) : undefined
+        const doc = ref && target ? target(ref, of) : undefined
+        if (doc === null || doc?._hasPublished === false)
+          out.push({path: itemPath(path, it, i), title, message: t('Referenced document must be published'), level: 'error', ...(parents.length ? {parents} : {}), group})
+        return
+      }
+      if (!of) return
       const item = itemPath(path, it, i)
       const own = typed || members.length > 1 ? [of.title ?? memberName(of)] : []
       if (of.type === 'composite' && it && typeof it === 'object') {
