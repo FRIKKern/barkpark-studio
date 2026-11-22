@@ -116,6 +116,7 @@ export default {
   Replace: 'Erstatt',
   Required: 'Obligatorisk',
   'Slug is already in use': 'Slug er allerede i bruk et annet sted, og må være unik',
+  'Slug could not be checked. Try again.': 'Slug kunne ikke sjekkes. Prøv igjen.',
   'Reset value': 'Tilbakestill verdi',
   'Review changes': 'Gjennomgå endringer',
   // Sanity's change bar says Se endringer (changes.change-bar.aria-label); the History tab Gjennomgå endringer.
